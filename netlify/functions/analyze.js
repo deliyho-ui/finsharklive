@@ -2,6 +2,7 @@ const yahooFinance = require('yahoo-finance2').default;
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 exports.handler = async function(event, context) {
+    // ... שאר הקוד ששלחתי לך קודם נשאר בדיוק אותו דבר ...
     const headers = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
@@ -15,7 +16,6 @@ exports.handler = async function(event, context) {
     const ticker = event.queryStringParameters.ticker?.toUpperCase();
 
     try {
-        // --- 1. נתוני שוק כלליים ---
         if (action === 'market') {
             const symbols = ['^GSPC', '^IXIC', '^DJI', '^VIX', 'BTC-USD'];
             const results = await Promise.all(symbols.map(s => yahooFinance.quote(s)));
@@ -30,21 +30,19 @@ exports.handler = async function(event, context) {
                             price: r.regularMarketPrice,
                             changesPercentage: r.regularMarketChangePercent
                         })),
-                        sectors: [], // יאהו לא נותן סקטורים גלובליים בקלות, נשאיר ריק כרגע
+                        sectors: [], 
                         news: [] 
                     }
                 })
             };
         }
 
-        // --- 2. ניתוח מניה עמוק ---
         if (!ticker) return { statusCode: 400, headers, body: 'Missing ticker' };
 
-        // משיכת נתונים מיאהו פיננס
         const [quote, summary, history] = await Promise.all([
             yahooFinance.quote(ticker),
             yahooFinance.quoteSummary(ticker, { modules: ["summaryDetail", "price", "defaultKeyStatistics"] }),
-            yahooFinance.historical(ticker, { period1: '2023-01-01' })
+            yahooFinance.historical(ticker, { period1: '2024-01-01' })
         ]);
 
         const stockData = {
@@ -64,11 +62,10 @@ exports.handler = async function(event, context) {
             debtToEquity: summary.summaryDetail?.debtToEquity || 0
         };
 
-        // ניתוח AI עם Gemini
         const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash", generationConfig: { responseMimeType: "application/json" } });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", generationConfig: { responseMimeType: "application/json" } });
         
-        const prompt = `נתח את המניה ${ticker}. מחיר: ${stockData.price}, מכפיל רווח: ${stockData.pe}. החזר JSON עם: identity, technical, news_analysis, verdict (pros, cons, summary), price_target, rating, scores (growth, value, momentum, quality, overall). הכל בעברית.`;
+        const prompt = `אתה אנליסט מניות. נתח את המניה ${ticker}. נתונים: מחיר ${stockData.price}, מכפיל רווח ${stockData.pe}. החזר JSON בעברית עם: identity, technical, news_analysis, verdict (pros, cons, summary), price_target, rating, scores (growth, value, momentum, quality, overall).`;
         
         const aiResponse = await model.generateContent(prompt);
         const analysisResult = JSON.parse(aiResponse.response.text());
