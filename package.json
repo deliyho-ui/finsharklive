@@ -2,8 +2,9 @@
   "name": "finshark",
   "version": "1.0.0",
   "description": "FinShark Yahoo Finance Backend",
+  "main": "index.js",
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
-    "yahoo-finance2": "^2.13.2"
+    "yahoo-finance2": "2.13.2"
   }
 }
