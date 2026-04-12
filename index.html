@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FinShark | כריש פיננסי - AI Market Analysis</title>
 <link rel="icon" href="data:,">
-<!-- החלפנו את Chart.js בספריית הגרפים של TradingView לנרות יפנים -->
-<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+<!-- החלפנו את Chart.js בספריית הגרפים של TradingView לנרות יפנים - גרסה מקובעת ליציבות -->
+<script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
 
@@ -472,7 +472,11 @@ const firebaseConfig = { apiKey: "AIzaSyBU77J3Nu8xh0_a1GLM9jcnWJmhZq8QHH4", auth
 const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
 const State = { currentUser: null, currentTab: 'market', watchlist: [] }; window.State = State; let authMode = 'login';
-const NETLIFY_API_URL = "/api/analyze"; 
+// טיפול בשגיאת "URL is not valid" בסביבות ללא דומיין אמיתי (כמו Canvas, Blob או File)
+let NETLIFY_API_URL = "/api/analyze";
+if (['blob:', 'file:', 'data:'].includes(window.location.protocol)) {
+    NETLIFY_API_URL = "http://localhost:8888/api/analyze"; // כתובת ברירת מחדל לפיתוח מקומי ב-Netlify
+}
 
 window.addEventListener('DOMContentLoaded', () => { loadMarketWeather(); });
 
@@ -559,7 +563,10 @@ window.loadMarketWeather = async function() {
         if (data.success && data.marketData) renderMarketWeather(data.marketData);
         else { debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 שגיאת שרת לוגית:</strong>\n\n${data.message || JSON.stringify(data)}`; }
     } catch (e) {
-        console.error(e); debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 כישלון רשת טוטאלי. האם השרת פועל?</strong>\n\n${e.message}`; document.getElementById('ticker-track').innerHTML = "שגיאת רשת.";
+        console.error(e); 
+        debugEl.style.display = 'block'; 
+        debugEl.innerHTML = `<strong>🚨 כישלון רשת. האם השרת פועל?</strong><br><br>${e.message}<br><br><em>טיפ: אם אתה בסביבת תצוגה מקדימה, הדפדפן מנסה לפנות לכתובת: ${NETLIFY_API_URL}. ודא ששרת ה-Backend רץ.</em>`; 
+        document.getElementById('ticker-track').innerHTML = "שגיאת רשת.";
     }
 };
 
@@ -625,7 +632,13 @@ window.analyzeStock = async function() {
     window.currentChartData = data.chartHistory;
     
     hideLoading(); renderResults(data, data.aiVerdict, data.chartHistory, data.news);
-  } catch (error) { console.error("Analysis Error:", error); hideLoading(); alert(`🚨 תקלת רשת מוחלטת 🚨\n\n${error.message}`); }
+  } catch (error) { 
+    console.error("Analysis Error:", error); 
+    hideLoading(); 
+    document.getElementById('results').style.display = 'block';
+    debugEl.style.display = 'block'; 
+    debugEl.innerHTML = `<strong>🚨 תקלת רשת מוחלטת בעת פנייה לשרת 🚨</strong><br><br>השגיאה: ${error.message}<br><br><em>טיפ: ודא ששרת ה-Backend פועל בכתובת <code>${NETLIFY_API_URL}</code>.</em>`;
+  }
 };
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
