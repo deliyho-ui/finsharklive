@@ -18,80 +18,93 @@ module.exports = async function(req, res) {
         const action = req.query.action;
         const apiKey = process.env.GEMINI_API_KEY;
 
-        // --- 1. דף הבית: מדדי שוק ---
+        // --- 1. דף הבית: מדדי שוק, VIX וחדשות ---
         if (action === 'market' || (!ticker && action !== 'analyze')) {
-            const marketSymbols = ['SPY', 'QQQ', 'DIA', 'IWM']; 
-            const quotes = await Promise.all(marketSymbols.map(s => fetchFinnhub('quote', `symbol=${s}`)));
-            
-            const indexes = marketSymbols.map((s, i) => ({
-                symbol: s === 'SPY' ? 'S&P 500' : s === 'QQQ' ? 'NASDAQ' : s,
-                price: Number(quotes[i]?.c || 0), 
-                // אנחנו שולחים את זה גם כמספר וגם כטקסט מוסתר כדי למנוע קריסה
-                changesPercentage: Number(quotes[i]?.dp || 0) 
-            }));
+            // משיכת מדדים, חדשות ו-VIX במקביל
+            const [spy, qqq, dia, iwm, vix, news, xlk, xlf, xle] = await Promise.all([
+                fetchFinnhub('quote', 'symbol=SPY'),
+                fetchFinnhub('quote', 'symbol=QQQ'),
+                fetchFinnhub('quote', 'symbol=DIA'),
+                fetchFinnhub('quote', 'symbol=IWM'),
+                fetchFinnhub('quote', 'symbol=VIX'), // מדד הפחד
+                fetchFinnhub('news', 'category=general'), // חדשות שוק
+                fetchFinnhub('quote', 'symbol=XLK'), // סקטור טכנולוגיה
+                fetchFinnhub('quote', 'symbol=XLF'), // סקטור פיננסים
+                fetchFinnhub('quote', 'symbol=XLE')  // סקטור אנרגיה
+            ]);
+
+            // חישוב מדד הפחד והחמדנות על בסיס ה-VIX (נוסחה מקורבת)
+            const vixValue = vix?.c || 20;
+            const fearGreedScore = Math.max(5, Math.min(95, 100 - (vixValue * 2.5)));
+            const sentiment = fearGreedScore > 60 ? "חמדנות" : fearGreedScore < 40 ? "פחד" : "נייטרלי";
+
+            const indexes = [
+                { symbol: 'S&P 500', price: spy?.c || 0, changesPercentage: spy?.dp || 0 },
+                { symbol: 'NASDAQ', price: qqq?.c || 0, changesPercentage: qqq?.dp || 0 },
+                { symbol: 'DOW 30', price: dia?.c || 0, changesPercentage: dia?.dp || 0 },
+                { symbol: 'RUSSELL 2000', price: iwm?.c || 0, changesPercentage: iwm?.dp || 0 }
+            ];
 
             return res.status(200).json({
                 success: true,
                 marketData: {
                     indexes: indexes,
-                    sectors: [],
-                    news: []
+                    vix: { value: fearGreedScore.toFixed(0), sentiment: sentiment },
+                    sectors: [
+                        { sector: "טכנולוגיה", changesPercentage: xlk?.dp || 0 },
+                        { sector: "פיננסים", changesPercentage: xlf?.dp || 0 },
+                        { sector: "אנרגיה", changesPercentage: xle?.dp || 0 }
+                    ],
+                    // לוקחים את 5 הידיעות האחרונות
+                    news: (news || []).slice(0, 5).map(item => ({
+                        title: item.headline,
+                        url: item.url,
+                        source: item.source,
+                        time: new Date(item.datetime * 1000).toLocaleTimeString('he-IL')
+                    }))
                 }
             });
         }
 
-        // --- 2. דף ניתוח: מניה ספציפית ---
+        // --- 2. דף ניתוח: מניה ספציפית (נשאר יציב כמו קודם) ---
         const [quote, profile, candles] = await Promise.all([
             fetchFinnhub('quote', `symbol=${ticker}`),
             fetchFinnhub('stock/profile2', `symbol=${ticker}`),
-            fetchFinnhub('stock/candle', `symbol=${ticker}&resolution=D&from=${Math.floor(Date.now()/1000)-2592000}&to=${Math.floor(Date.now()/1000)}`)
+            fetchFinnhub('stock/candle', `symbol=${ticker}&resolution=D&from=${Math.floor(Date.now()/1000)-31536000}&to=${Math.floor(Date.now()/1000)}`)
         ]);
 
-        if (!quote || !quote.c) throw new Error("נתוני מניה לא נמצאו");
+        const prompt = `נתח את ${ticker}. מחיר: ${quote?.c}$. החזר JSON בעברית עם המפתחות: identity, technical, news_analysis, summary, verdict, pros (array), cons (array), price_target, rating. בתוך scores החזר אובייקט עם המפתחות: financial_health, growth_potential, competitive_moat, valuation, innovation_potential (ערכים 1-100).`;
 
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-        const prompt = `נתח את ${ticker}. מחיר: ${quote.c}$. החזר אך ורק JSON תקני בעברית עם המפתחות: identity, technical, news_analysis, summary, pros (array), cons (array), price_target, rating, scores (object with numbers 1-5). ללא טקסט נוסף לפני או אחרי.`;
-
-        const aiResponse = await fetch(geminiUrl, {
+        const aiResponse = await fetch(geminiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
         });
 
         const aiData = await aiResponse.json();
-        let aiVerdict = { summary: "לא ניתן לנתח כרגע", pros: [], cons: [] };
-        
+        let aiVerdict = {};
         try {
-            let rawText = aiData.candidates[0].content.parts[0].text;
-            // ניקוי JSON אגרסיבי במיוחד
-            const jsonStart = rawText.indexOf('{');
-            const jsonEnd = rawText.lastIndexOf('}') + 1;
-            if (jsonStart !== -1 && jsonEnd !== -1) {
-                rawText = rawText.substring(jsonStart, jsonEnd);
-            }
-            aiVerdict = JSON.parse(rawText);
-        } catch (e) {
-            console.error("AI Parse Error:", e);
-        }
+            let text = aiData.candidates[0].content.parts[0].text.replace(/```json|```/g, "").trim();
+            aiVerdict = JSON.parse(text);
+        } catch (e) { aiVerdict = { summary: "ניתוח AI לא זמין" }; }
+
+        const chartPoints = (candles?.c || []).map((p, i) => ({
+            date: new Date(candles.t[i] * 1000).toISOString().split('T')[0],
+            value: Number(p),
+            close: Number(p)
+        }));
 
         return res.status(200).json({
             success: true,
-            ticker: ticker,
-            name: String(profile?.name || ticker),
-            price: Number(quote.c || 0),
-            changePercentage: Number(quote.dp || 0),
-            marketData: {
-                ticker: ticker,
-                name: String(profile?.name || ticker),
-                price: Number(quote.c || 0),
-                changePercentage: Number(quote.dp || 0)
-            },
+            ticker,
+            name: profile?.name || ticker,
+            industry: profile?.finnhubIndustry || "N/A",
+            price: quote?.c || 0,
+            changePercentage: quote?.dp || 0,
             verdict: aiVerdict,
             aiVerdict: aiVerdict,
-            chartHistory: (candles?.c || []).map((p, i) => ({
-                date: new Date(candles.t[i] * 1000).toISOString().split('T')[0],
-                close: Number(p)
-            }))
+            chartData: chartPoints,
+            chartHistory: chartPoints
         });
 
     } catch (error) {
