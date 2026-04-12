@@ -1,11 +1,11 @@
-   <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FinShark | כריש פיננסי - AI Market Analysis</title>
 <link rel="icon" href="data:,">
-<!-- החלפנו את Chart.js בספריית הגרפים של TradingView לנרות יפנים - גרסה מקובעת ליציבות -->
+<!-- ספריית הגרפים של TradingView לנרות יפנים - גרסה מקובעת ליציבות -->
 <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
@@ -186,7 +186,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .chart-btn.active { background: var(--blue-dim); border-color: rgba(10,132,255,0.3); color: var(--blue); }
 .chart-btn:hover:not(.active) { color: var(--text); }
 .chart-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 16px; }
-/* שינוי אלמנט הגרף כך שיתאים ל-TradingView */
 .chart-container { height: 350px; position: relative; width: 100%; direction: ltr; }
 .card-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); margin-bottom: 20px; }
 .data-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
@@ -252,17 +251,14 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 
 /* --- התאמה רספונסיבית למובייל וטאבלטים (MOBILE RESPONSIVENESS) --- */
 @media (max-width: 768px) {
-  /* תפריט ניווט */
   nav { padding: 12px 16px; flex-wrap: wrap; height: auto; min-height: 68px; gap: 12px; justify-content: space-between; }
   .logo { flex: 1; font-size: 1.2rem; }
   .nav-actions { display: flex; justify-content: flex-end; }
-  /* הטאבים עוברים לשורה חדשה וניתנים לגלילה הצידה עם האצבע */
   .nav-center { width: 100%; order: 3; justify-content: flex-start; overflow-x: auto; padding-bottom: 5px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   .nav-center::-webkit-scrollbar { display: none; }
   .nav-tab { padding: 8px 14px; white-space: nowrap; font-size: 0.85rem; }
   .user-greeting { display: none !important; }
   
-  /* גרידים וריווחים ראשיים */
   main { padding-top: 130px; padding-left: 14px; padding-right: 14px; }
   .card { padding: 18px; }
   .section-title { font-size: 1.4rem; }
@@ -270,23 +266,19 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   .news-grid { grid-template-columns: 1fr; }
   .verdict-columns { grid-template-columns: 1fr; }
   
-  /* מסך שוק */
   .market-stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .heatmap-grid { grid-template-columns: repeat(2, 1fr); }
   
-  /* חיפוש וסימולים */
   .search-box { flex-direction: column; gap: 10px; }
   .search-input { padding: 16px 20px; font-size: 1rem; border-radius: 14px; }
   .search-btn { padding: 16px; border-radius: 14px; width: 100%; font-size: 1rem; }
   .quick-symbols { gap: 6px; }
   
-  /* כותרת תוצאות מניה */
   .stock-header { padding: 20px; flex-direction: column; align-items: flex-start; gap: 12px; }
   .stock-full-name { font-size: 1.6rem; }
   .stock-price { font-size: 2.2rem; }
   .stock-price-group { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
   
-  /* תוכן תוצאות */
   .chart-container { height: 280px; }
   .ma-display { flex-direction: column; gap: 8px; }
   .overall-score-container { flex-direction: column; text-align: center; gap: 16px; }
@@ -304,12 +296,10 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   .data-value { font-size: 0.85rem; }
   .range-bar-wrap { width: 100px; }
   
-  /* מודל ההתחברות */
   .modal { padding: 32px 20px; width: 92%; }
 }
 
 @media (max-width: 480px) {
-  /* במסכים סופר קטנים */
   .market-stats { grid-template-columns: repeat(2, 1fr); }
   .heatmap-grid { grid-template-columns: repeat(2, 1fr); }
   .chart-container { height: 250px; }
@@ -519,10 +509,10 @@ const firebaseConfig = { apiKey: "AIzaSyBU77J3Nu8xh0_a1GLM9jcnWJmhZq8QHH4", auth
 const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
 const State = { currentUser: null, currentTab: 'market', watchlist: [] }; window.State = State; let authMode = 'login';
-// טיפול בשגיאת "URL is not valid" בסביבות ללא דומיין אמיתי (כמו Canvas, Blob או File)
+// טיפול בשגיאת "URL is not valid" בסביבות ללא דומיין אמיתי (כמו פיתוח מקומי בNetlify)
 let NETLIFY_API_URL = "/api/analyze";
 if (['blob:', 'file:', 'data:'].includes(window.location.protocol)) {
-    NETLIFY_API_URL = "http://localhost:8888/api/analyze"; // כתובת ברירת מחדל לפיתוח מקומי ב-Netlify
+    NETLIFY_API_URL = "http://localhost:8888/api/analyze"; 
 }
 
 window.addEventListener('DOMContentLoaded', () => { loadMarketWeather(); });
@@ -623,7 +613,7 @@ function renderMarketWeather(data) {
     let { indexes, sectors, news } = data;
     if (!Array.isArray(indexes)) indexes = []; if (!Array.isArray(sectors)) sectors = []; if (!Array.isArray(news)) news = [];
     
-    let tickerHtml = "", statsHtml = "", vixValue = 20;
+    let tickerHtml = "", statsHtml = "";
 
     if (indexes.length === 0) tickerHtml = "<div class='ticker-item' style='color:var(--red)'>המתן... לא הצלחנו למשוך נתונים.</div>";
     else {
@@ -656,7 +646,6 @@ window.analyzeStock = async function() {
     let data; try { data = JSON.parse(rawText); } catch(e) { hideLoading(); document.getElementById('results').style.display = 'block'; debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 השרת לא מחזיר JSON! הנה מה שחזר:</strong>\n\n${rawText}`; return; }
     if (!response.ok || !data.success) { hideLoading(); document.getElementById('results').style.display = 'block'; debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 שגיאה מפורשת מהשרת:</strong>\n\n${data.message || JSON.stringify(data)}`; return; }
     
-    // בגלל השינוי ב-Backend נשתמש במבנה השטוח (data) עבור רוב הנתונים
     State.currentData = data; 
     State.aiAnalysis = data.aiVerdict; 
     window.currentChartData = data.chartHistory;
@@ -777,19 +766,31 @@ function renderResults(data, analysis, historyData, newsData) {
   renderChart(historyData, 24); 
   document.querySelectorAll('.chart-btn').forEach((b,i) => b.classList.toggle('active', i===2));
 
-  // שימוש בנתונים הפונדמנטלים מהשרת המעודכן
+  // שימוש בנתונים הפונדמנטלים העמוקים החדשים מהשרת
   const peNum = Number(data.peRatio) || 0, epsNum = Number(data.eps) || 0;
   const rangeLow = Number(data.fiftyTwoWeekLow) || 0, rangeHigh = Number(data.fiftyTwoWeekHigh) || 100;
   const currentPos = Math.max(0, Math.min(100, ((data.price - rangeLow) / (rangeHigh - rangeLow)) * 100));
   
+  // טבלת נתוני העומק המלאה!
   const fundRows = [ 
       { label: 'שווי שוק', val: formatNumberShort(data.marketCap), tag: 'M.CAP', isTag: false }, 
       { label: 'טווח 52 שבועות', val: `<span style="font-size:0.75rem; color:var(--text-secondary); margin-right:8px">$${rangeLow.toFixed(2)}</span> <div class="range-bar-wrap"><div class="range-indicator" style="left:${currentPos}%"></div></div> <span style="font-size:0.75rem; color:var(--text-secondary); margin-left:8px">$${rangeHigh.toFixed(2)}</span>`, isHtml: true }, 
       { label: 'מחיר / רווח (P/E)', val: `${peNum.toFixed(1)}x`, good: peNum > 0 && peNum < 30, bad: peNum > 45, goodLabel: 'זול', badLabel: 'יקר', neutralLabel: 'סביר' }, 
+      { label: 'מכפיל מכירות (P/S)', val: `${(data.psRatio||0).toFixed(2)}x`, good: data.psRatio > 0 && data.psRatio < 3, bad: data.psRatio > 10, goodLabel: 'זול', badLabel: 'בועה', neutralLabel: 'ממוצע' },
       { label: 'מכפיל הון (P/B)', val: `${(data.pbRatio||0).toFixed(2)}x`, good: data.pbRatio > 0 && data.pbRatio < 3, bad: data.pbRatio > 5, goodLabel: 'תמחור נוח', badLabel: 'יקר', neutralLabel: 'ממוצע' }, 
       { label: 'רווח למניה (EPS)', val: `$${epsNum.toFixed(2)}`, good: epsNum > 2, bad: epsNum < 0, goodLabel: 'גבוה', badLabel: 'הפסד', neutralLabel: 'סביר' }, 
+      { label: 'צמיחת רווח (5Y)', val: `${(data.epsGrowth5Y||0).toFixed(1)}%`, good: data.epsGrowth5Y > 15, bad: data.epsGrowth5Y < 0, goodLabel: 'מזנקת', badLabel: 'שלילית', neutralLabel: 'יציבה' },
+      { label: 'צמיחת הכנסות (YoY)', val: `${(data.revenueGrowth||0).toFixed(1)}%`, good: data.revenueGrowth > 10, bad: data.revenueGrowth < 0, goodLabel: 'צומחת', badLabel: 'מתכווצת', neutralLabel: 'יציבה' },
+      { label: 'רווח גולמי', val: `${(data.grossMargin||0).toFixed(1)}%`, good: data.grossMargin > 40, bad: data.grossMargin < 20, goodLabel: 'גבוה', badLabel: 'נמוך', neutralLabel: 'סביר' },
+      { label: 'רווח תפעולי', val: `${(data.operatingMargin||0).toFixed(1)}%`, good: data.operatingMargin > 15, bad: data.operatingMargin < 5, goodLabel: 'יעיל', badLabel: 'חלש', neutralLabel: 'סביר' },
+      { label: 'שולי רווח נקי', val: `${(data.netMargin||0).toFixed(1)}%`, good: data.netMargin > 15, bad: data.netMargin < 5, goodLabel: 'רווחיות יתר', badLabel: 'נמוך', neutralLabel: 'סביר' },
       { label: 'תשואה להון (ROE)', val: `${(data.roe||0).toFixed(1)}%`, good: data.roe > 15, bad: data.roe < 5, goodLabel: 'רווחיות שיא', badLabel: 'חלש', neutralLabel: 'רגיל' }, 
+      { label: 'תשואה לנכסים (ROA)', val: `${(data.roa||0).toFixed(1)}%`, good: data.roa > 10, bad: data.roa < 3, goodLabel: 'יעילה', badLabel: 'חלש', neutralLabel: 'סביר' }, 
+      { label: 'החזר השקעה (ROIC)', val: `${(data.roic||0).toFixed(1)}%`, good: data.roic > 10, bad: data.roic < 4, goodLabel: 'חכמה', badLabel: 'בזבזנית', neutralLabel: 'ממוצע' },
+      { label: 'יחס נזילות (Current)', val: `${(data.currentRatio||0).toFixed(2)}`, good: data.currentRatio >= 1.5, bad: data.currentRatio < 1, goodLabel: 'בטוח', badLabel: 'מסוכן', neutralLabel: 'סביר' },
+      { label: 'יחס מהיר (Quick)', val: `${(data.quickRatio||0).toFixed(2)}`, good: data.quickRatio >= 1, bad: data.quickRatio < 0.8, goodLabel: 'נזילה', badLabel: 'לחוצה', neutralLabel: 'סביר' },
       { label: 'חוב להון', val: `${(data.debtToEquity||0).toFixed(2)}`, good: data.debtToEquity < 1, bad: data.debtToEquity > 2.5, goodLabel: 'יציב', badLabel: 'מסוכן', neutralLabel: 'סביר' }, 
+      { label: 'תנודתיות (Beta)', val: `${(data.beta||0).toFixed(2)}`, good: data.beta > 0 && data.beta < 1.2, bad: data.beta > 2, goodLabel: 'יציב', badLabel: 'תנודתי', neutralLabel: 'שוק' },
       { label: 'תשואת דיבידנד', val: `${(data.dividendYield || 0).toFixed(2)}%`, good: data.dividendYield > 2, bad: false, goodLabel: 'מניב', badLabel: '', neutralLabel: 'רגיל' } 
   ];
   
@@ -810,13 +811,13 @@ function renderResults(data, analysis, historyData, newsData) {
   document.getElementById('verdict-rating-pill').innerHTML = `<div class="verdict-rating ${rm.cls}">${rm.label}</div>`;
 
   const upside = analysis.price_target ? (((analysis.price_target / data.price) - 1) * 100).toFixed(1) : 0;
-  document.getElementById('verdict-content').innerHTML = `<div style="margin-bottom:22px"><div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--blue); margin-bottom:8px;">פרופיל חברה וזהות תחרותית</div><div style="font-size:0.95rem;line-height:1.6;color:var(--text); font-weight:500; margin-bottom:10px;">${analysis.identity || "מידע חסר"}</div><div style="font-size:0.8rem;line-height:1.6;color:var(--text-secondary);">${data.description ? data.description.substring(0, 200) + '...' : ''}</div></div><div class="verdict-columns"><div class="verdict-col"><div class="verdict-col-title pros">✅ נקודות חוזק</div><div class="verdict-col-content">${(analysis.verdict?.pros || analysis.pros || []).join('\n')}</div></div><div class="verdict-col"><div class="verdict-col-title cons">⚠️ גורמי סיכון</div><div class="verdict-col-content">${(analysis.verdict?.cons || analysis.cons || []).join('\n')}</div></div></div><div class="verdict-summary-box"><div class="verdict-summary-label">🎯 שורה תחתונה</div><div class="verdict-summary-text">${analysis.verdict?.summary || analysis.summary || "ה-AI לא הצליח לגבש פסיקה."}</div></div><div class="price-target-row"><div><div class="pt-label">יעד מחיר – 12 חודשים קדימה</div><div style="font-size:0.72rem;color:var(--text-tertiary);margin-top:3px">תחזית FinShark AI</div></div><div style="text-align:left"><div class="pt-value">$${analysis.price_target || "N/A"}</div><div class="pt-upside" style="color:${parseFloat(upside) >= 0?'var(--green)':'var(--red)'}">${parseFloat(upside) >= 0?'+':''}${upside}% פוטנציאל</div></div></div>`;
+  document.getElementById('verdict-content').innerHTML = `<div style="margin-bottom:22px"><div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--blue); margin-bottom:8px;">פרופיל חברה וזהות תחרותית</div><div style="font-size:0.95rem;line-height:1.6;color:var(--text); font-weight:500; margin-bottom:10px;">${analysis.identity || "מידע חסר"}</div><div style="font-size:0.8rem;line-height:1.6;color:var(--text-secondary);">${data.description ? data.description.substring(0, 200) + '...' : ''}</div></div><div class="verdict-columns"><div class="verdict-col"><div class="verdict-col-title pros">✅ נקודות חוזק</div><div class="verdict-col-content">${(analysis.verdict?.pros || analysis.pros || []).join('\n')}</div></div><div class="verdict-col"><div class="verdict-col-title cons">⚠️ גורמי סיכון</div><div class="verdict-col-content">${(analysis.verdict?.cons || analysis.cons || []).join('\n')}</div></div></div><div class="verdict-summary-box"><div class="verdict-summary-label">🎯 שורה תחתונה</div><div class="verdict-summary-text">${analysis.verdict?.summary || analysis.summary || "ה-AI לא הצליח לגבש פסיקה."}</div></div><div class="price-target-row"><div><div class="pt-label">יעד מחיר – 12 חודשים קדימה</div><div style="font-size:0.72rem;color:var(--text-tertiary);margin-top:3px">תחזית FinShark AI</div></div><div style="text-align:left"><div class="pt-value">$${analysis.price_target || "N/A"}</div><div class=\"pt-upside\" style=\"color:${parseFloat(upside) >= 0?'var(--green)':'var(--red)'}\">${parseFloat(upside) >= 0?'+':''}${upside}% פוטנציאל</div></div></div>`;
 
-  // חדשות החברה (מותאם ל-Finnhub)
+  // חדשות החברה (מותאם ל-Finnhub ולנתונים החדשים)
   if (newsData && newsData.length > 0) { 
       document.getElementById('stock-news-grid').innerHTML = newsData.map(n => { 
-          const date = new Date(n.publishedAt || n.date || n.datetime * 1000).toLocaleDateString('he-IL', {day:'numeric', month:'short'}); 
-          return `<div class="news-card" onclick="window.open('${n.url}', '_blank')"><div class="news-source">${n.source} • ${date}</div><div class="news-headline" dir="ltr" style="text-align:left;">${n.headline || n.title}</div></div>`; 
+          const date = new Date(n.publishedAt || n.date || n.datetime * 1000 || n.publishedDate).toLocaleDateString('he-IL', {day:'numeric', month:'short'}); 
+          return `<div class="news-card" onclick="window.open('${n.url}', '_blank')"><div class="news-source">${n.source || n.site || 'חדשות שוק'} • ${date}</div><div class="news-headline" dir="ltr" style="text-align:left;">${n.headline || n.title}</div></div>`; 
       }).join(''); 
   } else { 
       document.getElementById('stock-news-grid').innerHTML = `<p style="color:var(--text-secondary); grid-column:1/-1;">לא נמצאו חדשות עדכניות למניה זו.</p>`; 
