@@ -79,7 +79,7 @@ module.exports = async function(req, res) {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         // השם הכי יציב ב-2026 למפתחים
         const model = genAI.getGenerativeModel({ 
-            model: "gemini-1.5-flash",
+            model: "gemini-2.0-flash",
             generationConfig: { responseMimeType: "application/json" }
         });
         
