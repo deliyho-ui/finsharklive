@@ -18,22 +18,20 @@ module.exports = async function(req, res) {
         const action = req.query.action;
         const apiKey = process.env.GEMINI_API_KEY;
 
-        // --- 1. דף הבית: מדדי שוק, VIX וחדשות ---
+        // --- 1. דף הבית: מדדי שוק ---
         if (action === 'market' || (!ticker && action !== 'analyze')) {
-            const [spy, qqq, dia, iwm, vix, news, xlk, xlf, xle] = await Promise.all([
+            const [spy, qqq, dia, iwm, news] = await Promise.all([
                 fetchFinnhub('quote', 'symbol=SPY'),
                 fetchFinnhub('quote', 'symbol=QQQ'),
                 fetchFinnhub('quote', 'symbol=DIA'),
                 fetchFinnhub('quote', 'symbol=IWM'),
-                fetchFinnhub('quote', 'symbol=VIX'), 
-                fetchFinnhub('news', 'category=general'),
-                fetchFinnhub('quote', 'symbol=XLK'), 
-                fetchFinnhub('quote', 'symbol=XLF'), 
-                fetchFinnhub('quote', 'symbol=XLE')  
+                fetchFinnhub('news', 'category=general')
             ]);
 
-            const vixValue = vix?.c || 20;
-            const fearGreedScore = Math.max(5, Math.min(95, 100 - (vixValue * 2.5)));
+            // חישוב מדד פחד/חמדנות דינמי על בסיס ה-S&P 500 (תחליף למגבלת חינם של VIX)
+            const spyChange = spy?.dp || 0;
+            let fearGreedScore = 50 + (spyChange * 15); 
+            fearGreedScore = Math.max(10, Math.min(90, fearGreedScore)); 
             const sentiment = fearGreedScore > 60 ? "חמדנות" : fearGreedScore < 40 ? "פחד" : "נייטרלי";
 
             const indexes = [
@@ -48,11 +46,11 @@ module.exports = async function(req, res) {
                 marketData: {
                     indexes: indexes,
                     vix: { value: fearGreedScore.toFixed(0), sentiment: sentiment },
+                    // שימוש ב-QQQ ו-DIA כפרוקסי לסקטורים כדי להבטיח נתונים בחינם כטקסט
                     sectors: [
-                        // התיקון: הפכנו את הסקטורים ל-String במקום Number כדי שה-replace יעבוד
-                        { sector: "טכנולוגיה", changesPercentage: String(xlk?.dp || "0") },
-                        { sector: "פיננסים", changesPercentage: String(xlf?.dp || "0") },
-                        { sector: "אנרגיה", changesPercentage: String(xle?.dp || "0") }
+                        { sector: "טכנולוגיה", changesPercentage: String(qqq?.dp || "0") },
+                        { sector: "תעשייה", changesPercentage: String(dia?.dp || "0") },
+                        { sector: "כללי", changesPercentage: String(spy?.dp || "0") }
                     ],
                     news: (news || []).slice(0, 5).map(item => ({
                         title: item.headline,
@@ -68,10 +66,30 @@ module.exports = async function(req, res) {
         const [quote, profile, candles] = await Promise.all([
             fetchFinnhub('quote', `symbol=${ticker}`),
             fetchFinnhub('stock/profile2', `symbol=${ticker}`),
-            fetchFinnhub('stock/candle', `symbol=${ticker}&resolution=D&from=${Math.floor(Date.now()/1000)-31536000}&to=${Math.floor(Date.now()/1000)}`)
+            // שינוי הטווח לחצי שנה כדי שהגרף יעבוד בגרסה החינמית
+            fetchFinnhub('stock/candle', `symbol=${ticker}&resolution=D&from=${Math.floor(Date.now()/1000)-15552000}&to=${Math.floor(Date.now()/1000)}`)
         ]);
 
-        const prompt = `נתח את ${ticker}. מחיר: ${quote?.c || 0}$. החזר JSON בעברית עם המפתחות: identity, technical, news_analysis, summary, verdict, pros (array), cons (array), price_target, rating. בתוך scores החזר אובייקט עם המפתחות: financial_health, growth_potential, competitive_moat, valuation, innovation_potential (ערכים 1-100). אל תוסיף שום מילה לפני או אחרי.`;
+        const prompt = `נתח את המניה ${ticker}. מחיר נוכחי: ${quote?.c || 0}$.
+        חובה להחזיר אובייקט JSON חוקי בלבד, לפי המבנה הבא בדיוק! אסור להשתמש בתתי-אובייקטים (מלבד scores). כל הערכים (למעט ציונים) חייבים להיות מחרוזות טקסט (String) פשוטות עם משפט אחד או שניים!
+        {
+          "identity": "טקסט פשוט המתאר את החברה",
+          "technical": "טקסט פשוט המתאר ניתוח טכני",
+          "news_analysis": "טקסט פשוט של חדשות אחרונות",
+          "summary": "טקסט פשוט של שורה תחתונה",
+          "verdict": "טקסט פשוט של שורה תחתונה",
+          "pros": ["נקודת חוזק 1", "נקודת חוזק 2"],
+          "cons": ["נקודת חולשה 1", "נקודת חולשה 2"],
+          "price_target": "מחיר יעד",
+          "rating": "קנייה / החזקה / מכירה",
+          "scores": {
+            "financial_health": 80,
+            "growth_potential": 90,
+            "competitive_moat": 85,
+            "valuation": 70,
+            "innovation_potential": 95
+          }
+        }`;
 
         const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
             method: 'POST',
@@ -84,7 +102,15 @@ module.exports = async function(req, res) {
         try {
             let text = aiData.candidates[0].content.parts[0].text.replace(/```json|```/g, "").trim();
             aiVerdict = JSON.parse(text);
-        } catch (e) { aiVerdict = { summary: "ניתוח AI לא זמין" }; }
+            
+            // הגנת ברזל: חילוץ טקסט למקרה שה-AI שוב מחזיר אובייקטים מקוננים
+            ["identity", "technical", "news_analysis", "summary", "verdict"].forEach(key => {
+                if (typeof aiVerdict[key] === 'object' && aiVerdict[key] !== null) {
+                    aiVerdict[key] = aiVerdict[key].summary || aiVerdict[key].analysis || aiVerdict[key].description || "מידע זמין בניתוח המלא";
+                }
+            });
+
+        } catch (e) { aiVerdict = { summary: "ניתוח AI לא זמין כרגע" }; }
 
         const chartPoints = (candles?.c || []).map((p, i) => ({
             date: new Date(candles.t[i] * 1000).toISOString().split('T')[0],
@@ -92,7 +118,6 @@ module.exports = async function(req, res) {
             close: Number(p)
         }));
 
-        // התיקון: החזרתי את אובייקט marketData שהיה חסר ומנע מהדף להיטען
         return res.status(200).json({
             success: true,
             ticker: ticker,
