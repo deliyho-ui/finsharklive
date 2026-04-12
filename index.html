@@ -97,7 +97,8 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .status-approved { background: var(--green-dim); color: var(--green); }
 
 /* Pending Screen */
-#section-pending { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; text-align: center; }
+#section-pending { flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; text-align: center; }
+#section-pending.active { display: flex; }
 .pending-icon { font-size: 4.5rem; margin-bottom: 28px; animation: pendingPulse 2.5s infinite; }
 @keyframes pendingPulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.08); opacity: 0.7; } }
 
@@ -179,6 +180,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .stock-change.up { background: var(--green-dim); color: var(--green); }
 .stock-change.down { background: var(--red-dim); color: var(--red); }
 .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 768px) { .results-grid { grid-template-columns: 1fr; } }
 .full-width { grid-column: 1 / -1; }
 .chart-card { padding: 28px; }
 .chart-controls { display: flex; gap: 6px; margin-bottom: 20px; }
@@ -670,14 +672,14 @@ function renderMarketWeather(data) {
     
     if (news.length > 0) document.getElementById('market-news-grid').innerHTML = news.map(n => { 
         const date = new Date(n.publishedAt || n.date).toLocaleDateString('he-IL', {day:'numeric', month:'short'}); 
-        return `<div class="news-card" onclick="window.open('${n.url}', '_blank')"><div class="news-source">${n.source} • ${date}</div><div class="news-headline" dir="ltr" style="text-align:left;">${n.headline || n.title}</div></div>`; 
+        return `<div class="news-card" onclick="window.open('${n.url}', '_blank')"><div class="news-source">${n.source || n.site || 'חדשות שוק'} • ${date}</div><div class="news-headline" dir="ltr" style="text-align:left;">${n.headline || n.title}</div></div>`; 
     }).join('');
 }
 
 window.analyzeStock = async function() {
   const ticker = document.getElementById('ticker-input').value.trim().toUpperCase(); if (!ticker) { document.getElementById('ticker-input').focus(); return; }
   const debugEl = document.getElementById('debug-analyze'); debugEl.style.display = 'none'; document.getElementById('results').style.display = 'none';
-  showLoading(); animateLoadingSteps(['יוצר קשר עם שרת FinShark...','מושך נתוני אמת מ-Finnhub & Yahoo...','מעביר נתונים למוח ה-AI (Gemini)...','מגבש פסיקת הכריש...']);
+  showLoading(); animateLoadingSteps(['יוצר קשר עם שרת FinShark...','מושך נתוני אמת מהבורסה...','מעביר נתונים למוח ה-AI (Gemini)...','מגבש פסיקת הכריש...']);
 
   try {
     const response = await fetch(`${NETLIFY_API_URL}?action=analyze&ticker=${ticker}`);
@@ -809,6 +811,7 @@ function renderResults(data, analysis, historyData, newsData) {
   const earningsGood = data.latestEarnings && data.latestEarnings.surprisePercent > 0;
   const earningsBad = data.latestEarnings && data.latestEarnings.surprisePercent < 0;
   
+  // טבלת נתוני העומק המלאה כולל דוחות רבעוניים!
   const fundRows = [ 
       { label: 'שווי שוק', val: formatNumberShort(data.marketCap), tag: 'M.CAP', isTag: false }, 
       { label: 'טווח 52 שבועות', val: `<span style="font-size:0.75rem; color:var(--text-secondary); margin-right:8px">$${rangeLow.toFixed(2)}</span> <div class="range-bar-wrap"><div class="range-indicator" style="left:${currentPos}%"></div></div> <span style="font-size:0.75rem; color:var(--text-secondary); margin-left:8px">$${rangeHigh.toFixed(2)}</span>`, isHtml: true }, 
