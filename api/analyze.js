@@ -1,5 +1,3 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-
 async function fetchFinnhub(endpoint, params = "") {
     const token = process.env.FINNHUB_API_KEY;
     const url = `https://finnhub.io/api/v1/${endpoint}?${params}&token=${token}`;
@@ -10,66 +8,62 @@ async function fetchFinnhub(endpoint, params = "") {
 }
 
 module.exports = async function(req, res) {
-    // הגדרות אבטחה ו-CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     if (req.method === 'OPTIONS') return res.status(200).end();
 
     try {
-        // 1. חילוץ טיקר חכם (מונע את שגיאת ה-Missing Ticker)
         const ticker = (req.query.ticker || req.query.symbol || "AAPL").toUpperCase().trim();
-        
-        // 2. בדיקת API Key
-        if (!process.env.GEMINI_API_KEY) throw new Error("מפתח GEMINI_API_KEY חסר ב-Vercel");
+        const apiKey = process.env.GEMINI_API_KEY;
 
-        // 3. שליפת נתונים מ-Finnhub
+        if (!apiKey) throw new Error("Missing GEMINI_API_KEY in Vercel settings");
+
+        // 1. נתונים מ-Finnhub
         const [quote, profile, candles] = await Promise.all([
             fetchFinnhub('quote', `symbol=${ticker}`),
             fetchFinnhub('stock/profile2', `symbol=${ticker}`),
             fetchFinnhub('stock/candle', `symbol=${ticker}&resolution=D&from=${Math.floor(Date.now()/1000)-2592000}&to=${Math.floor(Date.now()/1000)}`)
         ]);
 
-        if (!quote || !quote.c) throw new Error(`Finnhub לא מצא נתונים עבור ${ticker}`);
+        if (!quote || !quote.c) throw new Error("Finnhub failed to find " + ticker);
 
-        // 4. אתחול ה-AI (גרסת 2026 היציבה)
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        // 2. קריאה ישירה ל-Gemini (ללא SDK)
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
         
-        // אנחנו ננסה את המודל הכי מעודכן לשנה הנוכחית
-        const modelName = "gemini-1.5-flash"; 
-        const model = genAI.getGenerativeModel({ model: modelName });
+        const prompt = `נתח את המניה ${ticker}. מחיר: ${quote.c}$. תן JSON בעברית עם המפתחות: identity, technical, news_analysis, verdict (pros, cons, summary), price_target, rating, scores (1-100).`;
 
-        const prompt = `אתה אנליסט מניות בכיר. נתח את ${ticker}. מחיר: ${quote.c}$. החזר JSON בעברית: identity, technical, news_analysis, verdict, price_target, rating, scores.`;
+        const aiResponse = await fetch(geminiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { responseMimeType: "application/json" }
+            })
+        });
 
-        try {
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            const text = response.text().replace(/```json|```/g, "").trim();
-            
-            return res.status(200).json({
-                success: true,
-                marketData: { ticker, name: profile?.name || ticker, price: quote.c, changePercentage: quote.dp },
-                chartHistory: (candles?.c || []).map((p, i) => ({ date: new Date(candles.t[i] * 1000).toISOString().split('T')[0], close: p })),
-                aiVerdict: JSON.parse(text)
-            });
+        const aiData = await aiResponse.json();
 
-        } catch (aiError) {
-            // --- מנגנון דיאגנוסטיקה (הפתרון הסופי) ---
-            console.error("AI CALL FAILED. FETCHING AVAILABLE MODELS...");
-            
-            // אם הניתוח נכשל, אנחנו ננסה להוציא רשימה של מה שכן עובד
-            return res.status(500).json({
-                success: false,
-                message: "שגיאת תקשורת עם גוגל",
-                error_details: aiError.message,
-                instruction: "אם כתוב 404, שנה את שם המודל בקוד לאחד מאלו שמופיעים ב-Google AI Studio תחת ListModels."
-            });
+        if (!aiResponse.ok) {
+            throw new Error(`Google API Error: ${aiData.error?.message || 'Unknown error'}`);
         }
+
+        const text = aiData.candidates[0].content.parts[0].text.replace(/```json|```/g, "").trim();
+
+        return res.status(200).json({
+            success: true,
+            marketData: { ticker, name: profile?.name || ticker, price: quote.c, changePercentage: quote.dp },
+            chartHistory: (candles?.c || []).map((p, i) => ({ 
+                date: new Date(candles.t[i] * 1000).toISOString().split('T')[0], 
+                close: p 
+            })),
+            aiVerdict: JSON.parse(text)
+        });
 
     } catch (error) {
         return res.status(500).json({ 
             success: false, 
-            message: `Server Error: ${error.message}` 
+            message: error.message 
         });
     }
 };
