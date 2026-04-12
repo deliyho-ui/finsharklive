@@ -7,6 +7,32 @@ async function fetchFinnhub(endpoint, params = "") {
     } catch (e) { return null; }
 }
 
+// פונקציה חדשה: משיכת גרף ישירות מיאהו פייננס (עוקף את החסימות של Finnhub)
+async function fetchYahooChart(ticker, range = "6mo") {
+    try {
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=${range}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const result = data.chart.result[0];
+        const timestamps = result.timestamp;
+        const closes = result.indicators.quote[0].close;
+        return timestamps.map((t, i) => ({
+            date: new Date(t * 1000).toISOString().split('T')[0],
+            value: Number(closes[i]),
+            close: Number(closes[i])
+        })).filter(p => !isNaN(p.close));
+    } catch (e) { return []; }
+}
+
+// פונקציה חדשה: VIX אמיתי מיאהו פייננס
+async function getRealVix() {
+    try {
+        const res = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/^VIX?interval=1d&range=1d');
+        const data = await res.json();
+        return data.chart.result[0].meta.regularMarketPrice;
+    } catch(e) { return 20; }
+}
+
 module.exports = async function(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -20,18 +46,16 @@ module.exports = async function(req, res) {
 
         // --- 1. דף הבית: מדדי שוק ---
         if (action === 'market' || (!ticker && action !== 'analyze')) {
-            const [spy, qqq, dia, iwm, news] = await Promise.all([
+            const [spy, qqq, dia, iwm, news, realVix] = await Promise.all([
                 fetchFinnhub('quote', 'symbol=SPY'),
                 fetchFinnhub('quote', 'symbol=QQQ'),
                 fetchFinnhub('quote', 'symbol=DIA'),
                 fetchFinnhub('quote', 'symbol=IWM'),
-                fetchFinnhub('news', 'category=general')
+                fetchFinnhub('news', 'category=general'),
+                getRealVix() // מדד VIX אמיתי
             ]);
 
-            // חישוב מדד פחד/חמדנות דינמי על בסיס ה-S&P 500 (תחליף למגבלת חינם של VIX)
-            const spyChange = spy?.dp || 0;
-            let fearGreedScore = 50 + (spyChange * 15); 
-            fearGreedScore = Math.max(10, Math.min(90, fearGreedScore)); 
+            const fearGreedScore = Math.max(5, Math.min(95, 100 - (realVix * 2.5)));
             const sentiment = fearGreedScore > 60 ? "חמדנות" : fearGreedScore < 40 ? "פחד" : "נייטרלי";
 
             const indexes = [
@@ -46,54 +70,48 @@ module.exports = async function(req, res) {
                 marketData: {
                     indexes: indexes,
                     vix: { value: fearGreedScore.toFixed(0), sentiment: sentiment },
-                    // שימוש ב-QQQ ו-DIA כפרוקסי לסקטורים כדי להבטיח נתונים בחינם כטקסט
                     sectors: [
                         { sector: "טכנולוגיה", changesPercentage: String(qqq?.dp || "0") },
                         { sector: "תעשייה", changesPercentage: String(dia?.dp || "0") },
                         { sector: "כללי", changesPercentage: String(spy?.dp || "0") }
                     ],
                     news: (news || []).slice(0, 5).map(item => ({
-                        title: item.headline,
-                        url: item.url,
-                        source: item.source,
-                        time: new Date(item.datetime * 1000).toLocaleTimeString('he-IL')
+                        title: item.headline, url: item.url, source: item.source, time: new Date(item.datetime * 1000).toLocaleTimeString('he-IL')
                     }))
                 }
             });
         }
 
         // --- 2. דף ניתוח: מניה ספציפית ---
-        const [quote, profile, candles] = await Promise.all([
+        // הוספנו כאן את המשיכה של stock/metric כדי להביא את הפונדמנטליים!
+        const [quote, profile, chartPoints, metricsData] = await Promise.all([
             fetchFinnhub('quote', `symbol=${ticker}`),
             fetchFinnhub('stock/profile2', `symbol=${ticker}`),
-            // שינוי הטווח לחצי שנה כדי שהגרף יעבוד בגרסה החינמית
-            fetchFinnhub('stock/candle', `symbol=${ticker}&resolution=D&from=${Math.floor(Date.now()/1000)-15552000}&to=${Math.floor(Date.now()/1000)}`)
+            fetchYahooChart(ticker), 
+            fetchFinnhub('stock/metric', `symbol=${ticker}&metric=all`)
         ]);
 
-        const prompt = `נתח את המניה ${ticker}. מחיר נוכחי: ${quote?.c || 0}$.
-        חובה להחזיר אובייקט JSON חוקי בלבד, לפי המבנה הבא בדיוק! אסור להשתמש בתתי-אובייקטים (מלבד scores). כל הערכים (למעט ציונים) חייבים להיות מחרוזות טקסט (String) פשוטות עם משפט אחד או שניים!
+        const prompt = `נתח את ${ticker}. מחיר נוכחי: ${quote?.c || 0}$.
+        החזר אובייקט JSON בלבד, לפי המבנה הבא:
         {
-          "identity": "טקסט פשוט המתאר את החברה",
-          "technical": "טקסט פשוט המתאר ניתוח טכני",
-          "news_analysis": "טקסט פשוט של חדשות אחרונות",
-          "summary": "טקסט פשוט של שורה תחתונה",
-          "verdict": "טקסט פשוט של שורה תחתונה",
-          "pros": ["נקודת חוזק 1", "נקודת חוזק 2"],
-          "cons": ["נקודת חולשה 1", "נקודת חולשה 2"],
-          "price_target": "מחיר יעד",
+          "identity": "טקסט המתאר את החברה",
+          "technical": "טקסט ניתוח טכני",
+          "news_analysis": "טקסט ניתוח חדשות",
+          "summary": "טקסט מסכם ושורה תחתונה",
+          "pros": ["יתרון 1", "יתרון 2"],
+          "cons": ["חיסרון 1", "חיסרון 2"],
+          "price_target": "מספר טהור בלבד ללא סימנים (למשל 150.50)",
           "rating": "קנייה / החזקה / מכירה",
           "scores": {
-            "financial_health": 80,
-            "growth_potential": 90,
-            "competitive_moat": 85,
-            "valuation": 70,
-            "innovation_potential": 95
+            "growth": 80,
+            "momentum": 75,
+            "value": 60,
+            "quality": 90
           }
         }`;
 
         const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
         });
 
@@ -103,26 +121,49 @@ module.exports = async function(req, res) {
             let text = aiData.candidates[0].content.parts[0].text.replace(/```json|```/g, "").trim();
             aiVerdict = JSON.parse(text);
             
-            // הגנת ברזל: חילוץ טקסט למקרה שה-AI שוב מחזיר אובייקטים מקוננים
-            ["identity", "technical", "news_analysis", "summary", "verdict"].forEach(key => {
-                if (typeof aiVerdict[key] === 'object' && aiVerdict[key] !== null) {
-                    aiVerdict[key] = aiVerdict[key].summary || aiVerdict[key].analysis || aiVerdict[key].description || "מידע זמין בניתוח המלא";
-                }
-            });
+            // חילוץ מספר טהור ליעד המחיר 
+            if (typeof aiVerdict.price_target === 'string') {
+                const num = aiVerdict.price_target.replace(/[^0-9.]/g, '');
+                aiVerdict.price_target = num ? Number(num) : Number(quote?.c || 0) * 1.1;
+            }
 
-        } catch (e) { aiVerdict = { summary: "ניתוח AI לא זמין כרגע" }; }
+            aiVerdict.verdict = aiVerdict.summary;
+            aiVerdict.positive = aiVerdict.pros || [];
+            aiVerdict.negative = aiVerdict.cons || [];
+            
+            const s = aiVerdict.scores || {};
+            // שיבוט המפתחות גם לאנגלית וגם לעברית כדי שהאתר יתפוס אותם בטוח
+            aiVerdict.scores = {
+                growth: s.growth || 50,
+                momentum: s.momentum || 50,
+                value: s.value || 50,
+                quality: s.quality || 50,
+                "צמיחה": s.growth || 50,
+                "מומנטום": s.momentum || 50,
+                "ערך": s.value || 50,
+                "איכות עסקית": s.quality || 50
+            };
+        } catch (e) { aiVerdict = { summary: "שגיאה בפענוח הניתוח" }; }
 
-        const chartPoints = (candles?.c || []).map((p, i) => ({
-            date: new Date(candles.t[i] * 1000).toISOString().split('T')[0],
-            value: Number(p),
-            close: Number(p)
-        }));
+        // --- מיפוי נתונים פונדמנטליים ---
+        const m = metricsData?.metric || {};
+        const fundamentals = {
+            marketCap: profile?.marketCapitalization || m.marketCapitalization || 0,
+            fiftyTwoWeekHigh: m['52WeekHigh'] || 0,
+            fiftyTwoWeekLow: m['52WeekLow'] || 0,
+            peRatio: m.peExclExtraAnnual || m.peBasicExclExtraTTM || 0,
+            pbRatio: m.pbAnnual || m.pbQuarterly || 0,
+            eps: m.epsExclExtraItemsAnnual || m.epsTTM || 0,
+            roe: m.roeTTM || 0,
+            debtToEquity: m.totalDebtToEquityAnnual || m.totalDebtToEquityQuarterly || 0,
+            dividendYield: m.dividendYieldIndicatedAnnual || 0
+        };
 
         return res.status(200).json({
             success: true,
             ticker: ticker,
             name: String(profile?.name || ticker),
-            industry: String(profile?.finnhubIndustry || "N/A"),
+            industry: String(profile?.finnhubIndustry || "Technology"),
             price: Number(quote?.c || 0),
             changePercentage: Number(quote?.dp || 0),
             marketData: {
@@ -131,6 +172,8 @@ module.exports = async function(req, res) {
                 price: Number(quote?.c || 0),
                 changePercentage: Number(quote?.dp || 0)
             },
+            fundamentals: fundamentals, // כאן הוספנו את המידע לטבלה!
+            metrics: fundamentals,      // הוספנו גם תחת השם הזה ליתר ביטחון
             verdict: aiVerdict,
             aiVerdict: aiVerdict,
             chartData: chartPoints,
