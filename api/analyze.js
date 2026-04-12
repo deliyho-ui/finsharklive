@@ -11,21 +11,15 @@ async function fetchFinnhub(endpoint, params = "") {
 
 module.exports = async function(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
     if (req.method === 'OPTIONS') return res.status(200).end();
 
-    const ticker = req.query.ticker?.toUpperCase();
-    const action = req.query.action;
-
     try {
-        if (action === 'market') {
-            const symbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA'];
-            const quotes = await Promise.all(symbols.map(s => fetchFinnhub('quote', `symbol=${s}`)));
-            return res.status(200).json({ success: true, marketData: { indexes: symbols.map((s, i) => ({ symbol: s, price: quotes[i]?.c || 0, changesPercentage: quotes[i]?.dp || 0 })), sectors: [], news: [] } });
-        }
-
-        if (!ticker) return res.status(400).json({ success: false, message: "Missing ticker" });
-
+        const ticker = req.query.ticker?.toUpperCase();
+        
+        // שליפת נתונים מ-Finnhub
         const [quote, profile, candles] = await Promise.all([
             fetchFinnhub('quote', `symbol=${ticker}`),
             fetchFinnhub('stock/profile2', `symbol=${ticker}`),
@@ -36,29 +30,28 @@ module.exports = async function(req, res) {
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         
-        // --- ניסיון ראשון עם השם הנפוץ ביותר ב-2026 ---
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // גרסה קלה ויציבה מאוד
+        // --- עדכון למודל 2026 הרשמי ---
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
         
-        const prompt = `נתח את ${ticker}. מחיר: ${quote.c}$. החזר JSON בעברית: identity, technical, news_analysis, verdict, price_target, rating, scores.`;
+        const prompt = `אתה אנליסט מניות בכיר. נתח את ${ticker}. מחיר: ${quote.c}$. החזר JSON בעברית עם המפתחות: identity, technical, news_analysis, verdict (pros, cons, summary), price_target, rating, scores (1-100).`;
         
-        try {
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            const text = response.text().replace(/```json|```/g, "").trim();
-            
-            return res.status(200).json({
-                success: true,
-                marketData: { ticker, name: profile?.name || ticker, price: quote.c, changePercentage: quote.dp },
-                chartHistory: (candles?.c || []).map((p, i) => ({ date: new Date(candles.t[i] * 1000).toISOString().split('T')[0], close: p })),
-                aiVerdict: JSON.parse(text)
-            });
-        } catch (aiError) {
-            // אם יש 404, בוא נראה מה גוגל כן מרשה לנו
-            console.error("AI Error:", aiError.message);
-            throw new Error(`שגיאת מודל: ${aiError.message}. נסה להשתמש ב-API Key מ-AI Studio ולוודא Redeploy ב-Vercel.`);
-        }
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text().replace(/```json|```/g, "").trim();
+        
+        return res.status(200).json({
+            success: true,
+            marketData: { ticker, name: profile?.name || ticker, price: quote.c, changePercentage: quote.dp },
+            chartHistory: (candles?.c || []).map((p, i) => ({ date: new Date(candles.t[i] * 1000).toISOString().split('T')[0], close: p })),
+            aiVerdict: JSON.parse(text)
+        });
 
     } catch (error) {
-        return res.status(500).json({ success: false, message: error.message });
+        console.error("Final Error Log:", error.message);
+        // אם גם 2.0 לא עובד, ננסה להחזיר שגיאה מפורטת יותר למסך
+        return res.status(500).json({ 
+            success: false, 
+            message: `שגיאת שרת: ${error.message}. ודא שהמפתח מ-AI Studio הוזן ב-Vercel ובוצע Redeploy.` 
+        });
     }
 };
