@@ -469,7 +469,7 @@ const firebaseConfig = { apiKey: "AIzaSyBU77J3Nu8xh0_a1GLM9jcnWJmhZq8QHH4", auth
 const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
 const State = { currentUser: null, currentTab: 'market', watchlist: [] }; window.State = State; let authMode = 'login';
-const NETLIFY_API_URL = "/.netlify/functions/analyze"; 
+const NETLIFY_API_URL = "/api/analyze"; 
 
 window.addEventListener('DOMContentLoaded', () => { loadMarketWeather(); });
 
