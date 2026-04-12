@@ -20,29 +20,27 @@ module.exports = async function(req, res) {
 
         // --- 1. דף הבית: מדדי שוק, VIX וחדשות ---
         if (action === 'market' || (!ticker && action !== 'analyze')) {
-            // משיכת מדדים, חדשות ו-VIX במקביל
             const [spy, qqq, dia, iwm, vix, news, xlk, xlf, xle] = await Promise.all([
                 fetchFinnhub('quote', 'symbol=SPY'),
                 fetchFinnhub('quote', 'symbol=QQQ'),
                 fetchFinnhub('quote', 'symbol=DIA'),
                 fetchFinnhub('quote', 'symbol=IWM'),
-                fetchFinnhub('quote', 'symbol=VIX'), // מדד הפחד
-                fetchFinnhub('news', 'category=general'), // חדשות שוק
-                fetchFinnhub('quote', 'symbol=XLK'), // סקטור טכנולוגיה
-                fetchFinnhub('quote', 'symbol=XLF'), // סקטור פיננסים
-                fetchFinnhub('quote', 'symbol=XLE')  // סקטור אנרגיה
+                fetchFinnhub('quote', 'symbol=VIX'), 
+                fetchFinnhub('news', 'category=general'),
+                fetchFinnhub('quote', 'symbol=XLK'), 
+                fetchFinnhub('quote', 'symbol=XLF'), 
+                fetchFinnhub('quote', 'symbol=XLE')  
             ]);
 
-            // חישוב מדד הפחד והחמדנות על בסיס ה-VIX (נוסחה מקורבת)
             const vixValue = vix?.c || 20;
             const fearGreedScore = Math.max(5, Math.min(95, 100 - (vixValue * 2.5)));
             const sentiment = fearGreedScore > 60 ? "חמדנות" : fearGreedScore < 40 ? "פחד" : "נייטרלי";
 
             const indexes = [
-                { symbol: 'S&P 500', price: spy?.c || 0, changesPercentage: spy?.dp || 0 },
-                { symbol: 'NASDAQ', price: qqq?.c || 0, changesPercentage: qqq?.dp || 0 },
-                { symbol: 'DOW 30', price: dia?.c || 0, changesPercentage: dia?.dp || 0 },
-                { symbol: 'RUSSELL 2000', price: iwm?.c || 0, changesPercentage: iwm?.dp || 0 }
+                { symbol: 'S&P 500', price: Number(spy?.c || 0), changesPercentage: Number(spy?.dp || 0) },
+                { symbol: 'NASDAQ', price: Number(qqq?.c || 0), changesPercentage: Number(qqq?.dp || 0) },
+                { symbol: 'DOW 30', price: Number(dia?.c || 0), changesPercentage: Number(dia?.dp || 0) },
+                { symbol: 'RUSSELL 2000', price: Number(iwm?.c || 0), changesPercentage: Number(iwm?.dp || 0) }
             ];
 
             return res.status(200).json({
@@ -51,11 +49,11 @@ module.exports = async function(req, res) {
                     indexes: indexes,
                     vix: { value: fearGreedScore.toFixed(0), sentiment: sentiment },
                     sectors: [
-                        { sector: "טכנולוגיה", changesPercentage: xlk?.dp || 0 },
-                        { sector: "פיננסים", changesPercentage: xlf?.dp || 0 },
-                        { sector: "אנרגיה", changesPercentage: xle?.dp || 0 }
+                        // התיקון: הפכנו את הסקטורים ל-String במקום Number כדי שה-replace יעבוד
+                        { sector: "טכנולוגיה", changesPercentage: String(xlk?.dp || "0") },
+                        { sector: "פיננסים", changesPercentage: String(xlf?.dp || "0") },
+                        { sector: "אנרגיה", changesPercentage: String(xle?.dp || "0") }
                     ],
-                    // לוקחים את 5 הידיעות האחרונות
                     news: (news || []).slice(0, 5).map(item => ({
                         title: item.headline,
                         url: item.url,
@@ -66,16 +64,16 @@ module.exports = async function(req, res) {
             });
         }
 
-        // --- 2. דף ניתוח: מניה ספציפית (נשאר יציב כמו קודם) ---
+        // --- 2. דף ניתוח: מניה ספציפית ---
         const [quote, profile, candles] = await Promise.all([
             fetchFinnhub('quote', `symbol=${ticker}`),
             fetchFinnhub('stock/profile2', `symbol=${ticker}`),
             fetchFinnhub('stock/candle', `symbol=${ticker}&resolution=D&from=${Math.floor(Date.now()/1000)-31536000}&to=${Math.floor(Date.now()/1000)}`)
         ]);
 
-        const prompt = `נתח את ${ticker}. מחיר: ${quote?.c}$. החזר JSON בעברית עם המפתחות: identity, technical, news_analysis, summary, verdict, pros (array), cons (array), price_target, rating. בתוך scores החזר אובייקט עם המפתחות: financial_health, growth_potential, competitive_moat, valuation, innovation_potential (ערכים 1-100).`;
+        const prompt = `נתח את ${ticker}. מחיר: ${quote?.c || 0}$. החזר JSON בעברית עם המפתחות: identity, technical, news_analysis, summary, verdict, pros (array), cons (array), price_target, rating. בתוך scores החזר אובייקט עם המפתחות: financial_health, growth_potential, competitive_moat, valuation, innovation_potential (ערכים 1-100). אל תוסיף שום מילה לפני או אחרי.`;
 
-        const aiResponse = await fetch(geminiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
@@ -94,13 +92,20 @@ module.exports = async function(req, res) {
             close: Number(p)
         }));
 
+        // התיקון: החזרתי את אובייקט marketData שהיה חסר ומנע מהדף להיטען
         return res.status(200).json({
             success: true,
-            ticker,
-            name: profile?.name || ticker,
-            industry: profile?.finnhubIndustry || "N/A",
-            price: quote?.c || 0,
-            changePercentage: quote?.dp || 0,
+            ticker: ticker,
+            name: String(profile?.name || ticker),
+            industry: String(profile?.finnhubIndustry || "N/A"),
+            price: Number(quote?.c || 0),
+            changePercentage: Number(quote?.dp || 0),
+            marketData: {
+                ticker: ticker,
+                name: String(profile?.name || ticker),
+                price: Number(quote?.c || 0),
+                changePercentage: Number(quote?.dp || 0)
+            },
             verdict: aiVerdict,
             aiVerdict: aiVerdict,
             chartData: chartPoints,
