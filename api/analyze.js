@@ -25,8 +25,8 @@ module.exports = async function(req, res) {
             
             const indexes = marketSymbols.map((s, i) => ({
                 symbol: s === 'SPY' ? 'S&P 500' : s === 'QQQ' ? 'NASDAQ' : s,
-                price: quotes[i]?.c || 0, // מספר (בשביל toFixed באתר)
-                changesPercentage: String(quotes[i]?.dp || "0") // טקסט (בשביל replace באתר)
+                price: Number(quotes[i]?.c || 0), // מספר נקי
+                changesPercentage: Number(quotes[i]?.dp || 0) // מספר נקי
             }));
 
             return res.status(200).json({
@@ -34,8 +34,8 @@ module.exports = async function(req, res) {
                 marketData: {
                     indexes: indexes,
                     sectors: [
-                        { sector: "Technology", changesPercentage: "1.2" },
-                        { sector: "Energy", changesPercentage: "-0.5" }
+                        { sector: "Technology", changesPercentage: 1.2 },
+                        { sector: "Energy", changesPercentage: -0.5 }
                     ],
                     news: []
                 }
@@ -49,10 +49,10 @@ module.exports = async function(req, res) {
             fetchFinnhub('stock/candle', `symbol=${ticker}&resolution=D&from=${Math.floor(Date.now()/1000)-2592000}&to=${Math.floor(Date.now()/1000)}`)
         ]);
 
-        if (!quote || !quote.c) throw new Error("נתונים חסרים");
+        if (!quote || !quote.c) throw new Error("Missing data");
 
         const geminiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-        const prompt = `נתח את ${ticker}. מחיר: ${quote.c}$. החזר JSON בעברית: identity, technical, news_analysis, summary, pros (array), cons (array), price_target, rating, scores (1-5).`;
+        const prompt = `נתח את ${ticker}. מחיר: ${quote.c}$. החזר אך ורק JSON בעברית: identity, technical, news_analysis, summary, pros (array), cons (array), price_target, rating, scores (1-5).`;
 
         const aiResponse = await fetch(geminiUrl, {
             method: 'POST',
@@ -71,19 +71,19 @@ module.exports = async function(req, res) {
             success: true,
             ticker: ticker,
             name: String(profile?.name || ticker),
-            price: quote.c || 0, // מספר
-            changePercentage: String(quote.dp || "0"), // טקסט
+            price: Number(quote.c || 0), // מספר נקי
+            changePercentage: Number(quote.dp || 0), // מספר נקי
             marketData: {
                 ticker: ticker,
                 name: String(profile?.name || ticker),
-                price: quote.c || 0,
-                changePercentage: String(quote.dp || "0")
+                price: Number(quote.c || 0),
+                changePercentage: Number(quote.dp || 0)
             },
             verdict: aiVerdict,
             aiVerdict: aiVerdict,
             chartHistory: (candles?.c || []).map((p, i) => ({
                 date: new Date(candles.t[i] * 1000).toISOString().split('T')[0],
-                close: p
+                close: Number(p)
             }))
         });
 
