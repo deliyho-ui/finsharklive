@@ -75,8 +75,6 @@ module.exports = async function(req, res) {
                         { symbol: 'DOW 30', price: Number(dia?.c || 0), changesPercentage: Number(dia?.dp || 0) },
                         { symbol: 'RUSSELL 2000', price: Number(iwm?.c || 0), changesPercentage: Number(iwm?.dp || 0) }
                     ],
-                    // VIX מבוטל (מחזיר ערך קבוע שלא ישבור את האתר)
-                    vix: { value: 50, score: 50, sentiment: "לא זמין" },
                     sectors: [
                         { sector: "טכנולוגיה", changesPercentage: String(qqq?.dp || "0") },
                         { sector: "תעשייה", changesPercentage: String(dia?.dp || "0") },
@@ -120,40 +118,59 @@ module.exports = async function(req, res) {
             dividendYield: m.dividendYieldIndicatedAnnual || 0
         };
 
+        // תיקון: משיכת הממוצעים מהגרף האמיתי במקום מהנתון הריק של Finnhub
+        const lastChartPoint = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1] : {};
+        const calcMa50 = Number(lastChartPoint.ma50 || m['50DayMovingAverage'] || 0);
+        const calcMa200 = Number(lastChartPoint.ma200 || m['200DayMovingAverage'] || 0);
+
         const technicals = {
-            ma50: Number(m['50DayMovingAverage'] || 0),
-            ma200: Number(m['200DayMovingAverage'] || 0),
+            ma50: calcMa50,
+            ma200: calcMa200,
             volume: Number(quote?.v || m['10DayAverageTradingVolume'] || 0),
-            trend: Number(quote?.c) > Number(m['50DayMovingAverage']) ? "שורית (מעל ממוצע 50)" : "דובית (מתחת לממוצע 50)"
+            trend: Number(quote?.c) > calcMa50 ? "שורית (מעל ממוצע 50)" : "דובית (מתחת לממוצע 50)"
         };
 
         const analystConsensus = recommendations && recommendations.length > 0 ? 
             `קנייה: ${recommendations[0].buy + recommendations[0].strongBuy}, החזקה: ${recommendations[0].hold}, מכירה: ${recommendations[0].sell}` : "אין קונצנזוס";
 
-        const prompt = `אתה "הכריש" - אנליסט פיננסי בכיר מוול סטריט. נתח את מניית ${ticker} (${profile?.name}).
+        const prompt = `אתה "הכריש" - אנליסט פיננסי בכיר ומחושב מוול סטריט. המטרה שלך היא לספק ניתוח מדויק, אובייקטיבי ועקבי למניית ${ticker} (${profile?.name}).
         
-        נתוני אמת מהשוק (השתמש בהם בפסיקה שלך!):
+        נתוני אמת מהשוק (חובה להתבסס אך ורק עליהם):
         - מחיר נוכחי: $${quote?.c}
-        - מגמה וממוצעים: ממוצע 50 יום: $${technicals.ma50}, ממוצע 200 יום: $${technicals.ma200}. (המגמה הנוכחית: ${technicals.trend}).
+        - מגמה וממוצעים: ממוצע 50: $${technicals.ma50}, ממוצע 200: $${technicals.ma200}. (המגמה הנוכחית: ${technicals.trend}).
         - פונדמנטליים: מכפיל רווח (P/E): ${fundamentals.peRatio}, רווח למניה (EPS): ${fundamentals.eps}, ROE: ${fundamentals.roe}%.
         - דעת האנליסטים: ${analystConsensus}. מחיר יעד ממוצע בשוק: $${priceTargets?.targetMean || 'לא זמין'}.
         
-        ספק את הניתוח המעמיק ביותר שאפשר, בפורמט JSON חוקי בלבד בעברית:
+        הנחיות קריטיות לעקביות:
+        1. אל תמציא יעדי מחיר אקראיים. יעד המחיר (price_target) חייב להיות מבוסס בהיגיון על היעד הממוצע של האנליסטים ($${priceTargets?.targetMean || 'N/A'}), מותאם קלות (עד 15% לכל כיוון) לפי הפונדמנטליים.
+        2. הפסיקה (rating) חייבת להיות נגזרת ישירה של הנתונים הכתובים למעלה. אם המגמה דובית והמכפיל גבוה, אל תמליץ על קנייה.
+        
+        ספק את הניתוח בפורמט JSON חוקי בלבד בעברית:
         "identity": "פרופיל החברה ומעמדה התחרותי.",
-        "technical": "ניתוח טכני מעמיק: שלב את הממוצעים הנעים וציין במפורש תבנית טכנית שנוצרה (למשל: תעלה עולה, דגל שורי, התכנסות, ראש וכתפיים).",
-        "news_analysis": "ניתוח מומנטום, התייחסות לדוחות אחרונים וסנטימנט כללי.",
+        "technical": "ניתוח טכני מעמיק מבוסס ממוצעים הנעים.",
+        "news_analysis": "ניתוח פונדמנטלי קצר של הנתונים לעיל.",
         "summary": "השורה התחתונה שלך מחיבור כל הנתונים.",
-        "verdict": "פסיקה נוקבת ומנומקת: קנייה, החזקה או מכירה.",
+        "verdict": "פסיקה נוקבת ומנומקת.",
         "pros": ["נקודת חוזק 1", "נקודת חוזק 2", "נקודת חוזק 3"],
-        "cons": ["נקודת תורפה/סיכון 1", "נקודת תורפה 2", "נקודת תורפה 3"],
-        "pattern": "תבנית טכנית שזוהתה בגרף (2-3 מילים)",
-        "price_target": "מחיר יעד ל-12 חודשים (חובה מספר טהור, למשל: 150)",
-        "rating": "קנייה / החזקה / מכירה",
+        "cons": ["נקודת תורפה 1", "נקודת תורפה 2", "נקודת תורפה 3"],
+        "pattern": "תבנית שזוהתה בנתונים",
+        "price_target": "מחיר יעד ל-12 חודשים (חובה מספר טהור)",
+        "rating": "קנייה / החזקה / מכירה / קנייה חזקה",
         "scores": { "growth": 1-100, "momentum": 1-100, "value": 1-100, "quality": 1-100 }`;
+
+        // תיקון לעקביות ה-AI: הוספת temperature נמוך (0.1) כדי שהמודל יהיה אנליטי וקר, ולא "יצירתי" ומשתנה
+        const payload = {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+                temperature: 0.1, 
+                topP: 0.8,
+                topK: 10
+            }
+        };
 
         const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            body: JSON.stringify(payload)
         });
 
         const aiData = await aiResponse.json();
