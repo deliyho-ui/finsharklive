@@ -95,16 +95,24 @@ module.exports = async function(req, res) {
         // ==========================================
         // 2. פסיקת הכריש - מסוף אנליסטים מלא
         // ==========================================
-        const [quote, profile, chartPoints, metricsData, recommendations, priceTargets] = await Promise.all([
+        const [quote, profile, chartPoints, metricsData, recommendations, priceTargets, earningsData] = await Promise.all([
             fetchFinnhub('quote', `symbol=${ticker}`),
             fetchFinnhub('stock/profile2', `symbol=${ticker}`),
             fetchYahooData(ticker, '2y', '1wk'), 
             fetchFinnhub('stock/metric', `symbol=${ticker}&metric=all`),
             fetchFinnhub('stock/recommendation', `symbol=${ticker}`),
-            fetchFinnhub('stock/price-target', `symbol=${ticker}`)
+            fetchFinnhub('stock/price-target', `symbol=${ticker}`),
+            fetchFinnhub('stock/earnings', `symbol=${ticker}`) // NEW: משיכת דוחות רבעוניים
         ]);
 
         const m = metricsData?.metric || {};
+        
+        // שליפת הדוח הרבעוני האחרון (הפתעת רווח)
+        let latestEarnings = null;
+        if (earningsData && earningsData.length > 0) {
+            // Finnhub מחזיר מערך, נתפוס את הכי רלוונטי
+            latestEarnings = earningsData[0];
+        }
         
         const fundamentals = {
             marketCap: profile?.marketCapitalization || m.marketCapitalization || 0,
@@ -112,24 +120,24 @@ module.exports = async function(req, res) {
             fiftyTwoWeekLow: m['52WeekLow'] || 0,
             peRatio: m.peBasicExclExtraTTM || m.peExclExtraAnnual || 0,
             pbRatio: m.pbAnnual || m.pbQuarterly || 0,
-            psRatio: m.psTTM || m.psAnnual || 0, // NEW: מכפיל מכירות
+            psRatio: m.psTTM || m.psAnnual || 0, 
             eps: m.epsTTM || m.epsExclExtraItemsAnnual || 0,
-            epsGrowth5Y: m.epsGrowth5Y || 0, // NEW: צמיחת רווח
+            epsGrowth5Y: m.epsGrowth5Y || 0, 
             roe: m.roeTTM || 0,
-            roa: m.roaTTM || 0, // NEW: תשואה לנכסים
-            roic: m.roicTTM || 0, // NEW: החזר השקעה
+            roa: m.roaTTM || 0, 
+            roic: m.roicTTM || 0, 
             debtToEquity: m.totalDebtToEquityAnnual || m.totalDebtToEquityQuarterly || 0,
             dividendYield: m.dividendYieldIndicatedAnnual || 0,
             revenueGrowth: m.revenueGrowthTTMYoy || m.revenueGrowth5Y || 0,
-            grossMargin: m.grossMarginTTM || m.grossMarginAnnual || 0, // NEW: רווח גולמי
-            operatingMargin: m.operatingMarginTTM || m.operatingMarginAnnual || 0, // NEW: רווח תפעולי
+            grossMargin: m.grossMarginTTM || m.grossMarginAnnual || 0, 
+            operatingMargin: m.operatingMarginTTM || m.operatingMarginAnnual || 0, 
             netMargin: m.netProfitMarginTTM || m.netMarginTTM || 0,
             currentRatio: m.currentRatioQuarterly || m.currentRatioAnnual || 0,
-            quickRatio: m.quickRatioQuarterly || m.quickRatioAnnual || 0, // NEW: יחס מהיר
+            quickRatio: m.quickRatioQuarterly || m.quickRatioAnnual || 0, 
             beta: m.beta || 0
         };
 
-        // תיקון: משיכת הממוצעים מהגרף האמיתי במקום מהנתון הריק של Finnhub
+        // משיכת הממוצעים מהגרף האמיתי במקום מהנתון הריק של Finnhub
         const lastChartPoint = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1] : {};
         const calcMa50 = lastChartPoint.ma50 ? Number(lastChartPoint.ma50) : Number(m['50DayMovingAverage'] || 0);
         const calcMa200 = lastChartPoint.ma200 ? Number(lastChartPoint.ma200) : Number(m['200DayMovingAverage'] || 0);
@@ -144,39 +152,44 @@ module.exports = async function(req, res) {
         const analystConsensus = recommendations && recommendations.length > 0 ? 
             `קנייה: ${recommendations[0].buy + recommendations[0].strongBuy}, החזקה: ${recommendations[0].hold}, מכירה: ${recommendations[0].sell}` : "אין קונצנזוס";
 
-        // שליפת יעדי מחיר מדויקים - ממוצע וגבוה (כרפרנס בלבד למודל)
         const meanTarget = priceTargets?.targetMean ? Number(priceTargets.targetMean).toFixed(2) : null;
         const highTarget = priceTargets?.targetHigh ? Number(priceTargets.targetHigh).toFixed(2) : null;
+        
+        // יצירת טקסט דוח רבעוני להכנסה לפרומפט
+        const earningsPromptText = latestEarnings ? 
+            `דוח רבעוני אחרון (${latestEarnings.period}): רווח בפועל $${latestEarnings.actual} מול צפי של $${latestEarnings.estimate}. הפתעה של ${latestEarnings.surprisePercent}%.` : 
+            `אין נתוני דוח רבעוני אחרון.`;
 
         const prompt = `אתה "הכריש" - מודל בינה מלאכותית (AI) פיננסי מתקדם, עצמאי ואובייקטיבי לחלוטין. המטרה שלך היא לספק ניתוח עומק אמיתי למניית ${ticker} (${profile?.name}), ללא תלות עיוורת באנליסטים אנושיים. המטרה היא להכות את השוק.
         
         נתוני אמת מהשוק לעיבוד עמוק (חובה לנתח את כולם כדי לקבוע מחיר יעד!):
         - מחיר ומגמה טכנית: מחיר נוכחי: $${quote?.c}. ממוצע 50: $${technicals.ma50}, ממוצע 200: $${technicals.ma200}. (מגמה: ${technicals.trend}).
-        - תמחור (Valuation): מכפיל רווח (P/E): ${fundamentals.peRatio}, מכפיל הון (P/B): ${fundamentals.pbRatio}, מכפיל מכירות (P/S): ${fundamentals.psRatio}. (האם החברה יקרה או זולה ביחס לצמיחה שלה?)
-        - רווחיות ויעילות (Profitability): שולי רווח גולמי: ${fundamentals.grossMargin}%, רווח תפעולי: ${fundamentals.operatingMargin}%, רווח נקי: ${fundamentals.netMargin}%. תשואה להון (ROE): ${fundamentals.roe}%, תשואה לנכסים (ROA): ${fundamentals.roa}%, תשואה להון מושקע (ROIC): ${fundamentals.roic}%. (האם זו מכונה יעילה לייצור כסף?)
-        - צמיחה (Growth): צמיחת הכנסות (YoY): ${fundamentals.revenueGrowth}%, צמיחת רווח למניה ב-5 שנים (EPS Growth): ${fundamentals.epsGrowth5Y}%.
-        - חוסן פיננסי וסיכון: יחס נזילות מיידי (Current): ${fundamentals.currentRatio}, יחס מהיר (Quick): ${fundamentals.quickRatio}, חוב להון: ${fundamentals.debtToEquity}, תנודתיות (Beta): ${fundamentals.beta}.
-        - סנטימנט וקונצנזוס השוק: ${analystConsensus}. (יעד ממוצע בשוק: $${meanTarget || 'לא זמין'}, יעד גבוה: $${highTarget || 'לא זמין'}).
+        - תמחור (Valuation): מכפיל רווח (P/E): ${fundamentals.peRatio}, מכפיל הון (P/B): ${fundamentals.pbRatio}, מכפיל מכירות (P/S): ${fundamentals.psRatio}.
+        - רווחיות ויעילות (Profitability): שולי רווח גולמי: ${fundamentals.grossMargin}%, רווח נקי: ${fundamentals.netMargin}%. תשואה להון (ROE): ${fundamentals.roe}%, תשואה להון מושקע (ROIC): ${fundamentals.roic}%.
+        - צמיחה ודוחות: ${earningsPromptText}. צמיחת הכנסות (YoY): ${fundamentals.revenueGrowth}%, צמיחת רווח למניה (5Y): ${fundamentals.epsGrowth5Y}%.
+        - חוסן פיננסי וסיכון: יחס נזילות (Current): ${fundamentals.currentRatio}, חוב להון: ${fundamentals.debtToEquity}, תנודתיות (Beta): ${fundamentals.beta}.
+        - סנטימנט השוק: ${analystConsensus}. (יעד ממוצע בשוק: $${meanTarget || 'לא זמין'}, יעד גבוה: $${highTarget || 'לא זמין'}).
+        
+        הנחיות קריטיות - חסינות שגיאות נתונים (Anomaly Detection):
+        לפעמים ממשק הנתונים מחזיר בטעות ערך "0" לנתונים מרכזיים (כמו P/E של 0, צמיחה של 0, או נתון חסר היגיון אחר עבור חברת ענק עובדת). במקרה שאתה מזהה נתון "0" או נתון חריג ולא הגיוני שסותר את שאר המספרים הבריאים של החברה - *התעלם ממנו לחלוטין* (הנח שזה נתון שגוי מה-API). אל תתן למספר שגוי כזה להרוס את הניתוח ואל תציין אותו כ"נקודת תורפה". הסתמך על שאר הנתונים התקינים שקיבלת!
         
         הנחיות קריטיות לניתוח שווי (Valuation):
-        1. עצמאות המודל: אתה לא עובד אצל האנליסטים! יעד המחיר הממוצע שסופק הוא רק רפרנס. חשב מחיר יעד ריאלי (price_target) בעצמך המבוסס על הצלבת נתוני התמחור, הרווחיות, הצמיחה והמומנטום הטכני שמסופקים כאן.
-        2. תמחור הוגן ומקורי: אם לחברה יש צמיחת EPS חזקה, ROIC גבוה ושולי רווח משתפרים - תן יעד מחיר המשקף אפסייד אמיתי ונועז (10% עד 30% או יותר), אפילו אם זה מעל הקונצנזוס. מנגד, אם יש יחס חוב מסוכן, התכווצות הכנסות או P/E בועתי ללא גיבוי - תן דאונסייד והמלצת מכירה אגרסיבית.
-        3. השורה התחתונה והפסיקה (rating) חייבות לשקף את ההיגיון המדויק שגזרת מהמספרים לעיל. ציין אילו נתונים ספציפיים הובילו להחלטה.
+        1. עצמאות המודל: אתה לא עובד אצל האנליסטים! יעד המחיר הממוצע שסופק הוא רק רפרנס. חשב מחיר יעד ריאלי (price_target) בעצמך בהתבסס על הרווחיות, ההפתעה בדוחות הרבעוניים והמומנטום.
+        2. תמחור נועז ואמיתי: לחברות מנצחות (דוח רבעוני חזק, צמיחה, ROE גבוה) תן יעד אפסייד חזק. לחברות מפסידות (מכפילים בועתיים, חוב, פספוס דוחות) חתוך את מחיר היעד למטה בחדות.
         
         ספק את הניתוח בפורמט JSON חוקי בלבד בעברית:
         "identity": "פרופיל החברה ומעמדה התחרותי בשוק.",
         "technical": "ניתוח טכני מבוסס ממוצעים ותנודתיות.",
-        "news_analysis": "ניתוח פונדמנטלי חריף ועצמאי של כל מספרי הרווחיות, הצמיחה והתמחור.",
+        "news_analysis": "ניתוח פונדמנטלי של הדוח הרבעוני (אם יש), הרווחיות, הצמיחה והתמחור.",
         "summary": "השורה התחתונה שלך מחיבור כל הנתונים לכדי הערכת שווי כוללת.",
         "verdict": "פסיקה נוקבת ומנומקת.",
         "pros": ["נקודת חוזק 1", "נקודת חוזק 2", "נקודת חוזק 3"],
         "cons": ["נקודת תורפה 1", "נקודת תורפה 2", "נקודת תורפה 3"],
-        "pattern": "תבנית שזוהתה בנתונים הטכניים/הפונדמנטליים",
+        "pattern": "תבנית שזוהתה בנתונים",
         "price_target": "מחיר יעד ל-12 חודשים (חובה מספר טהור, מבוסס על הניתוח המקורי שלך)",
         "rating": "קנייה / החזקה / מכירה / קנייה חזקה",
         "scores": { "growth": 1-100, "momentum": 1-100, "value": 1-100, "quality": 1-100 }`;
 
-        // העלינו את הטמפרטורה ל-0.3 כדי לאפשר ל-AI יכולת היקש וחישוב עצמאית
         const payload = {
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
@@ -197,7 +210,6 @@ module.exports = async function(req, res) {
             let text = aiData.candidates[0].content.parts[0].text.replace(/```json|```/g, "").trim();
             aiVerdict = JSON.parse(text);
             
-            // הגנה על מספר טהור למחיר היעד - יפול ליעד הממוצע או חישוב בסיסי במקרה של שגיאת AI
             let targetNum;
             if (typeof aiVerdict.price_target === 'string') {
                 targetNum = Number(aiVerdict.price_target.replace(/[^0-9.]/g, ''));
@@ -207,7 +219,6 @@ module.exports = async function(req, res) {
             
             aiVerdict.price_target = (targetNum && targetNum > 0) ? targetNum : (meanTarget ? Number(meanTarget) : Number(quote?.c || 0) * 1.15);
 
-            // הפצצת מפתחות לוודא שהפרונט-אנד לעולם לא מראה "חסר נתונים"
             aiVerdict.bottomLine = aiVerdict.summary || aiVerdict.verdict;
             aiVerdict.verdict = aiVerdict.verdict || aiVerdict.summary;
             const prosArray = Array.isArray(aiVerdict.pros) ? aiVerdict.pros : ["צמיחה פוטנציאלית"];
@@ -225,9 +236,11 @@ module.exports = async function(req, res) {
             ticker, name: profile?.name || ticker, industry: profile?.finnhubIndustry || "N/A", sector: profile?.finnhubIndustry || "N/A",
             price: Number(quote?.c || 0), changePercentage: Number(quote?.dp || 0),
             
-            // שולחים את כל הנתונים גם לשורש האובייקט וגם לתוך marketData
             ma50: technicals.ma50, ma200: technicals.ma200, volume: technicals.volume, trend: technicals.trend,
             ...fundamentals,
+            
+            // שולחים את הדוח הרבעוני ל-Frontend כדי להציג בטבלה
+            latestEarnings: latestEarnings,
             
             marketData: { ticker, name: profile?.name || ticker, price: quote?.c, changePercentage: quote?.dp, ...fundamentals, ...technicals },
             fundamentals, metrics: fundamentals, technical: technicals, technicals,
