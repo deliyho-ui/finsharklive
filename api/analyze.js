@@ -15,41 +15,45 @@ module.exports = async function(req, res) {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     if (req.method === 'OPTIONS') return res.status(200).end();
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
     try {
-        // --- שלב הדיאגנוסטיקה: בדיקה מה גוגל מרשה לנו ---
-        // אנחנו ננסה למשוך את רשימת המודלים הזמינים באמת
-        const ticker = (req.query.ticker || "AAPL").toUpperCase();
-
+        const ticker = (req.query.ticker || req.query.symbol || "AAPL").toUpperCase().trim();
+        
+        // שליפת נתונים בסיסית מ-Finnhub
         const [quote, profile] = await Promise.all([
             fetchFinnhub('quote', `symbol=${ticker}`),
             fetchFinnhub('stock/profile2', `symbol=${ticker}`)
         ]);
 
-        // נסיון ישיר עם הנתיב המלא (לפעמים ב-2026 זה מה שפותר את זה)
-        const model = genAI.getGenerativeModel({ model: "models/gemini-1.5-flash" });
+        if (!quote || !quote.c) throw new Error("Finnhub data missing");
+
+        // אתחול ג'מיני
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         
-        const prompt = `נתח בקצרה את ${ticker}. החזר JSON: { "summary": "טקסט" }`;
+        // ב-2026, לפעמים צריך להוריד את ה-v1beta מהראש. המודל הזה הוא הכי יציב:
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        
+        const prompt = `נתח את ${ticker}. מחיר: ${quote.c}$. החזר JSON בעברית: identity, technical, news_analysis, verdict, price_target, rating, scores.`;
         
         const result = await model.generateContent(prompt);
-        const response = await result.response;
+        const text = result.response.text().replace(/```json|```/g, "").trim();
         
         return res.status(200).json({
             success: true,
-            message: "הצלחנו!",
-            data: JSON.parse(response.text().replace(/```json|```/g, ""))
+            debug: {
+                version: "3.0-FINAL-CHECK", // חותמת זיהוי
+                timestamp: new Date().toISOString(),
+                model: "gemini-1.5-flash"
+            },
+            marketData: { ticker, name: profile?.name || ticker, price: quote.c, changePercentage: quote.dp },
+            aiVerdict: JSON.parse(text)
         });
 
     } catch (error) {
-        console.error("DIAGNOSTIC ERROR:", error.message);
-        
-        // אם זה נכשל, אנחנו מחזירים תשובה שתגיד לנו למה
-        return res.status(500).json({
-            success: false,
-            error_type: "GEMINI_CONNECTION_FAILURE",
-            message: error.message,
-            tip: "אם קיבלת 404 על הכל, ודא שהמפתח מ-AI Studio ולא מגוגל קלאוד הרגיל."
+        // אם זה נופל, לפחות נדע למה
+        return res.status(500).json({ 
+            success: false, 
+            message: `Error: ${error.message}`,
+            suggestion: "ודא שהמפתח הופק ב-aistudio.google.com ולא ב-Cloud Console."
         });
     }
 };
