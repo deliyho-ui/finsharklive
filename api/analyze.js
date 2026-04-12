@@ -37,7 +37,7 @@ module.exports = async function(req, res) {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         
         // --- ניסיון ראשון עם השם הנפוץ ביותר ב-2026 ---
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" }); // גרסה קלה ויציבה מאוד
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // גרסה קלה ויציבה מאוד
         
         const prompt = `נתח את ${ticker}. מחיר: ${quote.c}$. החזר JSON בעברית: identity, technical, news_analysis, verdict, price_target, rating, scores.`;
         
