@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+   <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -106,18 +106,10 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .section-subtitle { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 32px; }
 
 /* Market UI Additions */
-.fg-section { display: grid; grid-template-columns: 280px 1fr; gap: 16px; margin-bottom: 20px; }
-@media(max-width:768px) { .fg-section { grid-template-columns: 1fr; } }
-.fg-card { background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.fg-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); margin-bottom: 20px; }
-.gauge-wrap { position: relative; width: 180px; height: 100px; }
-.gauge-wrap canvas { width: 100% !important; height: 100% !important; }
-.gauge-value { position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%); font-size: 2rem; font-weight: 900; }
-.gauge-label { text-align: center; font-size: 0.8rem; font-weight: 700; margin-top: 10px; text-transform: uppercase; }
+.fg-section { margin-bottom: 20px; }
 .heatmap-card { flex: 1; }
 .heatmap-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 14px; }
 .heatmap-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-@media (max-width: 600px) { .heatmap-grid { grid-template-columns: repeat(2, 1fr); } }
 .heatmap-cell { border-radius: 10px; padding: 12px 14px; cursor: default; transition: var(--transition); border: 1px solid transparent; display:flex; flex-direction:column; justify-content:center;}
 .heatmap-cell:hover { transform: scale(1.04); }
 .heatmap-cell.up { background: rgba(48,209,88,0.1); border-color: rgba(48,209,88,0.15); }
@@ -127,7 +119,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .cell-change { font-size: 1.05rem; font-weight: 800; direction: ltr; text-align: left;}
 .cell-change.up { color: var(--green); } .cell-change.down { color: var(--red); }
 .news-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 20px; }
-@media(max-width:768px) { .news-grid { grid-template-columns: 1fr; } }
 .news-card { background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); padding: 16px 18px; cursor: pointer; transition: var(--transition); display:flex; flex-direction:column; }
 .news-card:hover { border-color: rgba(255,255,255,0.14); transform: translateY(-2px); }
 .news-source { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 8px; }
@@ -188,7 +179,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .stock-change.up { background: var(--green-dim); color: var(--green); }
 .stock-change.down { background: var(--red-dim); color: var(--red); }
 .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-@media (max-width: 768px) { .results-grid { grid-template-columns: 1fr; } }
 .full-width { grid-column: 1 / -1; }
 .chart-card { padding: 28px; }
 .chart-controls { display: flex; gap: 6px; margin-bottom: 20px; }
@@ -241,7 +231,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .verdict-rating.hold { background: var(--gold-dim); color: var(--gold); border: 1px solid rgba(255,214,10,0.25); }
 .verdict-rating.sell { background: var(--red-dim); color: var(--red); border: 1px solid rgba(255,69,58,0.25); }
 .verdict-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 22px; }
-@media(max-width:600px) { .verdict-columns { grid-template-columns: 1fr; } }
 .verdict-col { background: rgba(255,255,255,0.025); border-radius: var(--radius-sm); padding: 18px; border: 1px solid rgba(255,255,255,0.05); }
 .verdict-col-title { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.07); }
 .verdict-col-title.pros { color: var(--green); }
@@ -260,6 +249,72 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .tooltip-wrap:hover::after { opacity: 1; }
 
 .debug-box { background: rgba(255,69,58,0.1); border: 1px solid var(--red); color: #fff; padding: 15px; border-radius: 10px; margin: 15px 0; font-family: monospace; font-size: 13px; text-align: left; direction: ltr; white-space: pre-wrap; word-break: break-all; }
+
+/* --- התאמה רספונסיבית למובייל וטאבלטים (MOBILE RESPONSIVENESS) --- */
+@media (max-width: 768px) {
+  /* תפריט ניווט */
+  nav { padding: 12px 16px; flex-wrap: wrap; height: auto; min-height: 68px; gap: 12px; justify-content: space-between; }
+  .logo { flex: 1; font-size: 1.2rem; }
+  .nav-actions { display: flex; justify-content: flex-end; }
+  /* הטאבים עוברים לשורה חדשה וניתנים לגלילה הצידה עם האצבע */
+  .nav-center { width: 100%; order: 3; justify-content: flex-start; overflow-x: auto; padding-bottom: 5px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .nav-center::-webkit-scrollbar { display: none; }
+  .nav-tab { padding: 8px 14px; white-space: nowrap; font-size: 0.85rem; }
+  .user-greeting { display: none !important; }
+  
+  /* גרידים וריווחים ראשיים */
+  main { padding-top: 130px; padding-left: 14px; padding-right: 14px; }
+  .card { padding: 18px; }
+  .section-title { font-size: 1.4rem; }
+  .results-grid { grid-template-columns: 1fr; }
+  .news-grid { grid-template-columns: 1fr; }
+  .verdict-columns { grid-template-columns: 1fr; }
+  
+  /* מסך שוק */
+  .market-stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .heatmap-grid { grid-template-columns: repeat(2, 1fr); }
+  
+  /* חיפוש וסימולים */
+  .search-box { flex-direction: column; gap: 10px; }
+  .search-input { padding: 16px 20px; font-size: 1rem; border-radius: 14px; }
+  .search-btn { padding: 16px; border-radius: 14px; width: 100%; font-size: 1rem; }
+  .quick-symbols { gap: 6px; }
+  
+  /* כותרת תוצאות מניה */
+  .stock-header { padding: 20px; flex-direction: column; align-items: flex-start; gap: 12px; }
+  .stock-full-name { font-size: 1.6rem; }
+  .stock-price { font-size: 2.2rem; }
+  .stock-price-group { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+  
+  /* תוכן תוצאות */
+  .chart-container { height: 280px; }
+  .ma-display { flex-direction: column; gap: 8px; }
+  .overall-score-container { flex-direction: column; text-align: center; gap: 16px; }
+  .score-text-wrap { text-align: center; }
+  
+  .verdict-card { padding: 20px; }
+  .verdict-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .verdict-rating { margin-right: 0; width: 100%; text-align: center; }
+  
+  .price-target-row { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .pt-value { font-size: 1.6rem; }
+  
+  .data-row { padding: 12px 0; }
+  .data-label { font-size: 0.8rem; }
+  .data-value { font-size: 0.85rem; }
+  .range-bar-wrap { width: 100px; }
+  
+  /* מודל ההתחברות */
+  .modal { padding: 32px 20px; width: 92%; }
+}
+
+@media (max-width: 480px) {
+  /* במסכים סופר קטנים */
+  .market-stats { grid-template-columns: repeat(2, 1fr); }
+  .heatmap-grid { grid-template-columns: repeat(2, 1fr); }
+  .chart-container { height: 250px; }
+  .ticker-item { padding: 0 16px; font-size: 0.75rem; }
+}
 </style>
 </head>
 <body>
@@ -323,14 +378,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
     </div>
 
     <div class="fg-section">
-      <div class="fg-card card">
-        <div class="fg-title">📊 מדד פחד וחמדנות (VIX)</div>
-        <div class="gauge-wrap">
-          <canvas id="gaugeCanvas" width="180" height="100"></canvas>
-          <div class="gauge-value" id="gauge-value" style="color:#ffd60a">--</div>
-        </div>
-        <div class="gauge-label" id="gauge-label" style="color:#ffd60a">מנתח...</div>
-      </div>
       <div class="card heatmap-card">
         <div class="heatmap-title">מפת חום סקטוריאלית</div>
         <div class="heatmap-grid" id="heatmap-grid"></div>
@@ -589,12 +636,6 @@ function renderMarketWeather(data) {
     document.getElementById('ticker-track').innerHTML = tickerHtml + tickerHtml;
     document.getElementById('market-stats').innerHTML = statsHtml;
 
-    // VIX logic (Static for now as per backend changes)
-    if(data.vix && data.vix.value) vixValue = data.vix.value;
-    let fgScore = Math.max(0, Math.min(100, 100 - ((vixValue - 12) * (100 / 23)))), fgLabel = "ניטרלי", fgColor = "#ffd60a";
-    if(fgScore >= 75) { fgLabel = "חמדנות קיצונית"; fgColor = "#30d158"; } else if(fgScore >= 55) { fgLabel = "חמדנות"; fgColor = "#30d158"; } else if(fgScore <= 25) { fgLabel = "פחד קיצוני"; fgColor = "#ff453a"; } else if(fgScore <= 45) { fgLabel = "פחד"; fgColor = "#ff453a"; }
-    document.getElementById('gauge-value').textContent = Math.round(fgScore); document.getElementById('gauge-value').style.color = fgColor; document.getElementById('gauge-label').textContent = fgLabel; document.getElementById('gauge-label').style.color = fgColor; drawGauge(fgScore);
-
     if (sectors.length > 0) document.getElementById('heatmap-grid').innerHTML = sectors.slice(0, 12).map(s => { const chg = parseFloat(s.changesPercentage), isUp = chg > 0, isNeutral = chg === 0, cls = isNeutral ? 'neutral' : (isUp ? 'up' : 'down'); return `<div class="heatmap-cell ${cls}" title="${s.sector}"><div class="cell-name">${mapSectorToHebrew(s.sector)}</div><div class="cell-change ${cls}">${isUp?'+':''}${chg.toFixed(2)}%</div></div>`; }).join('');
     
     // News rendering (Finnhub format)
@@ -602,17 +643,6 @@ function renderMarketWeather(data) {
         const date = new Date(n.publishedAt || n.date).toLocaleDateString('he-IL', {day:'numeric', month:'short'}); 
         return `<div class="news-card" onclick="window.open('${n.url}', '_blank')"><div class="news-source">${n.source} • ${date}</div><div class="news-headline" dir="ltr" style="text-align:left;">${n.headline || n.title}</div></div>`; 
     }).join('');
-}
-
-function drawGauge(value) {
-  const canvas = document.getElementById('gaugeCanvas'); if (!canvas) return;
-  const ctx = canvas.getContext('2d'); const W = 180, H = 100; ctx.clearRect(0, 0, W, H); const cx = W / 2, cy = H - 10, r = 78;
-  ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, 0, false); ctx.lineWidth = 12; ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.stroke();
-  const grad = ctx.createLinearGradient(cx - r, cy, cx + r, cy); [{stop:0,color:'#ff453a'},{stop:0.25,color:'#ff9f0a'},{stop:0.5,color:'#ffd60a'},{stop:0.75,color:'#30d158'},{stop:1,color:'#30d158'}].forEach(s => grad.addColorStop(s.stop, s.color));
-  ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, Math.PI + (value / 100) * Math.PI, false); ctx.lineWidth = 12; ctx.strokeStyle = grad; ctx.lineCap = 'round'; ctx.stroke();
-  const needleAngle = Math.PI + (value / 100) * Math.PI, nx = cx + (r - 20) * Math.cos(needleAngle), ny = cy + (r - 20) * Math.sin(needleAngle);
-  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(nx, ny); ctx.lineWidth = 2.5; ctx.strokeStyle = '#fff'; ctx.lineCap = 'round'; ctx.stroke();
-  ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
 }
 
 window.analyzeStock = async function() {
