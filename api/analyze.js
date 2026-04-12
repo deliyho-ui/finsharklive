@@ -23,19 +23,23 @@ module.exports = async function(req, res) {
             const marketSymbols = ['SPY', 'QQQ', 'DIA', 'IWM']; 
             const quotes = await Promise.all(marketSymbols.map(s => fetchFinnhub('quote', `symbol=${s}`)));
             
-            const indexes = marketSymbols.map((s, i) => ({
-                symbol: s === 'SPY' ? 'S&P 500' : s === 'QQQ' ? 'NASDAQ' : s,
-                price: Number(quotes[i]?.c || 0), // מספר נקי
-                changesPercentage: Number(quotes[i]?.dp || 0) // מספר נקי
-            }));
+            const indexes = marketSymbols.map((s, i) => {
+                const dp = quotes[i]?.dp || 0;
+                return {
+                    symbol: s === 'SPY' ? 'S&P 500' : s === 'QQQ' ? 'NASDAQ' : s,
+                    price: Number(quotes[i]?.c || 0), // מספר (ל-toFixed)
+                    changesPercentage: String(dp) // טקסט (ל-replace) - זה מה שפתר את השגיאה!
+                };
+            });
 
             return res.status(200).json({
                 success: true,
+                version: "2026.FINAL.FIX", // סימן זיהוי שנדע שהקוד התעדכן
                 marketData: {
                     indexes: indexes,
                     sectors: [
-                        { sector: "Technology", changesPercentage: 1.2 },
-                        { sector: "Energy", changesPercentage: -0.5 }
+                        { sector: "Technology", changesPercentage: "1.2" },
+                        { sector: "Energy", changesPercentage: "-0.5" }
                     ],
                     news: []
                 }
@@ -67,17 +71,19 @@ module.exports = async function(req, res) {
             aiVerdict = JSON.parse(text);
         } catch (e) { console.error("AI Error"); }
 
+        const currentDP = quote.dp || 0;
+
         return res.status(200).json({
             success: true,
             ticker: ticker,
             name: String(profile?.name || ticker),
-            price: Number(quote.c || 0), // מספר נקי
-            changePercentage: Number(quote.dp || 0), // מספר נקי
+            price: Number(quote.c || 0), // מספר
+            changePercentage: String(currentDP), // טקסט
             marketData: {
                 ticker: ticker,
                 name: String(profile?.name || ticker),
                 price: Number(quote.c || 0),
-                changePercentage: Number(quote.dp || 0)
+                changePercentage: String(currentDP)
             },
             verdict: aiVerdict,
             aiVerdict: aiVerdict,
