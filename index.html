@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FinShark | כריש פיננסי - AI Market Analysis</title>
 <link rel="icon" href="data:,">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<!-- החלפנו את Chart.js בספריית הגרפים של TradingView לנרות יפנים -->
+<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
 
@@ -104,7 +105,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .section-title { font-size: 1.7rem; font-weight: 800; margin-bottom: 6px; }
 .section-subtitle { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 32px; }
 
-/* Market UI Additions (Heatmap, Gauge, News) */
+/* Market UI Additions */
 .fg-section { display: grid; grid-template-columns: 280px 1fr; gap: 16px; margin-bottom: 20px; }
 @media(max-width:768px) { .fg-section { grid-template-columns: 1fr; } }
 .fg-card { background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -195,7 +196,8 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .chart-btn.active { background: var(--blue-dim); border-color: rgba(10,132,255,0.3); color: var(--blue); }
 .chart-btn:hover:not(.active) { color: var(--text); }
 .chart-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 16px; }
-.chart-container { height: 230px; position: relative; }
+/* שינוי אלמנט הגרף כך שיתאים ל-TradingView */
+.chart-container { height: 350px; position: relative; width: 100%; direction: ltr; }
 .card-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); margin-bottom: 20px; }
 .data-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
 .data-row:last-child { border-bottom: none; }
@@ -311,7 +313,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 
     <div id="debug-market" style="display:none"></div>
 
-    <div class="ticker-wrap"><div class="ticker-track" id="ticker-track">ממתין לנתונים מ-FMP...</div></div>
+    <div class="ticker-wrap"><div class="ticker-track" id="ticker-track">ממתין לנתונים מ-Finnhub...</div></div>
     <div class="market-stats" id="market-stats"></div>
     
     <div id="promo-box" style="text-align:center; padding: 40px; background:rgba(255,255,255,0.02); border-radius: 20px; border:1px solid var(--glass-border); margin-top:20px; margin-bottom:20px;">
@@ -397,14 +399,15 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
       <div class="results-grid">
         <div class="card chart-card full-width">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-            <div class="chart-label">ביצועים תקופתיים</div>
+            <div class="chart-label">ביצועים תקופתיים - נרות שבועיים</div>
             <div class="chart-controls">
-              <button class="chart-btn" onclick="setChartPeriod(1,this)">1M</button>
               <button class="chart-btn" onclick="setChartPeriod(3,this)">3M</button>
-              <button class="chart-btn active" onclick="setChartPeriod(12,this)">1Y</button>
+              <button class="chart-btn" onclick="setChartPeriod(6,this)">6M</button>
+              <button class="chart-btn active" onclick="setChartPeriod(24,this)">2Y</button>
             </div>
           </div>
-          <div class="chart-container"><canvas id="stockChart"></canvas></div>
+          <!-- מיכל הגרף של TradingView -->
+          <div class="chart-container" id="stockChart"></div>
         </div>
 
         <div class="card">
@@ -552,7 +555,7 @@ window.loadMarketWeather = async function() {
     try {
         const response = await fetch(`${NETLIFY_API_URL}?action=market`);
         const rawText = await response.text();
-        let data; try { data = JSON.parse(rawText); } catch(e) { debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 השרת החזיר שגיאה (לא JSON) - אנא ודא מפתחות API וקובץ Netlify.toml.</strong>\n\n${rawText}`; document.getElementById('ticker-track').innerHTML = "שגיאת שרת. ראה למעלה."; return; }
+        let data; try { data = JSON.parse(rawText); } catch(e) { debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 השרת החזיר שגיאה (לא JSON) - אנא ודא מפתחות API.</strong>\n\n${rawText}`; document.getElementById('ticker-track').innerHTML = "שגיאת שרת."; return; }
         if (data.success && data.marketData) renderMarketWeather(data.marketData);
         else { debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 שגיאת שרת לוגית:</strong>\n\n${data.message || JSON.stringify(data)}`; }
     } catch (e) {
@@ -560,33 +563,38 @@ window.loadMarketWeather = async function() {
     }
 };
 
-const mapSectorToHebrew = (engName) => { const map = { "Technology": "טכנולוגיה", "Healthcare": "בריאות", "Financials": "פיננסים", "Consumer Cyclical": "מוצרי צריכה", "Communication Services": "תקשורת", "Industrials": "תעשייה", "Consumer Defensive": "מוצרי יסוד", "Energy": "אנרגיה", "Real Estate": "נדל\"ן", "Utilities": "תשתיות", "Basic Materials": "חומרי גלם" }; return map[engName] || engName; };
+const mapSectorToHebrew = (engName) => { const map = { "Technology": "טכנולוגיה", "Healthcare": "בריאות", "Financials": "פיננסים", "Consumer Cyclical": "מוצרי צריכה", "Communication Services": "תקשורת", "Industrials": "תעשייה", "Consumer Defensive": "מוצרי יסוד", "Energy": "אנרגיה", "Real Estate": "נדל\"ן", "Utilities": "תשתיות", "Basic Materials": "חומרי גלם", "כללי": "כללי" }; return map[engName] || engName; };
 
 function renderMarketWeather(data) {
     let { indexes, sectors, news } = data;
-    if (!Array.isArray(indexes)) indexes = []; if (!Array.isArray(sectors)) sectors = []; if (!Array.isArray(news)) news = news?.content || [];
+    if (!Array.isArray(indexes)) indexes = []; if (!Array.isArray(sectors)) sectors = []; if (!Array.isArray(news)) news = [];
     
-    const indexMap = { "^GSPC": "S&P 500", "^IXIC": "NASDAQ", "^DJI": "Dow Jones", "^VIX": "VIX", "BTCUSD": "Bitcoin" };
     let tickerHtml = "", statsHtml = "", vixValue = 20;
 
-    if (indexes.length === 0) tickerHtml = "<div class='ticker-item' style='color:var(--red)'>המתן... לא הצלחנו למשוך נתונים. ודא את מפתח ה-FMP שלך.</div>";
+    if (indexes.length === 0) tickerHtml = "<div class='ticker-item' style='color:var(--red)'>המתן... לא הצלחנו למשוך נתונים.</div>";
     else {
         indexes.forEach(idx => {
-            const name = indexMap[idx.symbol] || idx.symbol, isUp = idx.changesPercentage >= 0, price = idx.price >= 1000 ? idx.price.toLocaleString(undefined, {maximumFractionDigits: 0}) : idx.price.toFixed(2), change = `${isUp ? '+' : ''}${idx.changesPercentage.toFixed(2)}%`, colorUp = (idx.symbol === "^VIX") ? !isUp : isUp;
+            const name = idx.symbol, isUp = idx.changesPercentage >= 0, price = idx.price >= 1000 ? idx.price.toLocaleString(undefined, {maximumFractionDigits: 0}) : idx.price.toFixed(2), change = `${isUp ? '+' : ''}${idx.changesPercentage.toFixed(2)}%`, colorUp = isUp;
             tickerHtml += `<div class="ticker-item"><span class="ticker-name">${name}</span> <span class="ticker-price">${price}</span> <span class="ticker-change ${colorUp?'up':'down'}">${change}</span></div>`;
             statsHtml += `<div class="stat-card"><div class="stat-label">${name}</div><div class="stat-value">${price}</div><div class="stat-change ${colorUp?'up':'down'}">${change} היום</div></div>`;
-            if (idx.symbol === "^VIX") vixValue = idx.price;
         });
     }
     document.getElementById('ticker-track').innerHTML = tickerHtml + tickerHtml;
     document.getElementById('market-stats').innerHTML = statsHtml;
 
+    // VIX logic (Static for now as per backend changes)
+    if(data.vix && data.vix.value) vixValue = data.vix.value;
     let fgScore = Math.max(0, Math.min(100, 100 - ((vixValue - 12) * (100 / 23)))), fgLabel = "ניטרלי", fgColor = "#ffd60a";
     if(fgScore >= 75) { fgLabel = "חמדנות קיצונית"; fgColor = "#30d158"; } else if(fgScore >= 55) { fgLabel = "חמדנות"; fgColor = "#30d158"; } else if(fgScore <= 25) { fgLabel = "פחד קיצוני"; fgColor = "#ff453a"; } else if(fgScore <= 45) { fgLabel = "פחד"; fgColor = "#ff453a"; }
     document.getElementById('gauge-value').textContent = Math.round(fgScore); document.getElementById('gauge-value').style.color = fgColor; document.getElementById('gauge-label').textContent = fgLabel; document.getElementById('gauge-label').style.color = fgColor; drawGauge(fgScore);
 
-    if (sectors.length > 0) document.getElementById('heatmap-grid').innerHTML = sectors.slice(0, 12).map(s => { const chg = parseFloat(s.changesPercentage.replace('%','')), isUp = chg > 0, isNeutral = chg === 0, cls = isNeutral ? 'neutral' : (isUp ? 'up' : 'down'); return `<div class="heatmap-cell ${cls}" title="${s.sector}"><div class="cell-name">${mapSectorToHebrew(s.sector)}</div><div class="cell-change ${cls}">${isUp?'+':''}${chg.toFixed(2)}%</div></div>`; }).join('');
-    if (news.length > 0) document.getElementById('market-news-grid').innerHTML = news.map(n => { const date = new Date(n.publishedDate).toLocaleDateString('he-IL', {day:'numeric', month:'short'}); return `<div class="news-card" onclick="window.open('${n.url}', '_blank')"><img src="${n.image}" class="news-image" onerror="this.style.display='none'"><div class="news-source">${n.site} • ${date}</div><div class="news-headline" dir="ltr" style="text-align:left;">${n.title}</div></div>`; }).join('');
+    if (sectors.length > 0) document.getElementById('heatmap-grid').innerHTML = sectors.slice(0, 12).map(s => { const chg = parseFloat(s.changesPercentage), isUp = chg > 0, isNeutral = chg === 0, cls = isNeutral ? 'neutral' : (isUp ? 'up' : 'down'); return `<div class="heatmap-cell ${cls}" title="${s.sector}"><div class="cell-name">${mapSectorToHebrew(s.sector)}</div><div class="cell-change ${cls}">${isUp?'+':''}${chg.toFixed(2)}%</div></div>`; }).join('');
+    
+    // News rendering (Finnhub format)
+    if (news.length > 0) document.getElementById('market-news-grid').innerHTML = news.map(n => { 
+        const date = new Date(n.publishedAt || n.date).toLocaleDateString('he-IL', {day:'numeric', month:'short'}); 
+        return `<div class="news-card" onclick="window.open('${n.url}', '_blank')"><div class="news-source">${n.source} • ${date}</div><div class="news-headline" dir="ltr" style="text-align:left;">${n.headline || n.title}</div></div>`; 
+    }).join('');
 }
 
 function drawGauge(value) {
@@ -603,15 +611,20 @@ function drawGauge(value) {
 window.analyzeStock = async function() {
   const ticker = document.getElementById('ticker-input').value.trim().toUpperCase(); if (!ticker) { document.getElementById('ticker-input').focus(); return; }
   const debugEl = document.getElementById('debug-analyze'); debugEl.style.display = 'none'; document.getElementById('results').style.display = 'none';
-  showLoading(); animateLoadingSteps(['יוצר קשר עם שרת FinShark...','מושך נתוני אמת מ-FMP...','מעביר נתונים למוח ה-AI (Gemini)...','מגבש פסיקת הכריש...']);
+  showLoading(); animateLoadingSteps(['יוצר קשר עם שרת FinShark...','מושך נתוני אמת מ-Finnhub & Yahoo...','מעביר נתונים למוח ה-AI (Gemini)...','מגבש פסיקת הכריש...']);
 
   try {
     const response = await fetch(`${NETLIFY_API_URL}?action=analyze&ticker=${ticker}`);
     const rawText = await response.text();
     let data; try { data = JSON.parse(rawText); } catch(e) { hideLoading(); document.getElementById('results').style.display = 'block'; debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 השרת לא מחזיר JSON! הנה מה שחזר:</strong>\n\n${rawText}`; return; }
     if (!response.ok || !data.success) { hideLoading(); document.getElementById('results').style.display = 'block'; debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 שגיאה מפורשת מהשרת:</strong>\n\n${data.message || JSON.stringify(data)}`; return; }
-    State.currentData = data.marketData; State.aiAnalysis = data.aiVerdict; window.currentChartData = data.chartHistory;
-    hideLoading(); renderResults(data.marketData, data.aiVerdict, data.chartHistory, data.news);
+    
+    // בגלל השינוי ב-Backend נשתמש במבנה השטוח (data) עבור רוב הנתונים
+    State.currentData = data; 
+    State.aiAnalysis = data.aiVerdict; 
+    window.currentChartData = data.chartHistory;
+    
+    hideLoading(); renderResults(data, data.aiVerdict, data.chartHistory, data.news);
   } catch (error) { console.error("Analysis Error:", error); hideLoading(); alert(`🚨 תקלת רשת מוחלטת 🚨\n\n${error.message}`); }
 };
 
@@ -621,24 +634,73 @@ function setLoadingText(t) { document.getElementById('loading-text').textContent
 function hideLoading() { document.getElementById('loading').classList.remove('active'); }
 async function animateLoadingSteps(steps) { const container = document.getElementById('loading-steps'); container.innerHTML = ''; for (let i = 0; i < steps.length; i++) { await sleep(400); const prev = container.querySelector('.loading-step:not(.done)'); if (prev) { prev.classList.add('done'); prev.textContent = '✓ ' + prev.textContent; } setLoadingText(steps[i]); const el = document.createElement('div'); el.className = 'loading-step'; el.textContent = steps[i]; container.appendChild(el); if (container.children.length > 5) container.removeChild(container.firstChild); } }
 
-let chartInstance = null;
-function getChartSlice(historyData, months) {
-  if (!historyData || historyData.length === 0) return { months: [], prices: [], ma50: [], ma200: [] };
-  const ma50Arr = [], ma200Arr = [];
-  for (let i = 0; i < historyData.length; i++) { if (i >= 49) { let sum = 0; for (let j = 0; j < 50; j++) sum += historyData[i - j].close; ma50Arr.push(sum / 50); } else { ma50Arr.push(null); } if (i >= 199) { let sum = 0; for (let j = 0; j < 200; j++) sum += historyData[i - j].close; ma200Arr.push(sum / 200); } else { ma200Arr.push(null); } }
-  const tradingDays = months === 1 ? 21 : months === 3 ? 63 : historyData.length, startIndex = Math.max(0, historyData.length - tradingDays), slice = historyData.slice(startIndex);
-  return { months: slice.map(d => new Date(d.date).toLocaleDateString('he-IL', { day: 'numeric', month: 'short' })), prices: slice.map(d => d.close), ma50: ma50Arr.slice(startIndex), ma200: ma200Arr.slice(startIndex) };
-}
+// --- TRADINGVIEW LIGHTWEIGHT CHARTS LOGIC ---
+let tvChart = null;
+let candleSeries = null;
+let ma50Series = null;
+let ma200Series = null;
 
-window.setChartPeriod = function(months, btn) { document.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); if (!window.currentChartData) return; const slice = getChartSlice(window.currentChartData, months); renderChart(slice.months, slice.prices, State.currentData.changePercentage >= 0, slice.ma50, slice.ma200); };
+window.setChartPeriod = function(months, btn) { 
+    document.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active')); 
+    if(btn) btn.classList.add('active'); 
+    if (!window.currentChartData) return; 
+    renderChart(window.currentChartData, months); 
+};
 
-function renderChart(labels, prices, isUp, ma50, ma200) {
-  const canvas = document.getElementById('stockChart'); if(!canvas) return; const ctx = canvas.getContext('2d'); if (chartInstance) { chartInstance.destroy(); }
-  const color = isUp ? '#30d158' : '#ff453a', colorRgb = isUp ? '48,209,88' : '255,69,58', grad = ctx.createLinearGradient(0, 0, 0, 230); grad.addColorStop(0, `rgba(${colorRgb},0.22)`); grad.addColorStop(0.7, `rgba(${colorRgb},0.04)`); grad.addColorStop(1, `rgba(${colorRgb},0)`);
-  const datasets = [{ label: 'מחיר סגירה', data: prices, borderColor: color, borderWidth: 2.5, backgroundColor: grad, fill: true, tension: 0.1, pointRadius: 0, pointHoverRadius: 6, pointHoverBackgroundColor: color, pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2, order: 1 }];
-  if (ma50 && ma50.some(v => v !== null)) datasets.push({ label: 'MA 50', data: ma50, borderColor: '#0a84ff', borderWidth: 1.5, borderDash: [5, 5], fill: false, pointRadius: 0, tension: 0.2, order: 2 });
-  if (ma200 && ma200.some(v => v !== null)) datasets.push({ label: 'MA 200', data: ma200, borderColor: '#bf5af2', borderWidth: 1.5, borderDash: [2, 2], fill: false, pointRadius: 0, tension: 0.2, order: 3 });
-  chartInstance = new Chart(ctx, { type: 'line', data: { labels: labels, datasets: datasets }, options: { responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: 'index' }, plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(14,14,18,0.95)', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, titleColor: '#86868b', bodyColor: '#f5f5f7', bodyFont: { family: 'Heebo', size: 13, weight: '700' }, padding: 14, callbacks: { label: ctx => ` ${ctx.dataset.label}: $${ctx.parsed.y.toFixed(2)}` } } }, scales: { x: { grid: { display: false }, border: { display: false }, ticks: { color: '#3a3a3c', font: { family: 'Heebo', size: 11 }, maxTicksLimit: 12 } }, y: { grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false }, ticks: { color: '#3a3a3c', font: { family: 'Heebo', size: 11 }, callback: v => `$${v}` } } } } });
+function renderChart(historyData, months) {
+    const container = document.getElementById('stockChart');
+    if(!container) return;
+
+    // Filter data based on selected months
+    let cutoffDate = new Date();
+    cutoffDate.setMonth(cutoffDate.getMonth() - months);
+    
+    const filteredData = historyData.filter(d => new Date(d.date) >= cutoffDate);
+    if(filteredData.length === 0) return;
+
+    // Prepare data arrays for TradingView
+    const candles = filteredData.map(d => ({ time: d.date, open: d.open, high: d.high, low: d.low, close: d.close }));
+    const ma50Line = filteredData.filter(d => d.ma50 !== null).map(d => ({ time: d.date, value: d.ma50 }));
+    const ma200Line = filteredData.filter(d => d.ma200 !== null).map(d => ({ time: d.date, value: d.ma200 }));
+
+    if (tvChart) {
+        tvChart.remove();
+        tvChart = null;
+    }
+
+    tvChart = LightweightCharts.createChart(container, {
+        layout: { background: { type: 'solid', color: 'transparent' }, textColor: '#86868b' },
+        grid: { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
+        rightPriceScale: { borderVisible: false },
+        timeScale: { borderVisible: false, fixLeftEdge: true, fixRightEdge: true },
+        crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
+    });
+
+    // Make chart responsive
+    new ResizeObserver(entries => {
+        if (entries.length === 0 || entries[0].target !== container) return;
+        const newRect = entries[0].contentRect;
+        tvChart.applyOptions({ height: newRect.height, width: newRect.width });
+    }).observe(container);
+
+    // Candlesticks
+    candleSeries = tvChart.addCandlestickSeries({
+        upColor: '#30d158', downColor: '#ff453a', borderVisible: false,
+        wickUpColor: '#30d158', wickDownColor: '#ff453a'
+    });
+    candleSeries.setData(candles);
+
+    // MAs
+    if (ma50Line.length > 0) {
+        ma50Series = tvChart.addLineSeries({ color: '#0a84ff', lineWidth: 1.5, title: 'MA 50 (W)' });
+        ma50Series.setData(ma50Line);
+    }
+    if (ma200Line.length > 0) {
+        ma200Series = tvChart.addLineSeries({ color: '#bf5af2', lineWidth: 1.5, title: 'MA 200 (W)' });
+        ma200Series.setData(ma200Line);
+    }
+
+    tvChart.timeScale().fitContent();
 }
 
 function renderScores(scores) {
@@ -655,17 +717,31 @@ function renderScores(scores) {
 function formatNumberShort(num) { if(!num) return "N/A"; if (num >= 1e12) return (num / 1e12).toFixed(2) + "T"; if (num >= 1e9) return (num / 1e9).toFixed(2) + "B"; if (num >= 1e6) return (num / 1e6).toFixed(2) + "M"; return num.toLocaleString(); }
 
 function renderResults(data, analysis, historyData, newsData) {
-  const isUp = data.changePercentage >= 0; document.getElementById('res-ticker').textContent = data.ticker + ' · ' + data.sector; document.getElementById('res-name').textContent = data.name; document.getElementById('res-price').textContent = `$${data.price.toFixed(2)}`;
-  const chEl = document.getElementById('res-change'); chEl.textContent = `${isUp ? '+' : ''}${data.changePercentage.toFixed(2)}%  (${isUp ? '▲' : '▼'} היום)`; chEl.className = `stock-change ${isUp ? 'up' : 'down'}`;
-  const btnWatch = document.getElementById('btn-add-watch-results'); if(State.watchlist.includes(data.ticker)) { btnWatch.textContent = '✓'; btnWatch.classList.add('active'); } else { btnWatch.textContent = '📌'; btnWatch.classList.remove('active'); }
-  const slice = getChartSlice(historyData, 12); renderChart(slice.months, slice.prices, isUp, slice.ma50, slice.ma200); document.querySelectorAll('.chart-btn').forEach((b,i) => b.classList.toggle('active', i===2));
-
-  const peNum = Number(data.pe) || 0, epsNum = Number(data.eps) || 0, rangeLow = data.yearLow || 0, rangeHigh = data.yearHigh || 100, currentPos = Math.max(0, Math.min(100, ((data.price - rangeLow) / (rangeHigh - rangeLow)) * 100));
+  const isUp = data.changePercentage >= 0; 
+  document.getElementById('res-ticker').textContent = data.ticker + ' · ' + data.sector; 
+  document.getElementById('res-name').textContent = data.name; 
+  document.getElementById('res-price').textContent = `$${data.price.toFixed(2)}`;
   
-  // הוספת הנתונים החדשים מהשרת: P/B Ratio, ROE, Debt/Equity
+  const chEl = document.getElementById('res-change'); 
+  chEl.textContent = `${isUp ? '+' : ''}${data.changePercentage.toFixed(2)}%  (${isUp ? '▲' : '▼'} היום)`; 
+  chEl.className = `stock-change ${isUp ? 'up' : 'down'}`;
+  
+  const btnWatch = document.getElementById('btn-add-watch-results'); 
+  if(State.watchlist.includes(data.ticker)) { btnWatch.textContent = '✓'; btnWatch.classList.add('active'); } 
+  else { btnWatch.textContent = '📌'; btnWatch.classList.remove('active'); }
+  
+  // ציור הגרף (העדפנו 24 חודשים כברירת מחדל כדי לראות את הממוצעים)
+  renderChart(historyData, 24); 
+  document.querySelectorAll('.chart-btn').forEach((b,i) => b.classList.toggle('active', i===2));
+
+  // שימוש בנתונים הפונדמנטלים מהשרת המעודכן
+  const peNum = Number(data.peRatio) || 0, epsNum = Number(data.eps) || 0;
+  const rangeLow = Number(data.fiftyTwoWeekLow) || 0, rangeHigh = Number(data.fiftyTwoWeekHigh) || 100;
+  const currentPos = Math.max(0, Math.min(100, ((data.price - rangeLow) / (rangeHigh - rangeLow)) * 100));
+  
   const fundRows = [ 
       { label: 'שווי שוק', val: formatNumberShort(data.marketCap), tag: 'M.CAP', isTag: false }, 
-      { label: 'טווח 52 שבועות', val: `<span style="font-size:0.75rem; color:var(--text-secondary); margin-right:8px">$${rangeLow}</span> <div class="range-bar-wrap"><div class="range-indicator" style="left:${currentPos}%"></div></div> <span style="font-size:0.75rem; color:var(--text-secondary); margin-left:8px">$${rangeHigh}</span>`, isHtml: true }, 
+      { label: 'טווח 52 שבועות', val: `<span style="font-size:0.75rem; color:var(--text-secondary); margin-right:8px">$${rangeLow.toFixed(2)}</span> <div class="range-bar-wrap"><div class="range-indicator" style="left:${currentPos}%"></div></div> <span style="font-size:0.75rem; color:var(--text-secondary); margin-left:8px">$${rangeHigh.toFixed(2)}</span>`, isHtml: true }, 
       { label: 'מחיר / רווח (P/E)', val: `${peNum.toFixed(1)}x`, good: peNum > 0 && peNum < 30, bad: peNum > 45, goodLabel: 'זול', badLabel: 'יקר', neutralLabel: 'סביר' }, 
       { label: 'מכפיל הון (P/B)', val: `${(data.pbRatio||0).toFixed(2)}x`, good: data.pbRatio > 0 && data.pbRatio < 3, bad: data.pbRatio > 5, goodLabel: 'תמחור נוח', badLabel: 'יקר', neutralLabel: 'ממוצע' }, 
       { label: 'רווח למניה (EPS)', val: `$${epsNum.toFixed(2)}`, good: epsNum > 2, bad: epsNum < 0, goodLabel: 'גבוה', badLabel: 'הפסד', neutralLabel: 'סביר' }, 
@@ -676,8 +752,11 @@ function renderResults(data, analysis, historyData, newsData) {
   
   document.getElementById('fundamentals-content').innerHTML = fundRows.map(row => { if (row.isHtml) return `<div class="data-row"><span class="data-label">${row.label}</span><div class="data-value-wrap" style="direction:ltr">${row.val}</div></div>`; if (row.tag === 'M.CAP') return `<div class="data-row"><span class="data-label">${row.label}</span><div class="data-value-wrap"><span class="data-value">${row.val}</span></div></div>`; return `<div class="data-row"><span class="data-label">${row.label}</span><div class="data-value-wrap"><span class="data-value">${row.val}</span><span class="tag ${row.good ? 'tag-good' : row.bad ? 'tag-bad' : 'tag-neutral'}">${row.good ? row.goodLabel : row.bad ? row.badLabel : row.neutralLabel}</span></div></div>`; }).join('');
 
-  const a50 = data.price >= (data.ma50 || 0), a200 = data.price >= (data.ma200 || 0);
-  document.getElementById('ma-display').innerHTML = `<div class="ma-box"><div class="ma-label">MA 50</div><div class="ma-value">$${(data.ma50 || 0).toFixed(2)}</div><div class="ma-status ${a50 ? 'above' : 'below'}">${a50 ? '▲ מעל' : '▼ מתחת'}</div></div><div class="ma-box"><div class="ma-label">MA 200</div><div class="ma-value">$${(data.ma200 || 0).toFixed(2)}</div><div class="ma-status ${a200 ? 'above' : 'below'}">${a200 ? '▲ מעל' : '▼ מתחת'}</div></div>`;
+  const ma50val = Number(data.ma50) || 0;
+  const ma200val = Number(data.ma200) || 0;
+  const a50 = data.price >= ma50val, a200 = data.price >= ma200val;
+  
+  document.getElementById('ma-display').innerHTML = `<div class="ma-box"><div class="ma-label">MA 50</div><div class="ma-value">$${ma50val.toFixed(2)}</div><div class="ma-status ${a50 ? 'above' : 'below'}">${a50 ? '▲ מעל' : '▼ מתחת'}</div></div><div class="ma-box"><div class="ma-label">MA 200</div><div class="ma-value">$${ma200val.toFixed(2)}</div><div class="ma-status ${a200 ? 'above' : 'below'}">${a200 ? '▲ מעל' : '▼ מתחת'}</div></div>`;
   
   document.getElementById('technical-content').innerHTML = `<div class="data-row"><span class="data-label">סקטור ותעשייה</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;text-align:left;">${data.sector} • ${data.industry}</span></div></div><div class="data-row"><span class="data-label">מגמה טכנית</span><div class="data-value-wrap"><span class="data-value">${a50&&a200?'Bull 🐂':!a50&&!a200?'Bear 🐻':'Mixed ⚖️'}</span><span class="tag ${a50&&a200?'tag-good':!a50&&!a200?'tag-bad':'tag-neutral'}">${a50&&a200?'חיובי':!a50&&!a200?'שלילי':'מעורב'}</span></div></div><div class="data-row"><span class="data-label">נפח מסחר ממוצע</span><div class="data-value-wrap"><span class="data-value">${formatNumberShort(data.volume)}</span></div></div><div class="data-row"><span class="data-label">קריאה טכנית - AI</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;max-width:200px;white-space:normal;text-align:left;line-height:1.5">${analysis.technical || "אין מספיק נתונים"}</span></div></div>`;
 
@@ -688,10 +767,17 @@ function renderResults(data, analysis, historyData, newsData) {
   document.getElementById('verdict-rating-pill').innerHTML = `<div class="verdict-rating ${rm.cls}">${rm.label}</div>`;
 
   const upside = analysis.price_target ? (((analysis.price_target / data.price) - 1) * 100).toFixed(1) : 0;
-  document.getElementById('verdict-content').innerHTML = `<div style="margin-bottom:22px"><div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--blue); margin-bottom:8px;">פרופיל חברה וזהות תחרותית</div><div style="font-size:0.95rem;line-height:1.6;color:var(--text); font-weight:500; margin-bottom:10px;">${analysis.identity || "מידע חסר"}</div><div style="font-size:0.8rem;line-height:1.6;color:var(--text-secondary);">${data.description ? data.description.substring(0, 200) + '...' : ''}</div></div><div class="verdict-columns"><div class="verdict-col"><div class="verdict-col-title pros">✅ נקודות חוזק</div><div class="verdict-col-content">${analysis.verdict?.pros || "חסר נתונים"}</div></div><div class="verdict-col"><div class="verdict-col-title cons">⚠️ גורמי סיכון</div><div class="verdict-col-content">${analysis.verdict?.cons || "חסר נתונים"}</div></div></div><div class="verdict-summary-box"><div class="verdict-summary-label">🎯 שורה תחתונה</div><div class="verdict-summary-text">${analysis.verdict?.summary || "ה-AI לא הצליח לגבש פסיקה."}</div></div><div class="price-target-row"><div><div class="pt-label">יעד מחיר – 12 חודשים קדימה</div><div style="font-size:0.72rem;color:var(--text-tertiary);margin-top:3px">תחזית FinShark AI</div></div><div style="text-align:left"><div class="pt-value">$${analysis.price_target || "N/A"}</div><div class="pt-upside" style="color:${parseFloat(upside) >= 0?'var(--green)':'var(--red)'}">${parseFloat(upside) >= 0?'+':''}${upside}% פוטנציאל</div></div></div>`;
+  document.getElementById('verdict-content').innerHTML = `<div style="margin-bottom:22px"><div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--blue); margin-bottom:8px;">פרופיל חברה וזהות תחרותית</div><div style="font-size:0.95rem;line-height:1.6;color:var(--text); font-weight:500; margin-bottom:10px;">${analysis.identity || "מידע חסר"}</div><div style="font-size:0.8rem;line-height:1.6;color:var(--text-secondary);">${data.description ? data.description.substring(0, 200) + '...' : ''}</div></div><div class="verdict-columns"><div class="verdict-col"><div class="verdict-col-title pros">✅ נקודות חוזק</div><div class="verdict-col-content">${(analysis.verdict?.pros || analysis.pros || []).join('\n')}</div></div><div class="verdict-col"><div class="verdict-col-title cons">⚠️ גורמי סיכון</div><div class="verdict-col-content">${(analysis.verdict?.cons || analysis.cons || []).join('\n')}</div></div></div><div class="verdict-summary-box"><div class="verdict-summary-label">🎯 שורה תחתונה</div><div class="verdict-summary-text">${analysis.verdict?.summary || analysis.summary || "ה-AI לא הצליח לגבש פסיקה."}</div></div><div class="price-target-row"><div><div class="pt-label">יעד מחיר – 12 חודשים קדימה</div><div style="font-size:0.72rem;color:var(--text-tertiary);margin-top:3px">תחזית FinShark AI</div></div><div style="text-align:left"><div class="pt-value">$${analysis.price_target || "N/A"}</div><div class="pt-upside" style="color:${parseFloat(upside) >= 0?'var(--green)':'var(--red)'}">${parseFloat(upside) >= 0?'+':''}${upside}% פוטנציאל</div></div></div>`;
 
-  if (newsData && newsData.length > 0) { document.getElementById('stock-news-grid').innerHTML = newsData.map(n => { const date = new Date(n.publishedDate).toLocaleDateString('he-IL', {day:'numeric', month:'short'}); return `<div class="news-card" onclick="window.open('${n.url}', '_blank')"><div class="news-source">${n.site} • ${date}</div><div class="news-headline" dir="ltr" style="text-align:left;">${n.title}</div></div>`; }).join(''); } 
-  else { document.getElementById('stock-news-grid').innerHTML = `<p style="color:var(--text-secondary); grid-column:1/-1;">לא נמצאו חדשות עדכניות למניה זו.</p>`; }
+  // חדשות החברה (מותאם ל-Finnhub)
+  if (newsData && newsData.length > 0) { 
+      document.getElementById('stock-news-grid').innerHTML = newsData.map(n => { 
+          const date = new Date(n.publishedAt || n.date || n.datetime * 1000).toLocaleDateString('he-IL', {day:'numeric', month:'short'}); 
+          return `<div class="news-card" onclick="window.open('${n.url}', '_blank')"><div class="news-source">${n.source} • ${date}</div><div class="news-headline" dir="ltr" style="text-align:left;">${n.headline || n.title}</div></div>`; 
+      }).join(''); 
+  } else { 
+      document.getElementById('stock-news-grid').innerHTML = `<p style="color:var(--text-secondary); grid-column:1/-1;">לא נמצאו חדשות עדכניות למניה זו.</p>`; 
+  }
 
   document.getElementById('results').style.display = 'block';
   requestAnimationFrame(() => { document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
