@@ -7,30 +7,35 @@ async function fetchFinnhub(endpoint, params = "") {
     } catch (e) { return null; }
 }
 
-// פונקציה חדשה: משיכת גרף ישירות מיאהו פייננס (עוקף את החסימות של Finnhub)
-async function fetchYahooChart(ticker, range = "6mo") {
+// משיכת גרף + VIX אמיתי מיאהו פייננס
+async function fetchYahooData(ticker, range = "6mo") {
     try {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=${range}`;
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=${range}`;
         const res = await fetch(url);
         const data = await res.json();
         const result = data.chart.result[0];
         const timestamps = result.timestamp;
-        const closes = result.indicators.quote[0].close;
+        const quotes = result.indicators.quote[0];
+        
         return timestamps.map((t, i) => ({
             date: new Date(t * 1000).toISOString().split('T')[0],
-            value: Number(closes[i]),
-            close: Number(closes[i])
+            open: Number(quotes.open[i]),
+            high: Number(quotes.high[i]),
+            low: Number(quotes.low[i]),
+            close: Number(quotes.close[i]),
+            value: Number(quotes.close[i]), // תאימות לאחור
+            volume: Number(quotes.volume[i])
         })).filter(p => !isNaN(p.close));
     } catch (e) { return []; }
 }
 
-// פונקציה חדשה: VIX אמיתי מיאהו פייננס
+// חילוץ ה-VIX האמיתי
 async function getRealVix() {
     try {
-        const res = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/^VIX?interval=1d&range=1d');
-        const data = await res.json();
-        return data.chart.result[0].meta.regularMarketPrice;
-    } catch(e) { return 20; }
+        const data = await fetchYahooData('^VIX', '5d');
+        const latest = data[data.length - 1];
+        return latest ? latest.close : 20; 
+    } catch(e) { return null; }
 }
 
 module.exports = async function(req, res) {
@@ -44,18 +49,21 @@ module.exports = async function(req, res) {
         const action = req.query.action;
         const apiKey = process.env.GEMINI_API_KEY;
 
-        // --- 1. דף הבית: מדדי שוק ---
+        // --- 1. דף הבית ---
         if (action === 'market' || (!ticker && action !== 'analyze')) {
-            const [spy, qqq, dia, iwm, news, realVix] = await Promise.all([
+            const [spy, qqq, dia, iwm, newsData, realVix] = await Promise.all([
                 fetchFinnhub('quote', 'symbol=SPY'),
                 fetchFinnhub('quote', 'symbol=QQQ'),
                 fetchFinnhub('quote', 'symbol=DIA'),
                 fetchFinnhub('quote', 'symbol=IWM'),
-                fetchFinnhub('news', 'category=general'),
-                getRealVix() // מדד VIX אמיתי
+                fetchFinnhub('news', 'category=general'), // Finnhub business news
+                getRealVix()
             ]);
 
-            const fearGreedScore = Math.max(5, Math.min(95, 100 - (realVix * 2.5)));
+            // נוסחת VIX מדויקת: 20 זה נייטרלי (50). כל נקודה למטה זה חמדנות, למעלה זה פחד.
+            const vixValue = realVix || 20;
+            let fearGreedScore = 100 - (vixValue * 2.5);
+            fearGreedScore = Math.max(0, Math.min(100, fearGreedScore));
             const sentiment = fearGreedScore > 60 ? "חמדנות" : fearGreedScore < 40 ? "פחד" : "נייטרלי";
 
             const indexes = [
@@ -75,39 +83,61 @@ module.exports = async function(req, res) {
                         { sector: "תעשייה", changesPercentage: String(dia?.dp || "0") },
                         { sector: "כללי", changesPercentage: String(spy?.dp || "0") }
                     ],
-                    news: (news || []).slice(0, 5).map(item => ({
-                        title: item.headline, url: item.url, source: item.source, time: new Date(item.datetime * 1000).toLocaleTimeString('he-IL')
+                    // סידור התאריך לפורמט שהאתר שלך אוהב
+                    news: (newsData || []).slice(0, 5).map(item => ({
+                        title: item.headline,
+                        url: item.url,
+                        source: item.source,
+                        publishedAt: item.datetime * 1000, 
+                        date: new Date(item.datetime * 1000).toISOString()
                     }))
                 }
             });
         }
 
-        // --- 2. דף ניתוח: מניה ספציפית ---
-        // הוספנו כאן את המשיכה של stock/metric כדי להביא את הפונדמנטליים!
+        // --- 2. דף ניתוח חכם מבוסס נתונים ---
         const [quote, profile, chartPoints, metricsData] = await Promise.all([
             fetchFinnhub('quote', `symbol=${ticker}`),
             fetchFinnhub('stock/profile2', `symbol=${ticker}`),
-            fetchYahooChart(ticker), 
+            fetchYahooData(ticker, '1y'), 
             fetchFinnhub('stock/metric', `symbol=${ticker}&metric=all`)
         ]);
 
-        const prompt = `נתח את ${ticker}. מחיר נוכחי: ${quote?.c || 0}$.
-        החזר אובייקט JSON בלבד, לפי המבנה הבא:
+        // מיפוי מדויק של הפונדמנטליים לטבלה באתר
+        const m = metricsData?.metric || {};
+        const fundamentals = {
+            marketCap: profile?.marketCapitalization || m.marketCapitalization || 0,
+            fiftyTwoWeekHigh: m['52WeekHigh'] || 0,
+            fiftyTwoWeekLow: m['52WeekLow'] || 0,
+            peRatio: m.peBasicExclExtraTTM || m.peExclExtraAnnual || 0,
+            pbRatio: m.pbAnnual || m.pbQuarterly || 0,
+            eps: m.epsTTM || m.epsExclExtraItemsAnnual || 0,
+            roe: m.roeTTM || 0,
+            debtToEquity: m.totalDebtToEquityAnnual || m.totalDebtToEquityQuarterly || 0,
+            dividendYield: m.dividendYieldIndicatedAnnual || 0
+        };
+
+        // הזרקת הנתונים למוח של ה-AI
+        const prompt = `אתה אנליסט מניות. נתח את ${ticker}.
+        נתונים פיננסיים עדכניים לשימוש בניתוח שלך:
+        - מחיר נוכחי: ${quote?.c}$
+        - מכפיל רווח (P/E): ${fundamentals.peRatio}
+        - רווח למניה (EPS): ${fundamentals.eps}
+        - טווח 52 שבועות: ${fundamentals.fiftyTwoWeekLow}$ עד ${fundamentals.fiftyTwoWeekHigh}$
+        - תשואה להון (ROE): ${fundamentals.roe}%
+        
+        החזר אובייקט JSON בעברית בלבד! חובה להשתמש במפתחות האלו בדיוק כטקסט פשוט:
         {
-          "identity": "טקסט המתאר את החברה",
-          "technical": "טקסט ניתוח טכני",
-          "news_analysis": "טקסט ניתוח חדשות",
-          "summary": "טקסט מסכם ושורה תחתונה",
+          "identity": "תיאור החברה",
+          "technical": "ניתוח טכני",
+          "news_analysis": "ניתוח חדשות",
+          "summary": "השורה התחתונה",
+          "verdict": "פסיקה סופית - קנייה, החזקה או מכירה ולמה",
           "pros": ["יתרון 1", "יתרון 2"],
           "cons": ["חיסרון 1", "חיסרון 2"],
-          "price_target": "מספר טהור בלבד ללא סימנים (למשל 150.50)",
+          "price_target": "מספר בלבד (למשל 150)",
           "rating": "קנייה / החזקה / מכירה",
-          "scores": {
-            "growth": 80,
-            "momentum": 75,
-            "value": 60,
-            "quality": 90
-          }
+          "scores": { "growth": 80, "momentum": 75, "value": 60, "quality": 90 }
         }`;
 
         const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
@@ -121,43 +151,16 @@ module.exports = async function(req, res) {
             let text = aiData.candidates[0].content.parts[0].text.replace(/```json|```/g, "").trim();
             aiVerdict = JSON.parse(text);
             
-            // חילוץ מספר טהור ליעד המחיר 
+            // וידוא שהמחיר יעד הוא מספר כדי למנוע NaN%
             if (typeof aiVerdict.price_target === 'string') {
                 const num = aiVerdict.price_target.replace(/[^0-9.]/g, '');
                 aiVerdict.price_target = num ? Number(num) : Number(quote?.c || 0) * 1.1;
             }
 
-            aiVerdict.verdict = aiVerdict.summary;
+            // גיבוי למפתחות שהתבנית מחפשת
             aiVerdict.positive = aiVerdict.pros || [];
             aiVerdict.negative = aiVerdict.cons || [];
-            
-            const s = aiVerdict.scores || {};
-            // שיבוט המפתחות גם לאנגלית וגם לעברית כדי שהאתר יתפוס אותם בטוח
-            aiVerdict.scores = {
-                growth: s.growth || 50,
-                momentum: s.momentum || 50,
-                value: s.value || 50,
-                quality: s.quality || 50,
-                "צמיחה": s.growth || 50,
-                "מומנטום": s.momentum || 50,
-                "ערך": s.value || 50,
-                "איכות עסקית": s.quality || 50
-            };
         } catch (e) { aiVerdict = { summary: "שגיאה בפענוח הניתוח" }; }
-
-        // --- מיפוי נתונים פונדמנטליים ---
-        const m = metricsData?.metric || {};
-        const fundamentals = {
-            marketCap: profile?.marketCapitalization || m.marketCapitalization || 0,
-            fiftyTwoWeekHigh: m['52WeekHigh'] || 0,
-            fiftyTwoWeekLow: m['52WeekLow'] || 0,
-            peRatio: m.peExclExtraAnnual || m.peBasicExclExtraTTM || 0,
-            pbRatio: m.pbAnnual || m.pbQuarterly || 0,
-            eps: m.epsExclExtraItemsAnnual || m.epsTTM || 0,
-            roe: m.roeTTM || 0,
-            debtToEquity: m.totalDebtToEquityAnnual || m.totalDebtToEquityQuarterly || 0,
-            dividendYield: m.dividendYieldIndicatedAnnual || 0
-        };
 
         return res.status(200).json({
             success: true,
@@ -172,8 +175,8 @@ module.exports = async function(req, res) {
                 price: Number(quote?.c || 0),
                 changePercentage: Number(quote?.dp || 0)
             },
-            fundamentals: fundamentals, // כאן הוספנו את המידע לטבלה!
-            metrics: fundamentals,      // הוספנו גם תחת השם הזה ליתר ביטחון
+            fundamentals: fundamentals,
+            metrics: fundamentals,
             verdict: aiVerdict,
             aiVerdict: aiVerdict,
             chartData: chartPoints,
