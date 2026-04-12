@@ -13,25 +13,21 @@ module.exports = async function(req, res) {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     if (req.method === 'OPTIONS') return res.status(200).end();
 
+    const apiKey = process.env.GEMINI_API_KEY;
+    const ticker = (req.query.ticker || req.query.symbol || "AAPL").toUpperCase().trim();
+
     try {
-        const ticker = (req.query.ticker || req.query.symbol || "AAPL").toUpperCase().trim();
-        const apiKey = process.env.GEMINI_API_KEY;
-
-        if (!apiKey) throw new Error("Missing GEMINI_API_KEY in Vercel settings");
-
-        // 1. נתונים מ-Finnhub
+        // 1. נתונים מ-Finnhub (תמיד עובד)
         const [quote, profile, candles] = await Promise.all([
             fetchFinnhub('quote', `symbol=${ticker}`),
             fetchFinnhub('stock/profile2', `symbol=${ticker}`),
             fetchFinnhub('stock/candle', `symbol=${ticker}&resolution=D&from=${Math.floor(Date.now()/1000)-2592000}&to=${Math.floor(Date.now()/1000)}`)
         ]);
 
-        if (!quote || !quote.c) throw new Error("Finnhub failed to find " + ticker);
-
-        // 2. קריאה ישירה ל-Gemini (ללא SDK)
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        // 2. ניסיון קריאה ל-Gemini בגרסה היציבה (v1 ולא v1beta)
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
         
-        const prompt = `נתח את המניה ${ticker}. מחיר: ${quote.c}$. תן JSON בעברית עם המפתחות: identity, technical, news_analysis, verdict (pros, cons, summary), price_target, rating, scores (1-100).`;
+        const prompt = `נתח את ${ticker}. מחיר: ${quote?.c}$. תן JSON בעברית: identity, technical, news_analysis, verdict, price_target, rating, scores.`;
 
         const aiResponse = await fetch(geminiUrl, {
             method: 'POST',
@@ -44,26 +40,33 @@ module.exports = async function(req, res) {
 
         const aiData = await aiResponse.json();
 
+        // אם גוגל מחזירה שגיאה, אנחנו לא עוצרים - אנחנו בודקים מה המודלים הזמינים
         if (!aiResponse.ok) {
-            throw new Error(`Google API Error: ${aiData.error?.message || 'Unknown error'}`);
+            const listUrl = `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`;
+            const listRes = await fetch(listUrl);
+            const listData = await listRes.json();
+            
+            throw new Error(`
+                גוגל חוסמת את המודל. 
+                השגיאה: ${aiData.error?.message}
+                מודלים שבאמת פתוחים לך: ${listData.models?.map(m => m.name).join(', ') || 'אין מודלים זמינים'}
+            `);
         }
 
         const text = aiData.candidates[0].content.parts[0].text.replace(/```json|```/g, "").trim();
 
         return res.status(200).json({
             success: true,
-            marketData: { ticker, name: profile?.name || ticker, price: quote.c, changePercentage: quote.dp },
-            chartHistory: (candles?.c || []).map((p, i) => ({ 
-                date: new Date(candles.t[i] * 1000).toISOString().split('T')[0], 
-                close: p 
-            })),
+            marketData: { ticker, name: profile?.name || ticker, price: quote?.c, changePercentage: quote?.dp },
+            chartHistory: (candles?.c || []).map((p, i) => ({ date: new Date(candles.t[i] * 1000).toISOString().split('T')[0], close: p })),
             aiVerdict: JSON.parse(text)
         });
 
     } catch (error) {
         return res.status(500).json({ 
             success: false, 
-            message: error.message 
+            message: "שגיאה סופית",
+            details: error.message
         });
     }
 };
