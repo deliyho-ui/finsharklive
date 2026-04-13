@@ -1,10 +1,14 @@
 async function fetchFinnhub(endpoint, params = "") {
     const token = process.env.FINNHUB_API_KEY;
+    if (!token) return null; // הגנה למקרה שחסר מפתח
+
     const url = `https://finnhub.io/api/v1/${endpoint}?${params}&token=${token}`;
     try {
         const res = await fetch(url);
         return res.ok ? await res.json() : null;
-    } catch (e) { return null; }
+    } catch (e) { 
+        return null; 
+    }
 }
 
 // שולף שנתיים של נתונים שבועיים – אידיאלי למציאת תבניות וממוצעים
@@ -13,7 +17,10 @@ async function fetchYahooData(ticker, range = "2y", interval = "1wk") {
         const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=${interval}&range=${range}`;
         const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
         const data = await res.json();
+        
+        // הגנה מפני נתונים חסרים מ-Yahoo
         if (!data || !data.chart || !data.chart.result || !data.chart.result[0]) return [];
+        
         const result = data.chart.result[0];
         const timestamps = result.timestamp || [];
         const quotes = result.indicators.quote[0] || {};
@@ -26,7 +33,7 @@ async function fetchYahooData(ticker, range = "2y", interval = "1wk") {
             close: Number(quotes.close[i]),
             value: Number(quotes.close[i]),
             volume: Number(quotes.volume[i])
-        })).filter(p => !isNaN(p.close));
+        })).filter(p => !isNaN(p.close) && p.close !== null);
 
         // חישוב ממוצעים נעים ישירות על הגרף (10 שבועות ~ MA50, 40 שבועות ~ MA200)
         return points.map((point, i, arr) => {
@@ -41,14 +48,16 @@ async function fetchYahooData(ticker, range = "2y", interval = "1wk") {
             }
             return { ...point, ma50: ma50_val, ma200: ma200_val };
         });
-    } catch (e) { return []; }
+    } catch (e) { 
+        return []; 
+    }
 }
 
 // ==========================================
-// 🚀 פונקציות עזר חדשות (סניטציה ותבניות)
+// 🚀 פונקציות עזר למערכת (סניטציה ותבניות טכניות)
 // ==========================================
 function sanitizeValue(val) {
-    // מגן על ה-AI מלקבל נתוני 0 שגויים או null
+    // מגן על ה-AI מלקבל נתוני 0 שגויים או חסרים (null/undefined)
     if (val === 0 || val === null || val === undefined || isNaN(val)) return "N/A";
     return val;
 }
@@ -144,12 +153,12 @@ function detectPattern(chartPoints) {
 
     if (patterns.length === 0) return "דשדוש ותנועה צדדית ללא תבנית מובהקת (Consolidation) ↔️";
     
-    // סינון כפילויות חישוב ושליחה
+    // סינון כפילויות במקרה שמצאנו יותר מתבנית אחת
     return [...new Set(patterns)].join(" | ");
 }
 
-
 module.exports = async function(req, res) {
+    // הגדרות גישה (CORS)
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -158,10 +167,17 @@ module.exports = async function(req, res) {
     try {
         const ticker = (req.query.ticker || req.query.symbol || "").toUpperCase().trim();
         const action = req.query.action;
+        
+        // וידוא מפתחות API - חשוב כדי שלא נקבל שגיאה 500 אילמת מ-Vercel
         const apiKey = process.env.GEMINI_API_KEY;
+        const finnhubKey = process.env.FINNHUB_API_KEY;
+        
+        if (!apiKey || !finnhubKey) {
+            return res.status(500).json({ success: false, message: "Server configuration error: Missing API keys in Vercel environment." });
+        }
 
         // ==========================================
-        // 1. דף הבית (ללא VIX)
+        // 1. דף הבית - מזג האוויר של השוק
         // ==========================================
         if (action === 'market' || (!ticker && action !== 'analyze')) {
             const [spy, qqq, dia, iwm, newsData] = await Promise.all([
@@ -186,7 +202,7 @@ module.exports = async function(req, res) {
                         { sector: "תעשייה", changesPercentage: String(dia?.dp || "0") },
                         { sector: "כללי", changesPercentage: String(spy?.dp || "0") }
                     ],
-                    // סינון בטוח של המערך כדי למנוע קריסה מול API החדשות
+                    // סינון בטוח של המערך כדי למנוע קריסת חזית כש-Finnhub מתנתק
                     news: (Array.isArray(newsData) ? newsData : []).slice(0, 5).map(item => {
                         let parsedDate = new Date().toISOString();
                         try { if (item.datetime && !isNaN(item.datetime)) parsedDate = new Date(item.datetime * 1000).toISOString(); } catch(e){}
@@ -204,10 +220,8 @@ module.exports = async function(req, res) {
         }
 
         // ==========================================
-        // 2. פסיקת הכריש - מסוף אנליסטים מלא
+        // 2. פסיקת הכריש - ניתוח מנייה ספציפית
         // ==========================================
-        
-        // הכנת תאריכים למשיכת חדשות על המניה מהחודש האחרון
         const today = new Date().toISOString().split('T')[0];
         const lastMonth = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
@@ -219,18 +233,17 @@ module.exports = async function(req, res) {
             fetchFinnhub('stock/recommendation', `symbol=${ticker}`),
             fetchFinnhub('stock/price-target', `symbol=${ticker}`),
             fetchFinnhub('stock/earnings', `symbol=${ticker}`),
-            fetchFinnhub('company-news', `symbol=${ticker}&from=${lastMonth}&to=${today}`) // שורת החדשות למניה הספציפית!
+            fetchFinnhub('company-news', `symbol=${ticker}&from=${lastMonth}&to=${today}`)
         ]);
 
         const m = metricsData?.metric || {};
         
-        // שליפת הדוח הרבעוני האחרון
         let latestEarnings = null;
         if (Array.isArray(earningsData) && earningsData.length > 0) {
             latestEarnings = earningsData[0];
         }
         
-        // 💡 הנתונים לחזית עוברים כ-0 נקי כדי למנוע את ה-TypeError מהפונקציה toFixed
+        // 💡 הנתונים נשלחים לחזית כמספרים נקיים כדי שה-HTML לא יקרוס
         const fundamentals = {
             marketCap: Number(profile?.marketCapitalization || m.marketCapitalization || 0),
             fiftyTwoWeekHigh: Number(m['52WeekHigh'] || 0),
@@ -254,7 +267,6 @@ module.exports = async function(req, res) {
             beta: Number(m.beta || 0)
         };
 
-        // משיכת הממוצעים מהגרף האמיתי במקום מהנתון הריק של Finnhub
         const lastChartPoint = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1] : {};
         const calcMa50 = lastChartPoint.ma50 ? Number(lastChartPoint.ma50) : Number(m['50DayMovingAverage'] || 0);
         const calcMa200 = lastChartPoint.ma200 ? Number(lastChartPoint.ma200) : Number(m['200DayMovingAverage'] || 0);
@@ -266,7 +278,6 @@ module.exports = async function(req, res) {
             trend: Number(quote?.c) > calcMa50 ? "שורית (מעל ממוצע 50)" : "דובית (מתחת לממוצע 50)"
         };
 
-        // הפעלת מזהה התבניות
         const detectedPattern = detectPattern(chartPoints);
 
         const analystConsensus = Array.isArray(recommendations) && recommendations.length > 0 ? 
@@ -275,12 +286,10 @@ module.exports = async function(req, res) {
         const meanTarget = priceTargets?.targetMean ? Number(priceTargets.targetMean).toFixed(2) : null;
         const highTarget = priceTargets?.targetHigh ? Number(priceTargets.targetHigh).toFixed(2) : null;
         
-        // יצירת טקסט דוח רבעוני להכנסה לפרומפט
         const earningsPromptText = latestEarnings ? 
             `דוח רבעוני אחרון (${latestEarnings.period}): רווח בפועל $${latestEarnings.actual} מול צפי של $${latestEarnings.estimate}. הפתעה של ${latestEarnings.surprisePercent}%.` : 
             `אין נתוני דוח רבעוני אחרון.`;
 
-        // יצירת טקסט חדשות להכנסה לפרומפט
         const validTickerNews = Array.isArray(tickerNews) ? tickerNews : [];
         let newsPromptText = "לא נמצאו חדשות רלוונטיות לחברה בחודש האחרון.";
         if (validTickerNews.length > 0) {
@@ -288,12 +297,12 @@ module.exports = async function(req, res) {
             newsPromptText = `כותרות מרכזיות מהתקופה האחרונה:\n${topNews}`;
         }
 
-        // 💡 הסניטציה (sanitizeValue) מופעלת כאן ספציפית כדי להעלים 0 מהעיניים של ה-AI
+        // 💡 הסניטציה (sanitizeValue) מופעלת רק פה, כדי להעלים 0 מהעיניים של ה-AI ולאפשר לו לנתח במקצועיות
         const prompt = `אתה "הכריש" - מודל בינה מלאכותית (AI) פיננסי מתקדם, עצמאי ואובייקטיבי לחלוטין. המטרה שלך היא לספק ניתוח עומק מקיף וריאלי למניית ${ticker} (${profile?.name || ticker}), ללא תלות עיוורת באנליסטים אנושיים. 
         הדרישה הקריטית שלי אליך: פרט לעומק על כל סעיף. כתוב לפחות 2-3 משפטים עשירים ואנליטיים על הפונדמנטלס ועל המצב הטכני. אל תזרוק סתם סיסמאות קצרות. תן ערך אמיתי.
         
         נתוני אמת מהשוק לעיבוד עמוק:
-        - מחיר ומגמה טכנית: מחיר נוכחי: $${quote?.c || 0}. ממוצע 50: $${technicals.ma50}, ממוצע 200: $${technicals.ma200}. (מגמה: ${technicals.trend}). תבנית בגרף שזוהתה על ידי המערכת: ${detectedPattern}.
+        - מחיר ומגמה טכנית: מחיר נוכחי: $${quote?.c || 0}. ממוצע 50: $${technicals.ma50}, ממוצע 200: $${technicals.ma200}. (מגמה: ${technicals.trend}). תבנית בגרף שזוהתה ע"י המערכת: ${detectedPattern}.
         - תמחור (Valuation): מכפיל רווח (P/E): ${sanitizeValue(fundamentals.peRatio)}, מכפיל הון (P/B): ${sanitizeValue(fundamentals.pbRatio)}, מכפיל מכירות (P/S): ${sanitizeValue(fundamentals.psRatio)}.
         - רווחיות ויעילות (Profitability): שולי רווח גולמי: ${sanitizeValue(fundamentals.grossMargin)}%, רווח נקי: ${sanitizeValue(fundamentals.netMargin)}%. תשואה להון (ROE): ${sanitizeValue(fundamentals.roe)}%, תשואה להון מושקע (ROIC): ${sanitizeValue(fundamentals.roic)}%.
         - צמיחה ודוחות: ${earningsPromptText}. צמיחת הכנסות (YoY): ${sanitizeValue(fundamentals.revenueGrowth)}%, צמיחת רווח למניה (5Y): ${sanitizeValue(fundamentals.epsGrowth5Y)}%.
@@ -319,7 +328,7 @@ module.exports = async function(req, res) {
           "pros": ["נקודת חוזק 1", "נקודת חוזק 2", "נקודת חוזק 3"],
           "cons": ["נקודת תורפה 1", "נקודת תורפה 2", "נקודת תורפה 3"],
           "pattern": "משפט קצר המסביר את התבנית שזוהתה בגרף ומה משמעותה.",
-          "price_target": "מספר טהור בלבד ללא סימנים (למשל 150)",
+          "price_target": "מספר טהור בלבד ללא סימנים או פסיקים (למשל 150.5)",
           "rating": "קנייה / החזקה / מכירה / קנייה חזקה",
           "scores": { "growth": 80, "momentum": 75, "value": 60, "quality": 90 }
         }`;
@@ -329,8 +338,7 @@ module.exports = async function(req, res) {
             generationConfig: {
                 temperature: 0.4, 
                 topP: 0.8,
-                topK: 10,
-                responseMimeType: "application/json" // 💡 הכרחה לקבל JSON נקי
+                topK: 10
             }
         };
 
@@ -346,9 +354,18 @@ module.exports = async function(req, res) {
         const aiData = await aiResponse.json();
         let aiVerdict = {};
         try {
-            // פענוח ה-JSON (בזכות ה-MimeType זה יעבוד חלק)
-            let text = aiData.candidates[0].content.parts[0].text.trim();
-            aiVerdict = JSON.parse(text);
+            let text = aiData.candidates[0].content.parts[0].text;
+            
+            // 💡 חילוץ חכם של ה-JSON בלבד (מתעלם מכל טקסט מסביב שה-AI אולי הוסיף)
+            const jsonStart = text.indexOf('{');
+            const jsonEnd = text.lastIndexOf('}');
+            
+            if (jsonStart !== -1 && jsonEnd !== -1) {
+                text = text.substring(jsonStart, jsonEnd + 1);
+                aiVerdict = JSON.parse(text);
+            } else {
+                throw new Error("Invalid JSON structure returned from AI");
+            }
             
             let targetNum;
             if (typeof aiVerdict.price_target === 'string') {
@@ -361,7 +378,7 @@ module.exports = async function(req, res) {
 
             aiVerdict.bottomLine = aiVerdict.summary || aiVerdict.verdict;
             aiVerdict.verdict = aiVerdict.verdict || aiVerdict.summary;
-            const prosArray = Array.isArray(aiVerdict.pros) ? aiVerdict.pros : ["נתונים טכניים או פונדמנטליים חיוביים"];
+            const prosArray = Array.isArray(aiVerdict.pros) ? aiVerdict.pros : ["נתונים חיוביים"];
             const consArray = Array.isArray(aiVerdict.cons) ? aiVerdict.cons : ["סיכוני שוק"];
             
             aiVerdict.positive = prosArray; aiVerdict.strengths = prosArray; aiVerdict.bullish = prosArray;
@@ -369,7 +386,10 @@ module.exports = async function(req, res) {
             
             const s = aiVerdict.scores || {};
             aiVerdict.scores = { growth: s.growth || 50, momentum: s.momentum || 50, value: s.value || 50, quality: s.quality || 50 };
-        } catch (e) { aiVerdict = { bottomLine: "הניתוח נכשל טכנית", verdict: "שגיאה בפענוח הנתונים מה-AI", pros: [], cons: [] }; }
+        } catch (e) { 
+            // גיבוי קריסה
+            aiVerdict = { bottomLine: "הניתוח נכשל טכנית", verdict: "שגיאה בפענוח הנתונים מה-AI", pros: [], cons: [] }; 
+        }
 
         return res.status(200).json({
             success: true,
@@ -380,7 +400,7 @@ module.exports = async function(req, res) {
             ...fundamentals,
             
             latestEarnings: latestEarnings,
-            tickerNews: validTickerNews.slice(0, 5), // מחזיר עד 5 כתבות לחזית להצגה
+            tickerNews: validTickerNews.slice(0, 5), // מעביר לחזית רק את 5 החדשות האחרונות
             
             marketData: { ticker, name: profile?.name || ticker, price: quote?.c, changePercentage: quote?.dp, ...fundamentals, ...technicals, pattern: detectedPattern },
             fundamentals, metrics: fundamentals, technical: technicals, technicals,
