@@ -13,9 +13,10 @@ async function fetchYahooData(ticker, range = "2y", interval = "1wk") {
         const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=${interval}&range=${range}`;
         const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
         const data = await res.json();
+        if (!data || !data.chart || !data.chart.result || !data.chart.result[0]) return [];
         const result = data.chart.result[0];
-        const timestamps = result.timestamp;
-        const quotes = result.indicators.quote[0];
+        const timestamps = result.timestamp || [];
+        const quotes = result.indicators.quote[0] || {};
         
         let points = timestamps.map((t, i) => ({
             date: new Date(t * 1000).toISOString().split('T')[0],
@@ -56,6 +57,7 @@ function detectPattern(chartPoints) {
     if (!chartPoints || chartPoints.length < 50) return "אין מספיק נתונים לזיהוי תבניות מורכבות";
 
     const last20 = chartPoints.slice(-20); 
+    const last30 = chartPoints.slice(-30);
     const last50 = chartPoints.slice(-50); 
     const currentPoint = chartPoints[chartPoints.length - 1];
     const prevPoint = chartPoints[chartPoints.length - 2];
@@ -63,10 +65,10 @@ function detectPattern(chartPoints) {
 
     let patterns = [];
 
-    // 1. חיתוכי ממוצעים
+    // 1. חיתוכי ממוצעים (Golden/Death Cross)
     if (currentPoint.ma50 && currentPoint.ma200 && prevPoint.ma50 && prevPoint.ma200) {
-        if (prevPoint.ma50 <= prevPoint.ma200 && currentPoint.ma50 > currentPoint.ma200) patterns.push("חיתוך זהב (Golden Cross) - שורי חזק");
-        else if (prevPoint.ma50 >= prevPoint.ma200 && currentPoint.ma50 < currentPoint.ma200) patterns.push("חיתוך מוות (Death Cross) - דובי חזק");
+        if (prevPoint.ma50 <= prevPoint.ma200 && currentPoint.ma50 > currentPoint.ma200) patterns.push("חיתוך זהב (Golden Cross) - שורי חזק 📈");
+        else if (prevPoint.ma50 >= prevPoint.ma200 && currentPoint.ma50 < currentPoint.ma200) patterns.push("חיתוך מוות (Death Cross) - דובי חזק 📉");
     }
 
     const prices20 = last20.map(p => p.close);
@@ -74,51 +76,75 @@ function detectPattern(chartPoints) {
     const min20 = Math.min(...prices20);
     const prices50 = last50.map(p => p.close);
     
-    // 2. ספל וידית
-    const leftLip = Math.max(...prices50.slice(0, 10));
-    const cupBottom = Math.min(...prices50.slice(10, 35));
+    // 2. ספל וידית (Cup & Handle) - 50 שבועות אחורה
+    const leftLip = Math.max(...prices50.slice(0, 15));
+    const cupBottom = Math.min(...prices50.slice(15, 35));
     const rightLip = Math.max(...prices50.slice(35, 45));
     const handleBottom = Math.min(...prices50.slice(45));
     
     if (leftLip > cupBottom * 1.15 && Math.abs(leftLip - rightLip) / leftLip < 0.08 && handleBottom > cupBottom && currentPrice > handleBottom) {
-        patterns.push("ספל וידית (Cup & Handle)");
+        patterns.push("ספל וידית (Cup & Handle) - המשך מגמת עלייה ☕");
     }
 
-    // 3. ראש וכתפיים
-    const prices30 = chartPoints.slice(-30).map(p => p.close);
+    // 3. ראש וכתפיים (Head & Shoulders) - 30 שבועות אחורה
+    const prices30 = last30.map(p => p.close);
     const leftShoulder = Math.max(...prices30.slice(0, 10));
     const head = Math.max(...prices30.slice(10, 20));
     const rightShoulder = Math.max(...prices30.slice(20, 30));
     
-    if (head > leftShoulder * 1.05 && head > rightShoulder * 1.05 && Math.abs(leftShoulder - rightShoulder) / leftShoulder < 0.06) patterns.push("ראש וכתפיים (Head & Shoulders)");
+    if (head > leftShoulder * 1.05 && head > rightShoulder * 1.05 && Math.abs(leftShoulder - rightShoulder) / leftShoulder < 0.08) patterns.push("ראש וכתפיים (Head & Shoulders) - היפוך דובי 👤");
 
     const leftShoulderInv = Math.min(...prices30.slice(0, 10));
     const headInv = Math.min(...prices30.slice(10, 20));
     const rightShoulderInv = Math.min(...prices30.slice(20, 30));
 
-    if (headInv < leftShoulderInv * 0.95 && headInv < rightShoulderInv * 0.95 && Math.abs(leftShoulderInv - rightShoulderInv) / leftShoulderInv < 0.06) patterns.push("ראש וכתפיים הפוך (Inverse H&S)");
+    if (headInv < leftShoulderInv * 0.95 && headInv < rightShoulderInv * 0.95 && Math.abs(leftShoulderInv - rightShoulderInv) / leftShoulderInv < 0.08) patterns.push("ראש וכתפיים הפוך (Inverse H&S) - היפוך שורי 👤⬆️");
 
-    // 4. משולש מתכנס
-    const highs = [Math.max(...prices20.slice(0, 6)), Math.max(...prices20.slice(7, 13)), Math.max(...prices20.slice(14, 20))];
-    const lows = [Math.min(...prices20.slice(0, 6)), Math.min(...prices20.slice(7, 13)), Math.min(...prices20.slice(14, 20))];
-    if (highs[0] > highs[1] && highs[1] > highs[2] && lows[0] < lows[1] && lows[1] < lows[2]) patterns.push("משולש מתכנס (Triangle)");
+    // 4. משולשים, יתדות ותעלות (Triangles, Wedges, Channels) - 20 שבועות אחורה
+    const h1 = Math.max(...prices20.slice(0, 6)), h2 = Math.max(...prices20.slice(7, 13)), h3 = Math.max(...prices20.slice(14, 20));
+    const l1 = Math.min(...prices20.slice(0, 6)), l2 = Math.min(...prices20.slice(7, 13)), l3 = Math.min(...prices20.slice(14, 20));
+    
+    // משולשים
+    if (Math.abs(h1 - h2) / h1 < 0.03 && Math.abs(h2 - h3) / h2 < 0.03 && l1 < l2 && l2 < l3) patterns.push("משולש עולה (Ascending Triangle) - התכווצות לפני פריצה שורית 📐⬆️");
+    else if (Math.abs(l1 - l2) / l1 < 0.03 && Math.abs(l2 - l3) / l2 < 0.03 && h1 > h2 && h2 > h3) patterns.push("משולש יורד (Descending Triangle) - לחץ מכירות, שבירה דובית מתקרבת 📐⬇️");
+    else if (h1 > h2 && h2 > h3 && l1 < l2 && l2 < l3) patterns.push("משולש מתכנס (Symmetrical Triangle) - התכווצות תנודתיות לקראת תנועה חדה 📐");
+    
+    // יתדות (Wedges)
+    else if (h1 > h2 && h2 > h3 && l1 > l2 && l2 > l3 && (h1 - h3) > (l1 - l3)) patterns.push("יתד יורד (Falling Wedge) - תבנית היפוך שורית 🪓⬆️");
+    else if (h1 < h2 && h2 < h3 && l1 < l2 && l2 < l3 && (l3 - l1) > (h3 - h1)) patterns.push("יתד עולה (Rising Wedge) - תבנית היפוך דובית 🪓⬇️");
+    
+    // תעלות (Channels)
+    else if (h1 < h2 && h2 < h3 && l1 < l2 && l2 < l3 && Math.abs((h3 - h1) - (l3 - l1)) / Math.max(h3 - h1, 1) < 0.2) patterns.push("תעלה עולה (Ascending Channel) 🛤️⬆️");
+    else if (h1 > h2 && h2 > h3 && l1 > l2 && l2 > l3 && Math.abs((h1 - h3) - (l1 - l3)) / Math.max(h1 - h3, 1) < 0.2) patterns.push("תעלה יורדת (Descending Channel) 🛤️⬇️");
 
-    // 5. פסגה/תחתית כפולה
-    const firstHalf20 = prices20.slice(0, 10);
-    const secondHalf20 = prices20.slice(10, 20);
-    const max1 = Math.max(...firstHalf20);
-    const max2 = Math.max(...secondHalf20);
-    const min1 = Math.min(...firstHalf20);
-    const min2 = Math.min(...secondHalf20);
+    // 5. פסגות ותחתיות - כפולות ומשולשות
+    const t1 = Math.max(...prices30.slice(0, 10)), t2 = Math.max(...prices30.slice(10, 20)), t3 = Math.max(...prices30.slice(20, 30));
+    const b1 = Math.min(...prices30.slice(0, 10)), b2 = Math.min(...prices30.slice(10, 20)), b3 = Math.min(...prices30.slice(20, 30));
 
-    if (Math.abs(max1 - max2) / max1 < 0.03 && currentPrice < max2 * 0.95) patterns.push("פסגה כפולה (Double Top)");
-    if (Math.abs(min1 - min2) / min1 < 0.03 && currentPrice > min2 * 1.05) patterns.push("תחתית כפולה (Double Bottom)");
+    if (Math.abs(t1 - t2) / t1 < 0.03 && Math.abs(t2 - t3) / t2 < 0.03 && currentPrice < t3 * 0.95) patterns.push("פסגה משולשת (Triple Top) - קיר התנגדות מסיבי ⛰️⛰️⛰️");
+    else if (Math.abs(b1 - b2) / b1 < 0.03 && Math.abs(b2 - b3) / b2 < 0.03 && currentPrice > b3 * 1.05) patterns.push("תחתית משולשת (Triple Bottom) - רצפת תמיכה ברזל 🕳️🕳️🕳️");
+    else if (Math.abs(t2 - t3) / t2 < 0.03 && currentPrice < t3 * 0.95) patterns.push("פסגה כפולה (Double Top) - התנגדות כפולה, סימן דובי ⛰️⛰️");
+    else if (Math.abs(b2 - b3) / b2 < 0.03 && currentPrice > b3 * 1.05) patterns.push("תחתית כפולה (Double Bottom) - תמיכה כפולה, סימן שורי 🕳️🕳️");
 
-    // 6. תמיכה ופריצה
-    if (currentPrice >= max20 * 0.99) patterns.push("פריצת שיא מקומי (Breakout)");
-    else if (currentPrice <= min20 * 1.01) patterns.push("בוחנת אזור תמיכה (Support Zone)");
+    // 6. דגלים (Bull / Bear Flags) - זינוק ואז דשדוש קצר
+    const pastPole = prices20.slice(0, 8);
+    const recentFlag = prices20.slice(8, 20);
+    const poleStart = pastPole[0], poleEnd = pastPole[pastPole.length-1];
+    const flagMax = Math.max(...recentFlag), flagMin = Math.min(...recentFlag);
+    
+    if (poleEnd > poleStart * 1.15 && flagMax <= poleEnd * 1.02 && flagMin > poleStart && (flagMax - flagMin)/flagMax < 0.12) {
+         patterns.push("דגל שורי (Bull Flag) - ספיגת רווחים לקראת המשך ראלי 🚩🟩");
+    } else if (poleEnd < poleStart * 0.85 && flagMin >= poleEnd * 0.98 && flagMax < poleStart && (flagMax - flagMin)/flagMax < 0.12) {
+         patterns.push("דגל דובי (Bear Flag) - התבססות לקראת גל ירידות נוסף 🚩🟥");
+    }
 
-    if (patterns.length === 0) return "דשדוש ותנועה צדדית ללא תבנית מובהקת (Consolidation)";
+    // 7. פריצות תמיכה/התנגדות (Breakouts)
+    if (currentPrice >= max20 * 0.99) patterns.push("פריצת שיא מקומי (Breakout) 🚀");
+    else if (currentPrice <= min20 * 1.01) patterns.push("בחינת אזור תמיכה תחתון (Support Zone Test) 🧱");
+
+    if (patterns.length === 0) return "דשדוש ותנועה צדדית ללא תבנית מובהקת (Consolidation) ↔️";
+    
+    // סינון כפילויות חישוב ושליחה
     return [...new Set(patterns)].join(" | ");
 }
 
@@ -160,6 +186,7 @@ module.exports = async function(req, res) {
                         { sector: "תעשייה", changesPercentage: String(dia?.dp || "0") },
                         { sector: "כללי", changesPercentage: String(spy?.dp || "0") }
                     ],
+                    // סינון בטוח של המערך כדי למנוע קריסה מול API החדשות
                     news: (Array.isArray(newsData) ? newsData : []).slice(0, 5).map(item => {
                         let parsedDate = new Date().toISOString();
                         try { if (item.datetime && !isNaN(item.datetime)) parsedDate = new Date(item.datetime * 1000).toISOString(); } catch(e){}
@@ -192,39 +219,39 @@ module.exports = async function(req, res) {
             fetchFinnhub('stock/recommendation', `symbol=${ticker}`),
             fetchFinnhub('stock/price-target', `symbol=${ticker}`),
             fetchFinnhub('stock/earnings', `symbol=${ticker}`),
-            fetchFinnhub('company-news', `symbol=${ticker}&from=${lastMonth}&to=${today}`) // שורת החדשות החדשה!
+            fetchFinnhub('company-news', `symbol=${ticker}&from=${lastMonth}&to=${today}`) // שורת החדשות למניה הספציפית!
         ]);
 
         const m = metricsData?.metric || {};
         
-        // שליפת הדוח הרבעוני האחרון (הפתעת רווח)
+        // שליפת הדוח הרבעוני האחרון
         let latestEarnings = null;
-        if (earningsData && earningsData.length > 0) {
+        if (Array.isArray(earningsData) && earningsData.length > 0) {
             latestEarnings = earningsData[0];
         }
         
-        // החזרנו את הפונדמנטלס למספרים נקיים כדי שה-Frontend לא יקרוס בפונקציית toFixed()
+        // 💡 הנתונים לחזית עוברים כ-0 נקי כדי למנוע את ה-TypeError מהפונקציה toFixed
         const fundamentals = {
-            marketCap: profile?.marketCapitalization || m.marketCapitalization || 0,
-            fiftyTwoWeekHigh: m['52WeekHigh'] || 0,
-            fiftyTwoWeekLow: m['52WeekLow'] || 0,
-            peRatio: m.peBasicExclExtraTTM || m.peExclExtraAnnual || 0,
-            pbRatio: m.pbAnnual || m.pbQuarterly || 0,
-            psRatio: m.psTTM || m.psAnnual || 0, 
-            eps: m.epsTTM || m.epsExclExtraItemsAnnual || 0,
-            epsGrowth5Y: m.epsGrowth5Y || 0, 
-            roe: m.roeTTM || 0,
-            roa: m.roaTTM || 0, 
-            roic: m.roicTTM || 0, 
-            debtToEquity: m.totalDebtToEquityAnnual || m.totalDebtToEquityQuarterly || 0,
-            dividendYield: m.dividendYieldIndicatedAnnual || 0,
-            revenueGrowth: m.revenueGrowthTTMYoy || m.revenueGrowth5Y || 0,
-            grossMargin: m.grossMarginTTM || m.grossMarginAnnual || 0, 
-            operatingMargin: m.operatingMarginTTM || m.operatingMarginAnnual || 0, 
-            netMargin: m.netProfitMarginTTM || m.netMarginTTM || 0,
-            currentRatio: m.currentRatioQuarterly || m.currentRatioAnnual || 0,
-            quickRatio: m.quickRatioQuarterly || m.quickRatioAnnual || 0, 
-            beta: m.beta || 0
+            marketCap: Number(profile?.marketCapitalization || m.marketCapitalization || 0),
+            fiftyTwoWeekHigh: Number(m['52WeekHigh'] || 0),
+            fiftyTwoWeekLow: Number(m['52WeekLow'] || 0),
+            peRatio: Number(m.peBasicExclExtraTTM || m.peExclExtraAnnual || 0),
+            pbRatio: Number(m.pbAnnual || m.pbQuarterly || 0),
+            psRatio: Number(m.psTTM || m.psAnnual || 0), 
+            eps: Number(m.epsTTM || m.epsExclExtraItemsAnnual || 0),
+            epsGrowth5Y: Number(m.epsGrowth5Y || 0), 
+            roe: Number(m.roeTTM || 0),
+            roa: Number(m.roaTTM || 0), 
+            roic: Number(m.roicTTM || 0), 
+            debtToEquity: Number(m.totalDebtToEquityAnnual || m.totalDebtToEquityQuarterly || 0),
+            dividendYield: Number(m.dividendYieldIndicatedAnnual || 0),
+            revenueGrowth: Number(m.revenueGrowthTTMYoy || m.revenueGrowth5Y || 0),
+            grossMargin: Number(m.grossMarginTTM || m.grossMarginAnnual || 0), 
+            operatingMargin: Number(m.operatingMarginTTM || m.operatingMarginAnnual || 0), 
+            netMargin: Number(m.netProfitMarginTTM || m.netMarginTTM || 0),
+            currentRatio: Number(m.currentRatioQuarterly || m.currentRatioAnnual || 0),
+            quickRatio: Number(m.quickRatioQuarterly || m.quickRatioAnnual || 0), 
+            beta: Number(m.beta || 0)
         };
 
         // משיכת הממוצעים מהגרף האמיתי במקום מהנתון הריק של Finnhub
@@ -242,7 +269,7 @@ module.exports = async function(req, res) {
         // הפעלת מזהה התבניות
         const detectedPattern = detectPattern(chartPoints);
 
-        const analystConsensus = recommendations && recommendations.length > 0 ? 
+        const analystConsensus = Array.isArray(recommendations) && recommendations.length > 0 ? 
             `קנייה: ${recommendations[0].buy + recommendations[0].strongBuy}, החזקה: ${recommendations[0].hold}, מכירה: ${recommendations[0].sell}` : "אין קונצנזוס";
 
         const meanTarget = priceTargets?.targetMean ? Number(priceTargets.targetMean).toFixed(2) : null;
@@ -261,11 +288,12 @@ module.exports = async function(req, res) {
             newsPromptText = `כותרות מרכזיות מהתקופה האחרונה:\n${topNews}`;
         }
 
-        // הסניטציה (התעלמות מאפסים) מתבצעת *רק* עבור הפרומפט שנשלח ל-AI
-        const prompt = `אתה "הכריש" - מודל בינה מלאכותית (AI) פיננסי מתקדם, עצמאי ואובייקטיבי לחלוטין. המטרה שלך היא לספק ניתוח עומק אמיתי למניית ${ticker} (${profile?.name}), ללא תלות עיוורת באנליסטים אנושיים. המטרה היא להכות את השוק.
+        // 💡 הסניטציה (sanitizeValue) מופעלת כאן ספציפית כדי להעלים 0 מהעיניים של ה-AI
+        const prompt = `אתה "הכריש" - מודל בינה מלאכותית (AI) פיננסי מתקדם, עצמאי ואובייקטיבי לחלוטין. המטרה שלך היא לספק ניתוח עומק מקיף וריאלי למניית ${ticker} (${profile?.name || ticker}), ללא תלות עיוורת באנליסטים אנושיים. 
+        הדרישה הקריטית שלי אליך: פרט לעומק על כל סעיף. כתוב לפחות 2-3 משפטים עשירים ואנליטיים על הפונדמנטלס ועל המצב הטכני. אל תזרוק סתם סיסמאות קצרות. תן ערך אמיתי.
         
-        נתוני אמת מהשוק לעיבוד עמוק (חובה לנתח את כולם כדי לקבוע מחיר יעד!):
-        - מחיר ומגמה טכנית: מחיר נוכחי: $${quote?.c}. ממוצע 50: $${technicals.ma50}, ממוצע 200: $${technicals.ma200}. (מגמה: ${technicals.trend}). תבנית בגרף: ${detectedPattern}.
+        נתוני אמת מהשוק לעיבוד עמוק:
+        - מחיר ומגמה טכנית: מחיר נוכחי: $${quote?.c || 0}. ממוצע 50: $${technicals.ma50}, ממוצע 200: $${technicals.ma200}. (מגמה: ${technicals.trend}). תבנית בגרף שזוהתה על ידי המערכת: ${detectedPattern}.
         - תמחור (Valuation): מכפיל רווח (P/E): ${sanitizeValue(fundamentals.peRatio)}, מכפיל הון (P/B): ${sanitizeValue(fundamentals.pbRatio)}, מכפיל מכירות (P/S): ${sanitizeValue(fundamentals.psRatio)}.
         - רווחיות ויעילות (Profitability): שולי רווח גולמי: ${sanitizeValue(fundamentals.grossMargin)}%, רווח נקי: ${sanitizeValue(fundamentals.netMargin)}%. תשואה להון (ROE): ${sanitizeValue(fundamentals.roe)}%, תשואה להון מושקע (ROIC): ${sanitizeValue(fundamentals.roic)}%.
         - צמיחה ודוחות: ${earningsPromptText}. צמיחת הכנסות (YoY): ${sanitizeValue(fundamentals.revenueGrowth)}%, צמיחת רווח למניה (5Y): ${sanitizeValue(fundamentals.epsGrowth5Y)}%.
@@ -281,25 +309,28 @@ module.exports = async function(req, res) {
         1. עצמאות המודל: אתה לא עובד אצל האנליסטים! יעד המחיר הממוצע שסופק הוא רק רפרנס. חשב מחיר יעד ריאלי (price_target) בעצמך בהתבסס על הרווחיות, ההפתעה בדוחות, החדשות, התבנית הטכנית, והמומנטום.
         2. תמחור נועז ואמיתי: לחברות מנצחות תן יעד אפסייד חזק. לחברות מפסידות חתוך את מחיר היעד למטה בחדות.
         
-        ספק את הניתוח בפורמט JSON חוקי בלבד בעברית:
-        "identity": "פרופיל החברה ומעמדה התחרותי בשוק.",
-        "technical": "ניתוח טכני המשלב את הממוצעים ואת התבנית הגרפית שזוהתה (${detectedPattern}).",
-        "news_analysis": "ניתוח פונדמנטלי של הדוח הרבעוני, החדשות האחרונות, הצמיחה והתמחור.",
-        "summary": "השורה התחתונה שלך מחיבור כל הנתונים לכדי הערכת שווי כוללת.",
-        "verdict": "פסיקה נוקבת ומנומקת.",
-        "pros": ["נקודת חוזק 1", "נקודת חוזק 2", "נקודת חוזק 3"],
-        "cons": ["נקודת תורפה 1", "נקודת תורפה 2", "נקודת תורפה 3"],
-        "pattern": "משפט קצר המסביר את התבנית שזוהתה בגרף",
-        "price_target": "מחיר יעד ל-12 חודשים (חובה מספר טהור, מבוסס על הניתוח המקורי שלך)",
-        "rating": "קנייה / החזקה / מכירה / קנייה חזקה",
-        "scores": { "growth": 1-100, "momentum": 1-100, "value": 1-100, "quality": 1-100 }`;
+        ספק את הניתוח בפורמט JSON חוקי בלבד בעברית (חובה להשתמש במבנה הבא בדיוק):
+        {
+          "identity": "פרופיל החברה ומעמדה התחרותי בשוק.",
+          "technical": "ניתוח טכני מעמיק המשלב את הממוצעים ואת התבנית הגרפית שזוהתה (${detectedPattern}).",
+          "news_analysis": "ניתוח פונדמנטלי המשלב את תוצאות הדוח הרבעוני, החדשות האחרונות, הצמיחה והתמחור.",
+          "summary": "השורה התחתונה שלך מחיבור כל הנתונים לכדי הערכת שווי כוללת.",
+          "verdict": "פסיקה נוקבת ומנומקת.",
+          "pros": ["נקודת חוזק 1", "נקודת חוזק 2", "נקודת חוזק 3"],
+          "cons": ["נקודת תורפה 1", "נקודת תורפה 2", "נקודת תורפה 3"],
+          "pattern": "משפט קצר המסביר את התבנית שזוהתה בגרף ומה משמעותה.",
+          "price_target": "מספר טהור בלבד ללא סימנים (למשל 150)",
+          "rating": "קנייה / החזקה / מכירה / קנייה חזקה",
+          "scores": { "growth": 80, "momentum": 75, "value": 60, "quality": 90 }
+        }`;
 
         const payload = {
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
-                temperature: 0.3, 
+                temperature: 0.4, 
                 topP: 0.8,
-                topK: 10
+                topK: 10,
+                responseMimeType: "application/json" // 💡 הכרחה לקבל JSON נקי
             }
         };
 
@@ -308,10 +339,15 @@ module.exports = async function(req, res) {
             body: JSON.stringify(payload)
         });
 
+        if (!aiResponse.ok) {
+            throw new Error(`שגיאה מ-Gemini API (סטטוס ${aiResponse.status})`);
+        }
+
         const aiData = await aiResponse.json();
         let aiVerdict = {};
         try {
-            let text = aiData.candidates[0].content.parts[0].text.replace(/```json|```/g, "").trim();
+            // פענוח ה-JSON (בזכות ה-MimeType זה יעבוד חלק)
+            let text = aiData.candidates[0].content.parts[0].text.trim();
             aiVerdict = JSON.parse(text);
             
             let targetNum;
@@ -325,8 +361,8 @@ module.exports = async function(req, res) {
 
             aiVerdict.bottomLine = aiVerdict.summary || aiVerdict.verdict;
             aiVerdict.verdict = aiVerdict.verdict || aiVerdict.summary;
-            const prosArray = Array.isArray(aiVerdict.pros) ? aiVerdict.pros : ["צמיחה פוטנציאלית"];
-            const consArray = Array.isArray(aiVerdict.cons) ? aiVerdict.cons : ["תנודתיות שוק"];
+            const prosArray = Array.isArray(aiVerdict.pros) ? aiVerdict.pros : ["נתונים טכניים או פונדמנטליים חיוביים"];
+            const consArray = Array.isArray(aiVerdict.cons) ? aiVerdict.cons : ["סיכוני שוק"];
             
             aiVerdict.positive = prosArray; aiVerdict.strengths = prosArray; aiVerdict.bullish = prosArray;
             aiVerdict.negative = consArray; aiVerdict.weaknesses = consArray; aiVerdict.bearish = consArray;
@@ -343,7 +379,6 @@ module.exports = async function(req, res) {
             ma50: technicals.ma50, ma200: technicals.ma200, volume: technicals.volume, trend: technicals.trend, pattern: detectedPattern,
             ...fundamentals,
             
-            // שולחים את הדוח הרבעוני ל-Frontend כדי להציג בטבלה
             latestEarnings: latestEarnings,
             tickerNews: validTickerNews.slice(0, 5), // מחזיר עד 5 כתבות לחזית להצגה
             
