@@ -160,14 +160,18 @@ module.exports = async function(req, res) {
                         { sector: "תעשייה", changesPercentage: String(dia?.dp || "0") },
                         { sector: "כללי", changesPercentage: String(spy?.dp || "0") }
                     ],
-                    news: (newsData || []).slice(0, 5).map(item => ({
-                        title: item.headline,
-                        headline: item.headline,
-                        url: item.url,
-                        source: item.source,
-                        publishedAt: new Date(item.datetime * 1000).toISOString(),
-                        date: new Date(item.datetime * 1000).toISOString()
-                    }))
+                    news: (Array.isArray(newsData) ? newsData : []).slice(0, 5).map(item => {
+                        let parsedDate = new Date().toISOString();
+                        try { if (item.datetime && !isNaN(item.datetime)) parsedDate = new Date(item.datetime * 1000).toISOString(); } catch(e){}
+                        return {
+                            title: item.headline || "ללא כותרת",
+                            headline: item.headline || "ללא כותרת",
+                            url: item.url || "#",
+                            source: item.source || "שוק ההון",
+                            publishedAt: parsedDate,
+                            date: parsedDate
+                        };
+                    })
                 }
             });
         }
