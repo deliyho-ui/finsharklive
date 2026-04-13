@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FinShark | כריש פיננסי - AI Market Analysis</title>
 <link rel="icon" href="data:,">
-<!-- ספריית הגרפים של TradingView לנרות יפנים -->
+<!-- ספריית הגרפים של TradingView לנרות יפנים - גרסה מקובעת ליציבות -->
 <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
@@ -45,6 +45,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Heebo', sans-ser
 .aurora-blob:nth-child(3) { width: 400px; height: 400px; background: radial-gradient(ellipse, #bf5af2, transparent 70%); top: 40%; left: -100px; opacity: 0.08; animation-delay: -12s; }
 @keyframes auroraFloat { 0%, 100% { transform: translate(0,0) scale(1); } 50% { transform: translate(40px, -30px) scale(1.05); } }
 
+/* Grid dots overlay */
 body::after { content: ''; position: fixed; inset: 0; background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 32px 32px; pointer-events: none; z-index: 0; }
 
 /* Nav */
@@ -79,14 +80,14 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(12px); z-index: 200; align-items: center; justify-content: center; }
 .modal-overlay.active { display: flex; }
 .modal { background: rgba(14,14,18,0.97); border: 1px solid rgba(255,255,255,0.1); border-radius: 32px; padding: 48px 44px; width: 400px; max-width: calc(100vw - 40px); text-align: center; box-shadow: 0 32px 80px rgba(0,0,0,0.6); }
-.modal-close { position: absolute; top: 18px; left: 22px; background: var(--glass); border: 1px solid var(--glass-border); color: var(--text-secondary); cursor: pointer; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
 .input-field { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 14px; padding: 15px 18px; color: var(--text); font-family: 'Heebo', sans-serif; font-size: 0.95rem; outline: none; margin-bottom: 12px; text-align: right; direction: rtl; }
 .input-field:focus { border-color: var(--blue); background: rgba(10,132,255,0.06); }
+.modal-close { position: absolute; top: 18px; left: 22px; background: var(--glass); border: 1px solid var(--glass-border); color: var(--text-secondary); cursor: pointer; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
 .modal-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
 .modal-tab { flex: 1; padding: 10px; background: none; border: none; color: var(--text-secondary); border-bottom: 2px solid transparent; cursor: pointer; font-family: 'Heebo'; font-weight: 600; }
 .modal-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
 
-/* Admin Dashboard & Pending */
+/* Admin Dashboard */
 .admin-grid { display: grid; gap: 16px; margin-top: 20px; }
 .user-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); flex-wrap: wrap; gap:10px; }
 .user-info { display: flex; flex-direction: column; gap: 4px; }
@@ -94,6 +95,8 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .user-status { font-size: 0.8rem; padding: 4px 10px; border-radius: 6px; display: inline-block; width: fit-content; }
 .status-pending { background: var(--gold-dim); color: var(--gold); }
 .status-approved { background: var(--green-dim); color: var(--green); }
+
+/* Pending Screen */
 #section-pending { flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; text-align: center; }
 #section-pending.active { display: flex; }
 .pending-icon { font-size: 4.5rem; margin-bottom: 28px; animation: pendingPulse 2.5s infinite; }
@@ -119,17 +122,23 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .news-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 20px; }
 .news-card { background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); padding: 16px 18px; cursor: pointer; transition: var(--transition); display:flex; flex-direction:column; }
 .news-card:hover { border-color: rgba(255,255,255,0.14); transform: translateY(-2px); }
-.news-source { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px; }
+.news-source { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 8px; }
 .news-headline { font-size: 0.85rem; font-weight: 600; line-height: 1.5; margin-bottom: 10px; flex-grow:1;}
 
 /* Shark UI Additions */
-.hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(10,132,255,0.12); border: 1px solid rgba(10,132,255,0.25); border-radius: 980px; padding: 5px 14px; font-size: 0.75rem; font-weight: 700; color: var(--blue); text-transform: uppercase; margin-bottom: 12px; }
+.hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(10,132,255,0.12); border: 1px solid rgba(10,132,255,0.25); border-radius: 980px; padding: 5px 14px; font-size: 0.75rem; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 12px; }
 .quick-symbols { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 40px; }
-.quick-chip { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 9px; padding: 7px 16px; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); cursor: pointer; transition: var(--transition); direction: ltr; }
+.quick-chip { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 9px; padding: 7px 16px; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); cursor: pointer; transition: var(--transition); letter-spacing: 0.04em; direction: ltr; }
 .quick-chip:hover { background: var(--blue-dim); border-color: rgba(10,132,255,0.35); color: var(--blue); transform: translateY(-2px); }
 .search-box { display: flex; gap: 12px; margin-bottom: 8px; }
 .search-input { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); border-radius: 18px; padding: 20px 26px; color: var(--text); font-size: 1.15rem; font-weight: 700; text-transform: uppercase; outline: none; direction: ltr; }
 .search-btn { padding: 20px 36px; font-size: 1rem; border-radius: 18px; }
+.kbd-hint { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; opacity: 0.5; }
+.kbd-item { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--text-secondary); }
+.kbd { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 5px; padding: 2px 7px; font-size: 0.65rem; font-family: monospace; direction: ltr; }
+
+/* Rate Limit Warning */
+.rate-limit-box { display: none; background: rgba(255,69,58,0.15); border: 1px solid var(--red); color: #fff; padding: 14px 20px; border-radius: var(--radius-sm); margin-bottom: 20px; font-size: 0.95rem; font-weight: 600; text-align: center; align-items: center; justify-content: center; gap: 10px; animation: fadeUp 0.3s forwards; }
 
 /* Header Actions */
 .header-actions { display: flex; gap: 8px; align-items: center; }
@@ -165,10 +174,10 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 /* --- RESULTS SECTION --- */
 #results { animation: fadeUp 0.5s ease; }
 .stock-header { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 28px; padding: 32px 36px; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: var(--radius); position: relative; overflow: hidden; }
-.stock-ticker-label { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: var(--blue); margin-bottom: 6px; }
-.stock-full-name { font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 800; }
+.stock-ticker-label { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--blue); margin-bottom: 6px; }
+.stock-full-name { font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 800; letter-spacing: -0.04em; }
 .stock-price-group { text-align: left; }
-.stock-price { font-size: clamp(2.2rem, 5vw, 3.6rem); font-weight: 900; line-height: 1; direction: ltr; display: block; }
+.stock-price { font-size: clamp(2.2rem, 5vw, 3.6rem); font-weight: 900; letter-spacing: -0.05em; line-height: 1; direction: ltr; display: block; }
 .stock-change { font-size: 1rem; font-weight: 700; padding: 5px 14px; border-radius: 10px; display: inline-block; margin-top: 8px; direction: ltr; }
 .stock-change.up { background: var(--green-dim); color: var(--green); }
 .stock-change.down { background: var(--red-dim); color: var(--red); }
@@ -177,21 +186,26 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .full-width { grid-column: 1 / -1; }
 .chart-card { padding: 28px; }
 .chart-controls { display: flex; gap: 6px; margin-bottom: 20px; }
-.chart-btn { padding: 5px 14px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-secondary); font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: var(--transition); direction: ltr; }
+.chart-btn { padding: 5px 14px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-secondary); font-size: 0.75rem; font-weight: 700; cursor: pointer; font-family: 'Heebo', sans-serif; transition: var(--transition); letter-spacing: 0.04em; direction: ltr; }
 .chart-btn.active { background: var(--blue-dim); border-color: rgba(10,132,255,0.3); color: var(--blue); }
+.chart-btn:hover:not(.active) { color: var(--text); }
+.chart-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 16px; }
 .chart-container { height: 350px; position: relative; width: 100%; direction: ltr; }
-.card-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 20px; }
+.card-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); margin-bottom: 20px; }
 .data-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.data-row:last-child { border-bottom: none; }
 .data-label { color: var(--text-secondary); font-size: 0.87rem; }
 .data-value-wrap { display: flex; align-items: center; gap: 8px; }
 .data-value { font-weight: 700; font-size: 0.95rem; direction: ltr; text-align: left; }
-.tag { font-size: 0.66rem; font-weight: 800; padding: 3px 9px; border-radius: 7px; text-transform: uppercase; }
+.range-bar-wrap { width: 120px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; position: relative; margin-left: 10px; }
+.range-indicator { position: absolute; top: 50%; width: 10px; height: 14px; background: var(--blue); border-radius: 4px; transform: translate(-50%, -50%); box-shadow: 0 0 8px rgba(10,132,255,0.6); }
+.tag { font-size: 0.66rem; font-weight: 800; padding: 3px 9px; border-radius: 7px; text-transform: uppercase; letter-spacing: 0.06em; }
 .tag-good { background: var(--green-dim); color: var(--green); }
 .tag-bad { background: var(--red-dim); color: var(--red); }
 .tag-neutral { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
 .ma-display { display: flex; gap: 10px; margin-bottom: 18px; }
-.ma-box { flex: 1; background: rgba(255,255,255,0.025); border-radius: var(--radius-sm); padding: 14px; text-align: center; border: 1px solid var(--glass-border); }
-.ma-label { font-size: 0.66rem; color: var(--text-secondary); margin-bottom: 6px; font-weight: 700; }
+.ma-box { flex: 1; background: rgba(255,255,255,0.025); border-radius: var(--radius-sm); padding: 14px; text-align: center; border: 1px solid var(--glass-border); transition: var(--transition); }
+.ma-label { font-size: 0.66rem; color: var(--text-secondary); margin-bottom: 6px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; }
 .ma-value { font-size: 1.05rem; font-weight: 800; direction: ltr; }
 .ma-status { font-size: 0.7rem; margin-top: 5px; font-weight: 700; }
 .ma-status.above { color: var(--green); }
@@ -205,45 +219,96 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .score-text-title { font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; }
 .score-text-desc { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; }
 
-.verdict-card { background: rgba(10,132,255,0.06); border-color: rgba(10,132,255,0.18); padding: 32px; position: relative; }
+.score-bar-wrap { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+.score-bar-label { font-size: 0.8rem; color: var(--text-secondary); font-weight: 500; min-width: 90px; }
+.score-bar-track { flex: 1; height: 6px; background: rgba(255,255,255,0.07); border-radius: 3px; overflow: hidden; }
+.score-bar-fill { height: 100%; border-radius: 3px; transition: width 1.2s cubic-bezier(0.4,0,0.2,1); }
+.score-bar-val { font-size: 0.8rem; font-weight: 800; min-width: 36px; text-align: left; direction: ltr; }
+
+.verdict-card { background: rgba(10,132,255,0.06); border-color: rgba(10,132,255,0.18); padding: 32px; position: relative; overflow: hidden; }
 .verdict-header { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
 .verdict-icon { font-size: 2.2rem; }
-.verdict-title { font-size: 1.4rem; font-weight: 800; }
-.verdict-rating { margin-right: auto; padding: 8px 20px; border-radius: 980px; font-size: 0.85rem; font-weight: 800; }
+.verdict-title { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.03em; }
+.verdict-rating { margin-right: auto; padding: 8px 20px; border-radius: 980px; font-size: 0.85rem; font-weight: 800; letter-spacing: 0.02em; }
 .verdict-rating.buy { background: var(--green-dim); color: var(--green); border: 1px solid rgba(48,209,88,0.25); }
 .verdict-rating.hold { background: var(--gold-dim); color: var(--gold); border: 1px solid rgba(255,214,10,0.25); }
 .verdict-rating.sell { background: var(--red-dim); color: var(--red); border: 1px solid rgba(255,69,58,0.25); }
 .verdict-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 22px; }
+@media(max-width:600px) { .verdict-columns { grid-template-columns: 1fr; } }
 .verdict-col { background: rgba(255,255,255,0.025); border-radius: var(--radius-sm); padding: 18px; border: 1px solid rgba(255,255,255,0.05); }
-.verdict-col-title { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+.verdict-col-title { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.07); }
 .verdict-col-title.pros { color: var(--green); }
 .verdict-col-title.cons { color: var(--red); }
 .verdict-col-content { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.75; white-space: pre-line; }
 .verdict-summary-box { background: rgba(255,255,255,0.025); border-radius: var(--radius-sm); padding: 20px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05); }
-.verdict-summary-label { font-size: 0.68rem; font-weight: 800; color: var(--blue); margin-bottom: 10px; }
+.verdict-summary-label { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--blue); margin-bottom: 10px; }
 .verdict-summary-text { font-size: 0.92rem; line-height: 1.75; }
 .price-target-row { display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, rgba(10,132,255,0.12), rgba(10,132,255,0.06)); border: 1px solid rgba(10,132,255,0.28); border-radius: var(--radius-sm); padding: 20px 24px; flex-wrap: wrap; gap: 14px; }
 .pt-label { font-size: 0.82rem; color: var(--text-secondary); }
-.pt-value { font-size: 1.8rem; font-weight: 900; color: var(--blue); direction: ltr; }
+.pt-value { font-size: 1.8rem; font-weight: 900; color: var(--blue); direction: ltr; letter-spacing: -0.04em; }
 .pt-upside { font-size: 0.85rem; font-weight: 700; margin-top: 2px; }
 
-.tooltip-wrap { position: relative; cursor: pointer; }
+.tooltip-wrap { position: relative; cursor: help; }
 .tooltip-wrap::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: rgba(20,20,24,0.97); border: 1px solid var(--glass-border); border-radius: 8px; padding: 7px 12px; font-size: 0.73rem; color: var(--text-secondary); white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s; font-weight: 500; direction: rtl; z-index:100; }
 .tooltip-wrap:hover::after { opacity: 1; }
 
+.debug-box { background: rgba(255,69,58,0.1); border: 1px solid var(--red); color: #fff; padding: 15px; border-radius: 10px; margin: 15px 0; font-family: monospace; font-size: 13px; text-align: left; direction: ltr; white-space: pre-wrap; word-break: break-all; }
+
+/* --- התאמה רספונסיבית למובייל וטאבלטים (MOBILE RESPONSIVENESS) --- */
 @media (max-width: 768px) {
   nav { padding: 12px 16px; flex-wrap: wrap; height: auto; min-height: 68px; gap: 12px; justify-content: space-between; }
   .logo { flex: 1; font-size: 1.2rem; }
-  .nav-center { width: 100%; order: 3; justify-content: flex-start; overflow-x: auto; padding-bottom: 5px; -webkit-overflow-scrolling: touch; }
+  .nav-actions { display: flex; justify-content: flex-end; }
+  .nav-center { width: 100%; order: 3; justify-content: flex-start; overflow-x: auto; padding-bottom: 5px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .nav-center::-webkit-scrollbar { display: none; }
   .nav-tab { padding: 8px 14px; white-space: nowrap; font-size: 0.85rem; }
   .user-greeting { display: none !important; }
+  
   main { padding-top: 130px; padding-left: 14px; padding-right: 14px; }
   .card { padding: 18px; }
-  .results-grid, .news-grid, .verdict-columns { grid-template-columns: 1fr; }
-  .market-stats, .heatmap-grid { grid-template-columns: repeat(2, 1fr); }
+  .section-title { font-size: 1.4rem; }
+  .results-grid { grid-template-columns: 1fr; }
+  .news-grid { grid-template-columns: 1fr; }
+  .verdict-columns { grid-template-columns: 1fr; }
+  
+  .market-stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .heatmap-grid { grid-template-columns: repeat(2, 1fr); }
+  
+  .search-box { flex-direction: column; gap: 10px; }
+  .search-input { padding: 16px 20px; font-size: 1rem; border-radius: 14px; }
+  .search-btn { padding: 16px; border-radius: 14px; width: 100%; font-size: 1rem; }
+  .quick-symbols { gap: 6px; }
+  
   .stock-header { padding: 20px; flex-direction: column; align-items: flex-start; gap: 12px; }
+  .stock-full-name { font-size: 1.6rem; }
+  .stock-price { font-size: 2.2rem; }
+  .stock-price-group { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+  
   .chart-container { height: 280px; }
+  .ma-display { flex-direction: column; gap: 8px; }
+  .overall-score-container { flex-direction: column; text-align: center; gap: 16px; }
+  .score-text-wrap { text-align: center; }
+  
+  .verdict-card { padding: 20px; }
+  .verdict-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .verdict-rating { margin-right: 0; width: 100%; text-align: center; }
+  
+  .price-target-row { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .pt-value { font-size: 1.6rem; }
+  
+  .data-row { padding: 12px 0; }
+  .data-label { font-size: 0.8rem; }
+  .data-value { font-size: 0.85rem; }
+  .range-bar-wrap { width: 100px; }
+  
   .modal { padding: 32px 20px; width: 92%; }
+}
+
+@media (max-width: 480px) {
+  .market-stats { grid-template-columns: repeat(2, 1fr); }
+  .heatmap-grid { grid-template-columns: repeat(2, 1fr); }
+  .chart-container { height: 250px; }
+  .ticker-item { padding: 0 16px; font-size: 0.75rem; }
 }
 </style>
 </head>
@@ -304,7 +369,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   <div class="nav-center" id="nav-center">
     <button class="nav-tab active" id="nav-market" onclick="switchTab('market',this)">🌐 שוק</button>
     <button class="nav-tab" id="nav-shark" onclick="switchTab('shark',this)">🦈 ניתוח <span class="lock-icon" id="lock-shark">🔒</span></button>
-    <!-- הלשונית החדשה לחוכמת ההמונים וסט אפים -->
     <button class="nav-tab" id="nav-community" onclick="switchTab('community',this)">👥 קהילה <span class="lock-icon" id="lock-comm">🔒</span></button>
     <button class="nav-tab" id="nav-watch" onclick="switchTab('watchlist',this)">📌 מעקב <span class="lock-icon" id="lock-watch">🔒</span></button>
     <button class="nav-tab" id="nav-admin" onclick="switchTab('admin',this)" style="display:none; color:var(--gold)">⚙️ ניהול</button>
@@ -321,23 +385,25 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
     <div class="section-title">🌐 מזג האוויר של השוק</div>
     <div class="section-subtitle">נתוני מדדים מרכזיים ועדכוני שוק בזמן אמת</div>
 
+    <div id="debug-market" style="display:none"></div>
+
     <div class="ticker-wrap"><div class="ticker-track" id="ticker-track">ממתין לנתונים מ-Finnhub...</div></div>
     <div class="market-stats" id="market-stats"></div>
     
     <div id="promo-box" style="text-align:center; padding: 40px; background:rgba(255,255,255,0.02); border-radius: 20px; border:1px solid var(--glass-border); margin-top:20px; margin-bottom:20px;">
         <h3 style="margin-bottom: 10px;">רוצה לצלול עמוק יותר?</h3>
-        <p style="color:var(--text-secondary); margin-bottom:20px; max-width: 500px; margin-left:auto; margin-right:auto;">כריש הניתוח שלנו משתמש בבינה מלאכותית כדי לנתח מניות בזמן אמת, והרגע הוספנו פיצ'ר קהילתי חדש!</p>
+        <p style="color:var(--text-secondary); margin-bottom:20px; max-width: 500px; margin-left:auto; margin-right:auto;">כריש הניתוח שלנו משתמש בבינה מלאכותית (AI) כדי לנתח מניות בזמן אמת. הרגע הוספנו פיצ'ר קהילתי חדש!</p>
         <button class="btn btn-primary" id="promo-btn" onclick="openLogin()">התחבר / הגש בקשה לחשבון</button>
     </div>
 
     <div class="fg-section">
       <div class="card heatmap-card">
-        <div class="heatmap-title">מפת חום סקטוריאלית (Live)</div>
+        <div class="heatmap-title">מפת חום סקטוריאלית</div>
         <div class="heatmap-grid" id="heatmap-grid"></div>
       </div>
     </div>
 
-    <div class="card mt-16" style="margin-top: 20px;">
+    <div class="card mt-16">
       <div class="card-title">📰 חדשות שוק אחרונות</div>
       <div class="news-grid" id="market-news-grid"></div>
     </div>
@@ -346,12 +412,13 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   <div id="section-pending" class="section">
     <div class="pending-icon">⏳</div>
     <h2>החשבון ממתין לאישור</h2>
-    <p>פנייתך התקבלה ונמצאת בבדיקה. הכלים המתקדמים ייפתחו עבורך בקרוב.</p>
+    <p>פנייתך התקבלה ונמצאת בבדיקה. לא ניתן לגשת לכלי הניתוח עד לאישור מנהל.</p>
     <button class="btn btn-ghost" onclick="switchTab('market', document.getElementById('nav-market'))">חזור למסך השוק</button>
   </div>
 
   <div id="section-admin" class="section">
     <div class="section-title" style="color:var(--gold)">⚙️ פאנל מנהל מערכת</div>
+    <div class="section-subtitle">ניהול משתמשים והרשאות גישה למערכת בענן</div>
     <div class="admin-grid" id="admin-users-list"></div>
   </div>
 
@@ -388,28 +455,32 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
       <div class="quick-chip" onclick="quickSearch('AAPL')">AAPL</div>
       <div class="quick-chip" onclick="quickSearch('MSFT')">MSFT</div>
       <div class="quick-chip" onclick="quickSearch('TSLA')">TSLA</div>
-      <div class="quick-chip" onclick="quickSearch('PLTR')">PLTR</div>
+      <div class="quick-chip" onclick="quickSearch('META')">META</div>
     </div>
 
     <div class="search-box">
       <input class="search-input" id="ticker-input" type="text" placeholder="הזן סימול מניה..." onkeydown="if(event.key==='Enter') analyzeStock()" />
       <button class="btn btn-primary search-btn" onclick="analyzeStock()">נתח ←</button>
     </div>
+    <div class="kbd-hint">
+      <div class="kbd-item"><kbd class="kbd">Enter</kbd> <span>ניתוח מהיר</span></div>
+      <div class="kbd-item"><kbd class="kbd">Esc</kbd> <span>נקה תוצאות</span></div>
+    </div>
 
-    <!-- Rate Limit Warning -->
-    <div id="rate-limit-warning" style="display: none; background: rgba(255,69,58,0.15); border: 1px solid var(--red); color: #fff; padding: 14px 20px; border-radius: var(--radius-sm); margin-bottom: 20px; font-weight: 600; text-align: center;"></div>
+    <!-- תיבת אזהרת הגבלת משתמשים -->
+    <div id="rate-limit-warning" class="rate-limit-box"></div>
 
     <div id="results" class="mt-32" style="display:none">
+      <div id="debug-analyze" style="display:none"></div>
       <div class="stock-header">
         <div>
           <div class="stock-ticker-label" id="res-ticker"></div>
           <div class="stock-full-name" id="res-name"></div>
         </div>
         <div class="header-actions">
-          <!-- הכפתור החדש של חוכמת ההמונים -->
           <button class="icon-btn tooltip-wrap" data-tip="הצבע לתיק חוכמת ההמונים" id="btn-vote-crowd" onclick="voteForCrowd()">👥</button>
-          
           <button class="icon-btn tooltip-wrap" data-tip="הוסף לרשימת מעקב" id="btn-add-watch-results" onclick="addToWatchlistFromResults()">📌</button>
+          <button class="icon-btn tooltip-wrap" data-tip="שתף ניתוח" onclick="shareAnalysis()">🔗</button>
           <button class="icon-btn tooltip-wrap" data-tip="הדפס ניתוח" onclick="window.print()">🖨️</button>
         </div>
         <div class="stock-price-group">
@@ -428,6 +499,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
               <button class="chart-btn active" onclick="setChartPeriod(24,this)">2Y</button>
             </div>
           </div>
+          <!-- מיכל הגרף של TradingView -->
           <div class="chart-container" id="stockChart"></div>
         </div>
 
@@ -447,7 +519,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
           <div class="overall-score-container">
             <div class="score-circle" id="ai-score-circle" style="--score: 0;"><span id="ai-score-text">0</span></div>
             <div class="score-text-wrap">
-              <div class="score-text-title" id="ai-score-title">מנתח...</div>
+              <div class="score-text-title" id="ai-score-title">מנתח איכות עסקית...</div>
               <div class="score-text-desc" id="ai-score-desc"></div>
             </div>
           </div>
@@ -464,12 +536,18 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
           </div>
           <div id="verdict-content"></div>
         </div>
+
+        <div class="card full-width">
+          <div class="card-title">📰 חדשות מניה אחרונות</div>
+          <div class="news-grid" id="stock-news-grid"></div>
+        </div>
       </div>
     </div>
   </div>
 
   <div id="section-watchlist" class="section">
     <div class="section-title">📌 רשימת מעקב</div>
+    <p style="color:var(--text-secondary);">המניות השמורות שלך מסונכרנות בזמן אמת בענן.</p>
     <div class="add-watchlist-bar" style="display:flex; gap:10px; margin-bottom: 24px;">
       <input class="input-field" id="watch-input" type="text" placeholder="הוסף סימול..." maxlength="6" style="margin:0; direction:ltr; text-transform:uppercase; font-weight:700; flex:1; max-width:220px;" onkeydown="if(event.key==='Enter') addWatchlistItem()" />
       <button class="btn btn-primary" onclick="addWatchlistItem()">+ הוסף</button>
@@ -479,7 +557,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 </main>
 
 <script type="module">
-// הוספנו את increment, getDoc, getDocs ליבוא מ-Firestore
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, getDocs, collection, onSnapshot, updateDoc, arrayUnion, arrayRemove, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -488,6 +565,7 @@ const firebaseConfig = { apiKey: "AIzaSyBU77J3Nu8xh0_a1GLM9jcnWJmhZq8QHH4", auth
 const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
 const State = { currentUser: null, currentTab: 'market', watchlist: [] }; window.State = State; let authMode = 'login';
+
 let NETLIFY_API_URL = "/api/analyze";
 if (['blob:', 'file:', 'data:'].includes(window.location.protocol) || window.location.hostname === "localhost") {
   NETLIFY_API_URL = "http://localhost:8888/api/analyze"; 
@@ -495,7 +573,7 @@ if (['blob:', 'file:', 'data:'].includes(window.location.protocol) || window.loc
 
 window.addEventListener('DOMContentLoaded', () => { 
     loadMarketWeather(); 
-    // חלון עדכונים - יופיע פעם אחת פר משתמש בדפדפן (אלא אם מנקים מטמון)
+    // חלון עדכונים - יופיע פעם אחת פר משתמש בדפדפן
     if(!localStorage.getItem('finshark_update_v2')) {
         document.getElementById('modal-updates').classList.add('active');
         localStorage.setItem('finshark_update_v2', 'true');
@@ -506,25 +584,32 @@ window.closeUpdatesModal = function() {
     document.getElementById('modal-updates').classList.remove('active');
 }
 
-window.openLogin = function() { document.getElementById('modal-login').classList.add('active'); };
+window.openLogin = function() { document.getElementById('auth-error').style.display = 'none'; document.getElementById('modal-login').classList.add('active'); };
 window.closeLogin = function() { document.getElementById('modal-login').classList.remove('active'); };
 window.switchLoginTab = function(mode) { authMode = mode; document.getElementById('auth-error').style.display = 'none'; document.getElementById('tab-login').classList.toggle('active', mode === 'login'); document.getElementById('tab-register').classList.toggle('active', mode === 'register'); document.getElementById('btn-auth-action').textContent = mode === 'login' ? 'כניסה למערכת ←' : 'שלח בקשה לאישור'; };
 
 window.handleAuth = async function() {
   const email = document.getElementById('auth-email').value.trim().toLowerCase(), pass = document.getElementById('auth-pass').value.trim(), errEl = document.getElementById('auth-error');
   if (!email || !pass) { errEl.textContent = 'נא להזין אימייל וסיסמה'; errEl.style.display = 'block'; return; }
+  const getFirebaseError = (error) => { if(error.code === 'auth/email-already-in-use') return 'האימייל כבר קיים.'; if(error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') return 'אימייל או סיסמה שגויים.'; if(error.code === 'auth/weak-password') return 'סיסמה חלשה מדי.'; return 'שגיאה: ' + error.message; };
   try {
     if (authMode === 'register') { 
         const userCredential = await createUserWithEmailAndPassword(auth, email, pass); 
         const user = userCredential.user; 
         const isAdmin = email === 'admin@finshark.com'; 
-        await setDoc(doc(db, 'users', user.uid), { email: email, role: isAdmin ? 'admin' : 'user', status: isAdmin ? 'approved' : 'pending', watchlist: ['AAPL', 'MSFT'], analysisCount: 0, restrictedUntil: null }); 
+        await setDoc(doc(db, 'users', user.uid), { 
+            email: email, 
+            role: isAdmin ? 'admin' : 'user', 
+            status: isAdmin ? 'approved' : 'pending', 
+            watchlist: ['AAPL', 'MSFT'],
+            analysisCount: 0,
+            restrictedUntil: null
+        }); 
     } 
     else { await signInWithEmailAndPassword(auth, email, pass); }
     document.getElementById('auth-email').value = ''; document.getElementById('auth-pass').value = ''; window.closeLogin();
-  } catch (error) { errEl.textContent = 'שגיאה בהתחברות: ' + error.message; errEl.style.display = 'block'; }
+  } catch (error) { errEl.textContent = getFirebaseError(error); errEl.style.display = 'block'; }
 };
-
 window.logout = async function() { await signOut(auth); State.currentUser = null; State.watchlist = []; window.switchTab('market'); };
 
 onAuthStateChanged(auth, async (user) => {
@@ -534,11 +619,21 @@ onAuthStateChanged(auth, async (user) => {
         const userData = docSnap.data();
         State.currentUser = { uid: user.uid, ...userData };
         State.watchlist = userData.watchlist || [];
+
+        if (State.currentTab === 'pending' && userData.status === 'approved') {
+          State.currentTab = 'shark';
+        } else if (State.currentTab === 'pending' && userData.role === 'admin') {
+          State.currentTab = 'admin';
+        }
+
         renderApp();
       }
     });
   } else {
-    State.currentUser = null; State.watchlist = []; renderApp();
+    State.currentUser = null;
+    State.watchlist = [];
+    if(State.currentTab !== 'market') State.currentTab = 'market';
+    renderApp();
   }
 });
 
@@ -641,6 +736,62 @@ window.loadCommunityData = async function() {
     }
 };
 
+function setupAdminDashboard() {
+  if (State.currentUser?.role !== 'admin') return;
+  onSnapshot(collection(db, 'users'), (snapshot) => {
+    const listEl = document.getElementById('admin-users-list'); const users = [];
+    snapshot.forEach(doc => { if (doc.data().role !== 'admin') users.push({ id: doc.id, ...doc.data() }); });
+    if(users.length === 0) { listEl.innerHTML = '<p style="color:var(--text-secondary)">אין משתמשים במערכת כרגע.</p>'; return; }
+    
+    listEl.innerHTML = users.map(u => { 
+        const isApproved = u.status === 'approved'; 
+        const isRestricted = u.restrictedUntil && Date.now() < u.restrictedUntil;
+        const count = u.analysisCount || 0;
+
+        const statusBadge = isApproved 
+            ? `<span class="user-status status-approved">מאושר ✓</span>` 
+            : `<span class="user-status status-pending">ממתין לאישור ⏳</span>`;
+
+        const restrictBadge = isRestricted
+            ? `<span style="color:var(--red); font-size:0.8rem; background:rgba(255,69,58,0.1); padding:4px 8px; border-radius:6px; border:1px solid rgba(255,69,58,0.3)">🚫 מוגבל זמנית</span>`
+            : `<span style="color:var(--text-secondary); font-size:0.8rem; border:1px solid var(--glass-border); padding:4px 8px; border-radius:6px;">📊 הרצות: ${count}/6</span>`;
+
+        const actionButtons = !isApproved 
+            ? `<button class="btn btn-primary" onclick="approveUser('${u.id}')">אשר משתמש</button>` 
+            : `<button class="btn btn-ghost" onclick="revokeUser('${u.id}')">הסר הרשאה</button>
+               ${isRestricted ? `<button class="btn btn-primary" style="margin-right:8px;" onclick="removeRestriction('${u.id}')">שחרר חסימה</button>` : ''}`;
+
+        return `
+        <div class="user-row">
+            <div class="user-info">
+                <span class="user-name">👤 ${u.email}</span>
+                <div style="display:flex; gap:10px; align-items:center; margin-top:6px;">
+                    ${statusBadge}
+                    ${restrictBadge}
+                </div>
+            </div>
+            <div>${actionButtons}</div>
+        </div>`; 
+    }).join('');
+  });
+}
+window.approveUser = async function(uid) { await updateDoc(doc(db, 'users', uid), { status: 'approved' }); }; 
+window.revokeUser = async function(uid) { await updateDoc(doc(db, 'users', uid), { status: 'pending' }); };
+window.removeRestriction = async function(uid) { await updateDoc(doc(db, 'users', uid), { restrictedUntil: null, analysisCount: 0 }); };
+
+window.addWatchlistItem = async function() { const val = document.getElementById('watch-input').value.trim().toUpperCase(); if (!val || !State.currentUser) return; document.getElementById('watch-input').value = ''; await updateDoc(doc(db, 'users', State.currentUser.uid), { watchlist: arrayUnion(val) }); };
+window.removeFromWatchlist = async function(ticker) { if(!State.currentUser) return; await updateDoc(doc(db, 'users', State.currentUser.uid), { watchlist: arrayRemove(ticker) }); };
+window.addToWatchlistFromResults = async function() { const ticker = State.currentData?.ticker; if (!ticker || !State.currentUser) return; await updateDoc(doc(db, 'users', State.currentUser.uid), { watchlist: arrayUnion(ticker) }); const btn = document.getElementById('btn-add-watch-results'); btn.classList.add('active'); btn.textContent = '✓'; setTimeout(() => { btn.classList.remove('active'); btn.textContent = '📌'; }, 1500); };
+function renderWatchlist() {
+  const grid = document.getElementById('watchlist-grid');
+  if (State.watchlist.length === 0) { grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding: 60px 20px; color: var(--text-secondary);"><div style="font-size:3rem; margin-bottom:16px;">📭</div><p>הרשימה ריקה. הוסף סימולי מניות.</p></div>`; return; }
+  grid.innerHTML = State.watchlist.map(ticker => `<div class="card" style="padding:20px; position:relative; cursor:pointer;" onclick="window.goToAnalysis('${ticker}')"><button onclick="event.stopPropagation(); window.removeFromWatchlist('${ticker}')" style="position:absolute; top:12px; left:14px; width:24px; height:24px; background:rgba(255,69,58,0.1); border:1px solid rgba(255,69,58,0.2); border-radius:6px; color:var(--red); cursor:pointer; z-index:10;">✕</button><div style="font-size:0.72rem; font-weight:800; color:var(--blue); letter-spacing:0.1em;">${ticker}</div><div style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:14px;">לחץ לניתוח</div></div>`).join('');
+}
+window.goToAnalysis = function(ticker) { document.getElementById('ticker-input').value = ticker; window.switchTab('shark', document.getElementById('nav-shark')); window.analyzeStock(); };
+window.quickSearch = function(ticker) { window.goToAnalysis(ticker); };
+window.shareAnalysis = function() { if (!State.currentData) return; const text = `FinShark 🦈 | ${State.currentData.ticker} - $${State.currentData.price.toFixed(2)} | ${State.currentData.changePercentage > 0 ? '+' : ''}${State.currentData.changePercentage}%`; navigator.clipboard?.writeText(text).then(() => alert("הועתק!")); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeLogin(); document.getElementById('results').style.display = 'none'; document.getElementById('ticker-input').value=''; } });
+
 window.switchTab = function(tab, el) {
   const isLoggedIn = State.currentUser !== null;
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
@@ -650,7 +801,9 @@ window.switchTab = function(tab, el) {
       if (!isLoggedIn) { window.openLogin(); return; }
       if (!isApproved) { State.currentTab = 'pending'; renderApp(); return; }
   }
-  State.currentTab = tab; renderApp();
+  
+  State.currentTab = tab;
+  renderApp();
 };
 
 function renderApp() {
@@ -660,6 +813,13 @@ function renderApp() {
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
   const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
 
+  if ((State.currentTab === 'shark' || State.currentTab === 'watchlist' || State.currentTab === 'community') && !isAdmin && !isApproved) {
+      State.currentTab = isLoggedIn ? 'pending' : 'market';
+  }
+  if (State.currentTab === 'pending' && (isApproved || isAdmin)) {
+      State.currentTab = isAdmin ? 'admin' : 'shark';
+  }
+
   document.getElementById('btn-login').style.display = isLoggedIn ? 'none' : '';
   document.getElementById('btn-logout').style.display = isLoggedIn ? '' : 'none';
   document.getElementById('lock-shark').style.display = (isApproved || isAdmin) ? 'none' : 'inline';
@@ -667,49 +827,97 @@ function renderApp() {
   document.getElementById('lock-comm').style.display = (isApproved || isAdmin) ? 'none' : 'inline';
   document.getElementById('promo-box').style.display = isLoggedIn ? 'none' : 'block';
   
-  if (isAdmin && State.currentTab === 'admin') document.getElementById('section-admin').classList.add('active');
+  const greeting = document.getElementById('user-greeting');
+  if (isLoggedIn) { greeting.textContent = `שלום, ${State.currentUser.email.split('@')[0]}`; greeting.style.display = ''; } else greeting.style.display = 'none';
+  document.getElementById('nav-admin').style.display = isAdmin ? '' : 'none';
+  
+  if (isAdmin && State.currentTab === 'admin') { document.getElementById('section-admin').classList.add('active'); setupAdminDashboard(); }
   else if (State.currentTab === 'pending') document.getElementById('section-pending').classList.add('active');
   else if (State.currentTab === 'shark') document.getElementById('section-shark').classList.add('active');
   else if (State.currentTab === 'community') { document.getElementById('section-community').classList.add('active'); loadCommunityData(); }
-  else if (State.currentTab === 'watchlist') { document.getElementById('section-watchlist').classList.add('active'); }
+  else if (State.currentTab === 'watchlist') { document.getElementById('section-watchlist').classList.add('active'); renderWatchlist(); }
   else document.getElementById('section-market').classList.add('active');
   
   document.querySelectorAll('.nav-tab').forEach(t => { if(t.getAttribute('onclick').includes(`'${State.currentTab}'`)) t.classList.add('active'); else t.classList.remove('active'); });
 }
 
-// ... שאר פונקציות העזר (loadMarketWeather, renderChart) נשארות זהות ...
 window.loadMarketWeather = async function() {
+  const debugEl = document.getElementById('debug-market'); debugEl.style.display = 'none';
   try {
       const response = await fetch(`${NETLIFY_API_URL}?action=market`);
-      const data = await response.json();
+      const rawText = await response.text();
+      let data; try { data = JSON.parse(rawText); } catch(e) { debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 השרת החזיר שגיאה (לא JSON) - אנא ודא מפתחות API.</strong>\n\n${rawText}`; document.getElementById('ticker-track').innerHTML = "שגיאת שרת."; return; }
       if (data.success && data.marketData) renderMarketWeather(data.marketData);
-  } catch (e) { console.error(e); }
+      else { debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 שגיאת שרת לוגית:</strong>\n\n${data.message || JSON.stringify(data)}`; }
+  } catch (e) {
+      console.error(e); 
+      debugEl.style.display = 'block'; 
+      debugEl.innerHTML = `<strong>🚨 כישלון רשת. האם השרת פועל?</strong><br><br>${e.message}<br><br><em>טיפ: אם אתה בסביבת תצוגה מקדימה, הדפדפן מנסה לפנות לכתובת: ${NETLIFY_API_URL}. ודא ששרת ה-Backend רץ.</em>`; 
+      document.getElementById('ticker-track').innerHTML = "שגיאת רשת.";
+  }
 };
+
+const mapSectorToHebrew = (engName) => { const map = { "Technology": "טכנולוגיה", "Healthcare": "בריאות", "Financials": "פיננסים", "Consumer Cyclical": "מוצרי צריכה", "Communication Services": "תקשורת", "Industrials": "תעשייה", "Consumer Defensive": "מוצרי יסוד", "Energy": "אנרגיה", "Real Estate": "נדל\"ן", "Utilities": "תשתיות", "Basic Materials": "חומרי גלם", "כללי": "כללי" }; return map[engName] || engName; };
 
 function renderMarketWeather(data) {
   let { indexes, sectors, news } = data;
-  document.getElementById('ticker-track').innerHTML = (indexes||[]).map(idx => `<div class="ticker-item"><span>${idx.symbol}</span> <span>${idx.price}</span> <span class="${idx.changesPercentage>=0?'up':'down'}">${idx.changesPercentage>=0?'+':''}${idx.changesPercentage}%</span></div>`).join('');
-  document.getElementById('market-stats').innerHTML = (indexes||[]).map(idx => `<div class="stat-card"><div class="stat-label">${idx.symbol}</div><div class="stat-value">${idx.price}</div><div class="stat-change ${idx.changesPercentage>=0?'up':'down'}">${idx.changesPercentage>=0?'+':''}${idx.changesPercentage}%</div></div>`).join('');
-  document.getElementById('heatmap-grid').innerHTML = (sectors||[]).slice(0, 12).map(s => { const chg = parseFloat(s.changesPercentage); return `<div class="heatmap-cell ${chg>0?'up':chg<0?'down':'neutral'}"><div class="cell-name">${s.sector}</div><div class="cell-change ${chg>0?'up':chg<0?'down':'neutral'}">${chg>0?'+':''}${chg.toFixed(2)}%</div></div>`; }).join('');
+  if (!Array.isArray(indexes)) indexes = []; if (!Array.isArray(sectors)) sectors = []; if (!Array.isArray(news)) news = [];
+  
+  let tickerHtml = "", statsHtml = "";
+
+  if (indexes.length === 0) tickerHtml = "<div class='ticker-item' style='color:var(--red)'>המתן... לא הצלחנו למשוך נתונים.</div>";
+  else {
+      indexes.forEach(idx => {
+          const name = idx.symbol, isUp = idx.changesPercentage >= 0, price = idx.price >= 1000 ? idx.price.toLocaleString(undefined, {maximumFractionDigits: 0}) : idx.price.toFixed(2), change = `${isUp ? '+' : ''}${idx.changesPercentage.toFixed(2)}%`, colorUp = isUp;
+          tickerHtml += `<div class="ticker-item"><span class="ticker-name">${name}</span> <span class="ticker-price">${price}</span> <span class="ticker-change ${colorUp?'up':'down'}">${change}</span></div>`;
+          statsHtml += `<div class="stat-card"><div class="stat-label">${name}</div><div class="stat-value">${price}</div><div class="stat-change ${colorUp?'up':'down'}">${change} היום</div></div>`;
+      });
+  }
+  document.getElementById('ticker-track').innerHTML = tickerHtml + tickerHtml;
+  document.getElementById('market-stats').innerHTML = statsHtml;
+
+  if (sectors.length > 0) document.getElementById('heatmap-grid').innerHTML = sectors.slice(0, 12).map(s => { const chg = parseFloat(s.changesPercentage), isUp = chg > 0, isNeutral = chg === 0, cls = isNeutral ? 'neutral' : (isUp ? 'up' : 'down'); return `<div class="heatmap-cell ${cls}" title="${s.sector}"><div class="cell-name">${mapSectorToHebrew(s.sector)}</div><div class="cell-change ${cls}">${isUp?'+':''}${chg.toFixed(2)}%</div></div>`; }).join('');
+  
+  if (news.length > 0) document.getElementById('market-news-grid').innerHTML = news.map(n => { 
+      const date = new Date(n.publishedAt || n.date).toLocaleDateString('he-IL', {day:'numeric', month:'short'}); 
+      return `<div class="news-card" onclick="window.open('${n.url}', '_blank')"><div class="news-source">${n.source || n.site || 'חדשות שוק'} • ${date}</div><div class="news-headline" dir="ltr" style="text-align:left;">${n.headline || n.title}</div></div>`; 
+  }).join('');
 }
 
-window.goToAnalysis = function(ticker) { document.getElementById('ticker-input').value = ticker; window.switchTab('shark', document.getElementById('nav-shark')); window.analyzeStock(); };
-window.quickSearch = function(ticker) { window.goToAnalysis(ticker); };
-
 window.analyzeStock = async function() {
-  const ticker = document.getElementById('ticker-input').value.trim().toUpperCase(); if (!ticker) return;
-  document.getElementById('results').style.display = 'none';
-  document.getElementById('loading').classList.add('active');
+  const ticker = document.getElementById('ticker-input').value.trim().toUpperCase(); if (!ticker) { document.getElementById('ticker-input').focus(); return; }
+  
+  // הגנת Rate Limiting למשתמשים (לא למנהל)
+  const user = State.currentUser;
+  const warningEl = document.getElementById('rate-limit-warning');
+  warningEl.style.display = 'none';
+
+  if (user && user.role !== 'admin') {
+      const now = Date.now();
+      if (user.restrictedUntil && now < user.restrictedUntil) {
+          const remainingMinutes = Math.ceil((user.restrictedUntil - now) / (1000 * 60));
+          warningEl.innerHTML = `🚫 הגעת למגבלת הניתוחים להיום (6).<br>האנלייזר יפתח מחדש בעוד <b>${remainingMinutes} דקות</b>.`;
+          warningEl.style.display = 'flex';
+          document.getElementById('ticker-input').value = '';
+          return; // עוצר את הביצוע!
+      }
+  }
+
+  const debugEl = document.getElementById('debug-analyze'); if(debugEl) debugEl.style.display = 'none'; document.getElementById('results').style.display = 'none';
+  showLoading(); animateLoadingSteps(['יוצר קשר עם שרת FinShark...','מושך נתוני אמת מהבורסה...','מעביר נתונים למוח ה-AI (Gemini)...','מגבש פסיקת הכריש...']);
 
   try {
     const response = await fetch(`${NETLIFY_API_URL}?action=analyze&ticker=${ticker}`);
-    const data = await response.json();
-    if (!response.ok || !data.success) throw new Error(data.message);
+    const rawText = await response.text();
+    let data; try { data = JSON.parse(rawText); } catch(e) { hideLoading(); document.getElementById('results').style.display = 'block'; if(debugEl) {debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 השרת לא מחזיר JSON! הנה מה שחזר:</strong>\n\n${rawText}`;} return; }
+    if (!response.ok || !data.success) { hideLoading(); document.getElementById('results').style.display = 'block'; if(debugEl) {debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 שגיאה מפורשת מהשרת:</strong>\n\n${data.message || JSON.stringify(data)}`;} return; }
     
     State.currentData = data; 
+    State.aiAnalysis = data.aiVerdict; 
+    window.currentChartData = data.chartHistory;
     
-    // --> שדרוג 3: שמירת סט-אפ מעניין ב-Firebase אם הציון גבוה מ-70
-    if (data.aiVerdict && data.aiVerdict.scores && data.aiVerdict.scores.overall >= 70 && State.currentUser && State.currentUser.status === 'approved') {
+    // --> שדרוג: שמירת סט-אפ מעניין ב-Firebase אם הציון גבוה מ-70
+    if (data.aiVerdict && data.aiVerdict.scores && data.aiVerdict.scores.overall >= 70 && user && user.status === 'approved') {
         try {
             await setDoc(doc(db, 'ai_setups', ticker), {
                 ticker: ticker,
@@ -721,31 +929,203 @@ window.analyzeStock = async function() {
         } catch(e) { console.warn("Failed to save setup to pool", e); }
     }
 
-    document.getElementById('loading').classList.remove('active'); 
-    renderResults(data, data.aiVerdict, data.chartHistory, data.tickerNews);
+    // ניתוח הצליח - עדכון מונה השימושים ב-Firebase
+    if (user && user.role !== 'admin') {
+        let newCount = (user.analysisCount || 0) + 1;
+        let newRestricted = user.restrictedUntil || null;
+        if (newCount >= 6) {
+            newRestricted = Date.now() + (3 * 60 * 60 * 1000); // חסימה ל-3 שעות מעכשיו
+            newCount = 0; // לאפס לקראת שחרור החסימה
+        }
+        await updateDoc(doc(db, 'users', user.uid), {
+            analysisCount: newCount,
+            restrictedUntil: newRestricted
+        });
+    }
+
+    hideLoading(); renderResults(data, data.aiVerdict, data.chartHistory, data.tickerNews || []);
   } catch (error) { 
-    document.getElementById('loading').classList.remove('active'); 
-    alert("שגיאה בניתוח: " + error.message);
+    console.error("Analysis Error:", error); 
+    hideLoading(); 
+    document.getElementById('results').style.display = 'block';
+    if(debugEl) {
+        debugEl.style.display = 'block'; 
+        debugEl.innerHTML = `<strong>🚨 תקלת רשת מוחלטת בעת פנייה לשרת 🚨</strong><br><br>השגיאה: ${error.message}<br><br><em>טיפ: ודא ששרת ה-Backend פועל בכתובת <code>${NETLIFY_API_URL}</code>.</em>`;
+    }
   }
 };
 
-// בגלל מגבלות המקום, הפונקציות להצגת התוצאות (renderResults, renderChart) מקוצרות כאן מתוך הנחה שהן קיימות כפי שבנינו אותן יחד בגרסה הקודמת.
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function showLoading() { document.getElementById('loading-steps').innerHTML = ''; document.getElementById('loading').classList.add('active'); }
+function setLoadingText(t) { document.getElementById('loading-text').textContent = t; }
+function hideLoading() { document.getElementById('loading').classList.remove('active'); }
+async function animateLoadingSteps(steps) { const container = document.getElementById('loading-steps'); container.innerHTML = ''; for (let i = 0; i < steps.length; i++) { await sleep(400); const prev = container.querySelector('.loading-step:not(.done)'); if (prev) { prev.classList.add('done'); prev.textContent = '✓ ' + prev.textContent; } setLoadingText(steps[i]); const el = document.createElement('div'); el.className = 'loading-step'; el.textContent = steps[i]; container.appendChild(el); if (container.children.length > 5) container.removeChild(container.firstChild); } }
+
+// --- TRADINGVIEW LIGHTWEIGHT CHARTS LOGIC ---
+let tvChart = null;
+let candleSeries = null;
+let ma50Series = null;
+let ma200Series = null;
+
+window.setChartPeriod = function(months, btn) { 
+    document.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active')); 
+    if(btn) btn.classList.add('active'); 
+    if (!window.currentChartData) return; 
+    renderChart(window.currentChartData, months); 
+};
+
+function renderChart(historyData, months) {
+    const container = document.getElementById('stockChart');
+    if(!container) return;
+
+    // Filter data based on selected months
+    let cutoffDate = new Date();
+    cutoffDate.setMonth(cutoffDate.getMonth() - months);
+    
+    const filteredData = historyData.filter(d => new Date(d.date) >= cutoffDate);
+    if(filteredData.length === 0) return;
+
+    const candles = filteredData.map(d => ({ time: d.date, open: d.open, high: d.high, low: d.low, close: d.close }));
+    const ma50Line = filteredData.filter(d => d.ma50 !== null).map(d => ({ time: d.date, value: d.ma50 }));
+    const ma200Line = filteredData.filter(d => d.ma200 !== null).map(d => ({ time: d.date, value: d.ma200 }));
+
+    if (tvChart) {
+        tvChart.remove();
+        tvChart = null;
+    }
+
+    tvChart = LightweightCharts.createChart(container, {
+        layout: { background: { type: 'solid', color: 'transparent' }, textColor: '#86868b' },
+        grid: { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
+        rightPriceScale: { borderVisible: false },
+        timeScale: { borderVisible: false, fixLeftEdge: true, fixRightEdge: true },
+        crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
+    });
+
+    new ResizeObserver(entries => {
+        if (entries.length === 0 || entries[0].target !== container) return;
+        const newRect = entries[0].contentRect;
+        tvChart.applyOptions({ height: newRect.height, width: newRect.width });
+    }).observe(container);
+
+    candleSeries = tvChart.addCandlestickSeries({
+        upColor: '#30d158', downColor: '#ff453a', borderVisible: false,
+        wickUpColor: '#30d158', wickDownColor: '#ff453a'
+    });
+    candleSeries.setData(candles);
+
+    if (ma50Line.length > 0) {
+        ma50Series = tvChart.addLineSeries({ color: '#0a84ff', lineWidth: 1.5, title: 'MA 50 (W)' });
+        ma50Series.setData(ma50Line);
+    }
+    if (ma200Line.length > 0) {
+        ma200Series = tvChart.addLineSeries({ color: '#bf5af2', lineWidth: 1.5, title: 'MA 200 (W)' });
+        ma200Series.setData(ma200Line);
+    }
+
+    tvChart.timeScale().fitContent();
+}
+
+function renderScores(scores) {
+  const items = [ { label: 'צמיחה', key: 'growth', color: '#0a84ff' }, { label: 'ערך (Value)', key: 'value', color: '#30d158' }, { label: 'מומנטום', key: 'momentum', color: '#ffd60a' }, { label: 'איכות עסקית', key: 'quality', color: '#bf5af2' } ];
+  const cols = document.createElement('div'); cols.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:10px 32px;';
+  items.forEach(item => { const v = scores[item.key] || 0; cols.innerHTML += `<div class="score-bar-wrap"><span class="score-bar-label">${item.label}</span><div class="score-bar-track"><div class="score-bar-fill" style="width:0%;background:${item.color};border-radius:3px;" data-target="${v}"></div></div><span class="score-bar-val" style="color:${item.color}">${v}</span></div>`; });
+  document.getElementById('ai-scores').innerHTML = ''; document.getElementById('ai-scores').appendChild(cols);
+  const overall = scores.overall || Math.round((scores.growth + scores.value + scores.momentum + scores.quality) / 4), circle = document.getElementById('ai-score-circle'); circle.style.setProperty('--score', overall); document.getElementById('ai-score-text').textContent = overall;
+  let scoreTitle = "סביר", scoreColor = "var(--gold)"; if (overall >= 80) { scoreTitle = "מצוין (Strong Buy)"; scoreColor = "var(--green)"; } else if (overall >= 60) { scoreTitle = "חיובי (Buy)"; scoreColor = "var(--blue)"; } else if (overall <= 40) { scoreTitle = "שלילי (Sell)"; scoreColor = "var(--red)"; }
+  document.getElementById('ai-score-title').textContent = `ציון משוקלל: ${scoreTitle}`; document.getElementById('ai-score-title').style.color = scoreColor; circle.style.background = `conic-gradient(${scoreColor} calc(var(--score) * 1%), rgba(255,255,255,0.05) 0)`;
+  requestAnimationFrame(() => { requestAnimationFrame(() => { document.querySelectorAll('.score-bar-fill').forEach(el => { el.style.width = el.dataset.target + '%'; }); }); });
+}
+
+function formatNumberShort(num) { if(!num) return "N/A"; if (num >= 1e12) return (num / 1e12).toFixed(2) + "T"; if (num >= 1e9) return (num / 1e9).toFixed(2) + "B"; if (num >= 1e6) return (num / 1e6).toFixed(2) + "M"; return num.toLocaleString(); }
+
 function renderResults(data, analysis, historyData, newsData) {
-    document.getElementById('res-ticker').textContent = data.ticker;
-    document.getElementById('res-name').textContent = data.name;
-    document.getElementById('res-price').textContent = `$${data.price.toFixed(2)}`;
-    const chEl = document.getElementById('res-change'); 
-    const isUp = data.changePercentage >= 0;
-    chEl.textContent = `${isUp ? '+' : ''}${data.changePercentage.toFixed(2)}%`; 
-    chEl.className = `stock-change ${isUp ? 'up' : 'down'}`;
-    
-    // ציון AI
-    const overall = analysis.scores?.overall || 50;
-    document.getElementById('ai-score-text').textContent = overall;
-    document.getElementById('ai-score-circle').style.setProperty('--score', overall);
-    document.getElementById('ai-score-desc').textContent = analysis.summary || '';
-    
-    document.getElementById('results').style.display = 'block';
+  const isUp = data.changePercentage >= 0; 
+  document.getElementById('res-ticker').textContent = data.ticker + ' · ' + data.sector; 
+  document.getElementById('res-name').textContent = data.name; 
+  document.getElementById('res-price').textContent = `$${data.price.toFixed(2)}`;
+  
+  const chEl = document.getElementById('res-change'); 
+  chEl.textContent = `${isUp ? '+' : ''}${data.changePercentage.toFixed(2)}%  (${isUp ? '▲' : '▼'} היום)`; 
+  chEl.className = `stock-change ${isUp ? 'up' : 'down'}`;
+  
+  const btnWatch = document.getElementById('btn-add-watch-results'); 
+  if(State.watchlist.includes(data.ticker)) { btnWatch.textContent = '✓'; btnWatch.classList.add('active'); } 
+  else { btnWatch.textContent = '📌'; btnWatch.classList.remove('active'); }
+  
+  renderChart(historyData, 24); 
+  document.querySelectorAll('.chart-btn').forEach((b,i) => b.classList.toggle('active', i===2));
+
+  const peNum = Number(data.peRatio) || 0, epsNum = Number(data.eps) || 0;
+  const rangeLow = Number(data.fiftyTwoWeekLow) || 0, rangeHigh = Number(data.fiftyTwoWeekHigh) || 100;
+  const currentPos = Math.max(0, Math.min(100, ((data.price - rangeLow) / (rangeHigh - rangeLow)) * 100));
+  
+  const earningsText = data.latestEarnings ? 
+    (data.latestEarnings.surprisePercent > 0 ? `+${data.latestEarnings.surprisePercent.toFixed(1)}% (הכה תחזיות)` : `${data.latestEarnings.surprisePercent.toFixed(1)}% (פספס)`) : 'לא זמין';
+  const earningsGood = data.latestEarnings && data.latestEarnings.surprisePercent > 0;
+  const earningsBad = data.latestEarnings && data.latestEarnings.surprisePercent < 0;
+  
+  // טבלת נתוני העומק המלאה כולל דוחות רבעוניים
+  const fundRows = [ 
+      { label: 'שווי שוק', val: formatNumberShort(data.marketCap), tag: 'M.CAP', isTag: false }, 
+      { label: 'טווח 52 שבועות', val: `<span style="font-size:0.75rem; color:var(--text-secondary); margin-right:8px">$${rangeLow.toFixed(2)}</span> <div class="range-bar-wrap"><div class="range-indicator" style="left:${currentPos}%"></div></div> <span style="font-size:0.75rem; color:var(--text-secondary); margin-left:8px">$${rangeHigh.toFixed(2)}</span>`, isHtml: true }, 
+      { label: 'דוח רבעוני אחרון', val: earningsText, good: earningsGood, bad: earningsBad, goodLabel: 'הפתעה לטובה', badLabel: 'אכזב', neutralLabel: 'אין נתון' },
+      { label: 'מחיר / רווח (P/E)', val: `${peNum.toFixed(1)}x`, good: peNum > 0 && peNum < 30, bad: peNum > 45, goodLabel: 'זול', badLabel: 'יקר', neutralLabel: 'סביר' }, 
+      { label: 'מכפיל מכירות (P/S)', val: `${(data.psRatio||0).toFixed(2)}x`, good: data.psRatio > 0 && data.psRatio < 3, bad: data.psRatio > 10, goodLabel: 'זול', badLabel: 'בועה', neutralLabel: 'ממוצע' },
+      { label: 'מכפיל הון (P/B)', val: `${(data.pbRatio||0).toFixed(2)}x`, good: data.pbRatio > 0 && data.pbRatio < 3, bad: data.pbRatio > 5, goodLabel: 'תמחור נוח', badLabel: 'יקר', neutralLabel: 'ממוצע' }, 
+      { label: 'רווח למניה (EPS)', val: `$${epsNum.toFixed(2)}`, good: epsNum > 2, bad: epsNum < 0, goodLabel: 'גבוה', badLabel: 'הפסד', neutralLabel: 'סביר' }, 
+      { label: 'צמיחת רווח (5Y)', val: `${(data.epsGrowth5Y||0).toFixed(1)}%`, good: data.epsGrowth5Y > 15, bad: data.epsGrowth5Y < 0, goodLabel: 'מזנקת', badLabel: 'שלילית', neutralLabel: 'יציבה' },
+      { label: 'צמיחת הכנסות (YoY)', val: `${(data.revenueGrowth||0).toFixed(1)}%`, good: data.revenueGrowth > 10, bad: data.revenueGrowth < 0, goodLabel: 'צומחת', badLabel: 'מתכווצת', neutralLabel: 'יציבה' },
+      { label: 'רווח גולמי', val: `${(data.grossMargin||0).toFixed(1)}%`, good: data.grossMargin > 40, bad: data.grossMargin < 20, goodLabel: 'גבוה', badLabel: 'נמוך', neutralLabel: 'סביר' },
+      { label: 'רווח תפעולי', val: `${(data.operatingMargin||0).toFixed(1)}%`, good: data.operatingMargin > 15, bad: data.operatingMargin < 5, goodLabel: 'יעיל', badLabel: 'חלש', neutralLabel: 'סביר' },
+      { label: 'שולי רווח נקי', val: `${(data.netMargin||0).toFixed(1)}%`, good: data.netMargin > 15, bad: data.netMargin < 5, goodLabel: 'רווחיות יתר', badLabel: 'נמוך', neutralLabel: 'סביר' },
+      { label: 'תשואה להון (ROE)', val: `${(data.roe||0).toFixed(1)}%`, good: data.roe > 15, bad: data.roe < 5, goodLabel: 'רווחיות שיא', badLabel: 'חלש', neutralLabel: 'רגיל' }, 
+      { label: 'תשואה לנכסים (ROA)', val: `${(data.roa||0).toFixed(1)}%`, good: data.roa > 10, bad: data.roa < 3, goodLabel: 'יעילה', badLabel: 'חלש', neutralLabel: 'סביר' }, 
+      { label: 'החזר השקעה (ROIC)', val: `${(data.roic||0).toFixed(1)}%`, good: data.roic > 10, bad: data.roic < 4, goodLabel: 'חכמה', badLabel: 'בזבזנית', neutralLabel: 'ממוצע' },
+      { label: 'יחס נזילות (Current)', val: `${(data.currentRatio||0).toFixed(2)}`, good: data.currentRatio >= 1.5, bad: data.currentRatio < 1, goodLabel: 'בטוח', badLabel: 'מסוכן', neutralLabel: 'סביר' },
+      { label: 'יחס מהיר (Quick)', val: `${(data.quickRatio||0).toFixed(2)}`, good: data.quickRatio >= 1, bad: data.quickRatio < 0.8, goodLabel: 'נזילה', badLabel: 'לחוצה', neutralLabel: 'סביר' },
+      { label: 'חוב להון', val: `${(data.debtToEquity||0).toFixed(2)}`, good: data.debtToEquity < 1, bad: data.debtToEquity > 2.5, goodLabel: 'יציב', badLabel: 'מסוכן', neutralLabel: 'סביר' }, 
+      { label: 'תנודתיות (Beta)', val: `${(data.beta||0).toFixed(2)}`, good: data.beta > 0 && data.beta < 1.2, bad: data.beta > 2, goodLabel: 'יציב', badLabel: 'תנודתי', neutralLabel: 'שוק' },
+      { label: 'תשואת דיבידנד', val: `${(data.dividendYield || 0).toFixed(2)}%`, good: data.dividendYield > 2, bad: false, goodLabel: 'מניב', badLabel: '', neutralLabel: 'רגיל' } 
+  ];
+  
+  document.getElementById('fundamentals-content').innerHTML = fundRows.map(row => { if (row.isHtml) return `<div class="data-row"><span class="data-label">${row.label}</span><div class="data-value-wrap" style="direction:ltr">${row.val}</div></div>`; if (row.tag === 'M.CAP') return `<div class="data-row"><span class="data-label">${row.label}</span><div class="data-value-wrap"><span class="data-value">${row.val}</span></div></div>`; return `<div class="data-row"><span class="data-label">${row.label}</span><div class="data-value-wrap"><span class="data-value">${row.val}</span><span class="tag ${row.good ? 'tag-good' : row.bad ? 'tag-bad' : 'tag-neutral'}">${row.good ? row.goodLabel : row.bad ? row.badLabel : row.neutralLabel}</span></div></div>`; }).join('');
+
+  const ma50val = Number(data.ma50) || 0;
+  const ma200val = Number(data.ma200) || 0;
+  const a50 = data.price >= ma50val, a200 = data.price >= ma200val;
+  
+  document.getElementById('ma-display').innerHTML = `<div class="ma-box"><div class="ma-label">MA 50</div><div class="ma-value">$${ma50val.toFixed(2)}</div><div class="ma-status ${a50 ? 'above' : 'below'}">${a50 ? '▲ מעל' : '▼ מתחת'}</div></div><div class="ma-box"><div class="ma-label">MA 200</div><div class="ma-value">$${ma200val.toFixed(2)}</div><div class="ma-status ${a200 ? 'above' : 'below'}">${a200 ? '▲ מעל' : '▼ מתחת'}</div></div>`;
+  
+  const patternText = data.pattern || "לא זוהתה תבנית מובהקת";
+
+  document.getElementById('technical-content').innerHTML = `
+    <div class="data-row"><span class="data-label">סקטור ותעשייה</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;text-align:left;">${data.sector} • ${data.industry}</span></div></div>
+    <div class="data-row"><span class="data-label">מגמה טכנית</span><div class="data-value-wrap"><span class="data-value">${a50&&a200?'Bull 🐂':!a50&&!a200?'Bear 🐻':'Mixed ⚖️'}</span><span class="tag ${a50&&a200?'tag-good':!a50&&!a200?'tag-bad':'tag-neutral'}">${a50&&a200?'חיובי':!a50&&!a200?'שלילי':'מעורב'}</span></div></div>
+    <div class="data-row"><span class="data-label">נפח מסחר ממוצע</span><div class="data-value-wrap"><span class="data-value">${formatNumberShort(data.volume)}</span></div></div>
+    <div class="data-row"><span class="data-label">תבנית גרפית (AI)</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;max-width:200px;white-space:normal;text-align:left;line-height:1.4;color:var(--gold);font-weight:800;">${patternText}</span></div></div>
+    <div class="data-row"><span class="data-label">קריאה טכנית - AI</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;max-width:200px;white-space:normal;text-align:left;line-height:1.5">${analysis.technical || "אין מספיק נתונים"}</span></div></div>`;
+
+  renderScores(analysis.scores || { growth: 50, value: 50, momentum: 50, quality: 50, overall: 50 });
+  document.getElementById('ai-score-desc').textContent = analysis.news_analysis || "ניתוח מבוסס על הנתונים הפונדמנטליים האחרונים.";
+
+  const rm = { BUY: { label: 'קנייה ✓', cls: 'buy' }, HOLD: { label: 'החזקה —', cls: 'hold' }, SELL: { label: 'מכירה ✗', cls: 'sell' }, "STRONG BUY": { label: 'קנייה חזקה 🔥', cls: 'buy' } }[analysis.rating?.toUpperCase()] || { label: analysis.rating || 'החזקה —', cls: 'hold' };
+  document.getElementById('verdict-rating-pill').innerHTML = `<div class="verdict-rating ${rm.cls}">${rm.label}</div>`;
+
+  const upside = analysis.price_target ? (((analysis.price_target / data.price) - 1) * 100).toFixed(1) : 0;
+  document.getElementById('verdict-content').innerHTML = `<div style="margin-bottom:22px"><div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--blue); margin-bottom:8px;">פרופיל חברה וזהות תחרותית</div><div style="font-size:0.95rem;line-height:1.6;color:var(--text); font-weight:500; margin-bottom:10px;">${analysis.identity || "מידע חסר"}</div><div style="font-size:0.8rem;line-height:1.6;color:var(--text-secondary);">${data.description ? data.description.substring(0, 200) + '...' : ''}</div></div><div class="verdict-columns"><div class="verdict-col"><div class="verdict-col-title pros">✅ נקודות חוזק</div><div class="verdict-col-content">${(analysis.verdict?.pros || analysis.pros || []).join('\n')}</div></div><div class="verdict-col"><div class="verdict-col-title cons">⚠️ גורמי סיכון</div><div class="verdict-col-content">${(analysis.verdict?.cons || analysis.cons || []).join('\n')}</div></div></div><div class="verdict-summary-box"><div class="verdict-summary-label">🎯 שורה תחתונה</div><div class="verdict-summary-text">${analysis.verdict?.summary || analysis.summary || "ה-AI לא הצליח לגבש פסיקה."}</div></div><div class="price-target-row"><div><div class="pt-label">יעד מחיר – 12 חודשים קדימה</div><div style="font-size:0.72rem;color:var(--text-tertiary);margin-top:3px">תחזית FinShark AI</div></div><div style="text-align:left"><div class="pt-value">$${analysis.price_target || "N/A"}</div><div class="pt-upside" style="color:${parseFloat(upside) >= 0?'var(--green)':'var(--red)'}">${parseFloat(upside) >= 0?'+':''}${upside}% פוטנציאל</div></div></div>`;
+
+  if (newsData && newsData.length > 0) { 
+      document.getElementById('stock-news-grid').innerHTML = newsData.map(n => { 
+          const date = new Date(n.publishedAt || n.date || n.datetime * 1000 || n.publishedDate).toLocaleDateString('he-IL', {day:'numeric', month:'short'}); 
+          return `<div class="news-card" onclick="window.open('${n.url}', '_blank')"><div class="news-source">${n.source || n.site || 'חדשות שוק'} • ${date}</div><div class="news-headline" dir="ltr" style="text-align:left;">${n.headline || n.title}</div></div>`; 
+      }).join(''); 
+  } else { 
+      document.getElementById('stock-news-grid').innerHTML = `<p style="color:var(--text-secondary); grid-column:1/-1;">לא נמצאו חדשות עדכניות למניה זו.</p>`; 
+  }
+
+  document.getElementById('results').style.display = 'block';
+  requestAnimationFrame(() => { document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
 }
 </script>
 </body>
