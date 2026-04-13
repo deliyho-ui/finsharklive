@@ -330,27 +330,29 @@ module.exports = async function(req, res) {
           "price_target": "מספר טהור בלבד ללא סימנים או פסיקים (למשל 150.5)",
           "rating": "קנייה / החזקה / מכירה / קנייה חזקה",
           "scores": { "growth": 80, "momentum": 75, "value": 60, "quality": 90 }
-        }`;
+        }
+        חובה להחזיר רק את ה-JSON ללא שום מילים נוספות!`;
 
         const payload = {
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
                 temperature: 0.4, 
                 topP: 0.8,
-                topK: 10,
-                responseMimeType: "application/json"
+                topK: 10
             }
         };
 
-        const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        // 💡 שינוי מודל ל-1.5-flash
+        const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
         let aiVerdict = {};
 
-        // 💡 הגנה חדשה וחשובה: טיפול אלגנטי בעומס על ה-API (שגיאה 429) בלי להפיל את האתר
+        // 💡 דיווח ברור על שגיאות מ-Gemini (כולל ה-400 וה-429 המפורסמים)
         if (!aiResponse.ok) {
+            const errorText = await aiResponse.text();
             if (aiResponse.status === 429) {
                 // המשתמש/המערכת חרגה ממגבלת הבקשות בדקה
                 aiVerdict = {
@@ -364,14 +366,14 @@ module.exports = async function(req, res) {
                     scores: { growth: 50, momentum: 50, value: 50, quality: 50 }
                 };
             } else {
-                throw new Error(`שגיאה מ-Gemini API (סטטוס ${aiResponse.status})`);
+                throw new Error(`שגיאה מ-Gemini API (סטטוס ${aiResponse.status}): ${errorText}`);
             }
         } else {
             const aiData = await aiResponse.json();
             try {
                 let text = aiData.candidates[0].content.parts[0].text;
                 
-                // חילוץ JSON יציב ועמיד
+                // חילוץ JSON יציב ועמיד - מתעלם מכל טקסט אחר (Markdown) שג'מיני עלול להוסיף
                 const jsonStart = text.indexOf('{');
                 const jsonEnd = text.lastIndexOf('}');
                 
