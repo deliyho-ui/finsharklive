@@ -32,7 +32,7 @@ async function fetchYahooData(ticker, range = "2y", interval = "1wk") {
             low: Number(quotes.low[i]),
             close: Number(quotes.close[i]),
             value: Number(quotes.close[i]),
-            volume: Number(quotes.volume[i])
+            volume: Number(quotes.volume[i]) // מחזורי המסחר (ווליום)
         })).filter(p => !isNaN(p.close) && p.close !== null);
 
         // חישוב ממוצעים נעים ישירות על הגרף (10 שבועות ~ MA50, 40 שבועות ~ MA200)
@@ -281,11 +281,14 @@ module.exports = async function(req, res) {
         const lastChartPoint = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1] : {};
         const calcMa50 = lastChartPoint.ma50 ? Number(lastChartPoint.ma50) : Number(m['50DayMovingAverage'] || 0);
         const calcMa200 = lastChartPoint.ma200 ? Number(lastChartPoint.ma200) : Number(m['200DayMovingAverage'] || 0);
+        
+        // נמשוך את הממוצע של נפח המסחר הנוכחי להצגה ל-AI
+        const currentVolume = Number(quote?.v || m['10DayAverageTradingVolume'] || 0);
 
         const technicals = {
             ma50: calcMa50,
             ma200: calcMa200,
-            volume: Number(quote?.v || m['10DayAverageTradingVolume'] || 0),
+            volume: currentVolume,
             trend: Number(quote?.c) > calcMa50 ? "שורית (מעל ממוצע 50)" : "דובית (מתחת לממוצע 50)"
         };
 
@@ -308,11 +311,15 @@ module.exports = async function(req, res) {
             newsPromptText = `כותרות מרכזיות מהתקופה האחרונה:\n${topNews}`;
         }
 
+        // =========================================================
+        // פקודת המוח המעודכנת של הכריש: ציון הוליסטי ורמות מסחר טכניות 
+        // =========================================================
         const prompt = `אתה "הכריש" - מודל בינה מלאכותית (AI) פיננסי מתקדם, עצמאי ואובייקטיבי לחלוטין. המטרה שלך היא לספק ניתוח עומק מקיף וריאלי למניית ${ticker} (${profile?.name || ticker}), ללא תלות עיוורת באנליסטים אנושיים. 
-        הדרישה הקריטית שלי אליך: פרט לעומק על כל סעיף. כתוב לפחות 2-3 משפטים עשירים ואנליטיים על הפונדמנטלס ועל המצב הטכני. אל תזרוק סתם סיסמאות קצרות. תן ערך אמיתי.
+        הדרישה הקריטית שלי אליך: פרט לעומק על כל סעיף. כתוב לפחות 2-3 משפטים עשירים ואנליטיים על הפונדמנטלס ועל המצב הטכני. אל תזרוק סתם סיסמאות קצרות.
         
         נתוני אמת מהשוק לעיבוד עמוק:
-        - מחיר ומגמה טכנית: מחיר נוכחי: $${quote?.c || 0}. ממוצע 50: $${technicals.ma50}, ממוצע 200: $${technicals.ma200}. (מגמה: ${technicals.trend}). תבנית בגרף שזוהתה ע"י המערכת: ${detectedPattern}.
+        - מחיר, מגמה, ותבנית: מחיר נוכחי: $${quote?.c || 0}. ממוצע 50: $${technicals.ma50}, ממוצע 200: $${technicals.ma200}. (מגמה: ${technicals.trend}). תבנית בגרף שזוהתה: ${detectedPattern}.
+        - נפח מסחר (Volume): נפח מסחר נוכחי הינו ${currentVolume}. התייחס למחזורי המסחר ומשמעותם.
         - תמחור (Valuation): מכפיל רווח (P/E): ${sanitizeValue(fundamentals.peRatio)}, מכפיל הון (P/B): ${sanitizeValue(fundamentals.pbRatio)}, מכפיל מכירות (P/S): ${sanitizeValue(fundamentals.psRatio)}.
         - רווחיות ויעילות (Profitability): שולי רווח גולמי: ${sanitizeValue(fundamentals.grossMargin)}%, רווח נקי: ${sanitizeValue(fundamentals.netMargin)}%. תשואה להון (ROE): ${sanitizeValue(fundamentals.roe)}%, תשואה להון מושקע (ROIC): ${sanitizeValue(fundamentals.roic)}%.
         - צמיחה ודוחות: ${earningsPromptText}. צמיחת הכנסות (YoY): ${sanitizeValue(fundamentals.revenueGrowth)}%, צמיחת רווח למניה (5Y): ${sanitizeValue(fundamentals.epsGrowth5Y)}%.
@@ -321,20 +328,17 @@ module.exports = async function(req, res) {
         - חדשות אחרונות למניה:
         ${newsPromptText}
         
-        הנחיות קריטיות - חסינות שגיאות נתונים (Anomaly Detection):
-        מערכת הנתונים שולחת ערך "N/A" במקרה של נתון חסר או אפס לא הגיוני. במקרה שאתה מזהה נתון "N/A" - *התעלם ממנו לחלוטין* ואל תציין אותו כ"נקודת תורפה". הסתמך על שאר הנתונים התקינים שקיבלת!
-        
-        הנחיות קריטיות לניתוח שווי (Valuation) וסט-אפים:
-        1. עצמאות המודל: אתה לא עובד אצל האנליסטים! יעד המחיר הממוצע שסופק הוא רק רפרנס. חשב מחיר יעד ריאלי (price_target) בעצמך בהתבסס על הרווחיות, ההפתעה בדוחות, החדשות, התבנית הטכנית, והמומנטום.
-        2. תמחור נועז ואמיתי: לחברות מנצחות תן יעד אפסייד חזק. לחברות מפסידות חתוך את מחיר היעד למטה בחדות.
-        3. רמות מסחר והתנגדויות: עליך לנתח ולציין את רמות התמיכה וההתנגדות (Resistances) הבולטות ביותר בטקסט של הניתוח הטכני. בנוסף, ספק מספרים מדויקים עבור: מחיר כניסה אידיאלי (entry_price), נקודת עצירת הפסד (stop_loss), ויעד רווח לטווח הקרוב (target_price).
+        הנחיות קריטיות לניתוח שווי (Valuation), סט-אפים, וציון מסכם:
+        1. עצמאות המודל: אתה לא עובד אצל האנליסטים! יעד המחיר הממוצע הוא רק רפרנס. חשב מחיר יעד ריאלי ל-12 חודשים קדימה (price_target).
+        2. ציון הוליסטי (overall score): עליך לקבוע ציון מסכם אחד (מ-0 עד 100) שמתבסס באופן מוחלט על *כל* הנתונים יחד (מחזורי מסחר, דוחות, חדשות, תבניות גרף, אנליסטים). הציון הזה הוא "השורה התחתונה" והוא יקבע את דירוג הקנייה (מעל 60 = קנייה, מתחת ל-40 = מכירה, באמצע = החזקה).
+        3. רמות מסחר והתנגדויות: נתח וציין את רמות התמיכה וההתנגדות (Resistances) הבולטות בטקסט הניתוח הטכני. ספק בנוסף מספרים מדויקים עבור: מחיר כניסה טכני (entry_price), סטופ לוס (stop_loss), ויעד רווח לטווח הקרוב (target_price).
         
         ספק את הניתוח בפורמט JSON חוקי בלבד בעברית (חובה להשתמש במבנה הבא בדיוק):
         {
           "identity": "פרופיל החברה ומעמדה התחרותי בשוק.",
-          "technical": "ניתוח טכני מעמיק המשלב את הממוצעים, תבנית הגרף שזוהתה (${detectedPattern}), ורמות תמיכה והתנגדות קריטיות שזיהית.",
+          "technical": "ניתוח טכני מעמיק המשלב את הממוצעים, מחזורי המסחר (ווליום), תבנית הגרף (${detectedPattern}), ורמות תמיכה/התנגדות.",
           "news_analysis": "ניתוח פונדמנטלי המשלב את תוצאות הדוח הרבעוני, החדשות האחרונות, הצמיחה והתמחור.",
-          "summary": "השורה התחתונה שלך מחיבור כל הנתונים לכדי הערכת שווי וצפי.",
+          "summary": "השורה התחתונה שלך מחיבור כל הנתונים (הצדקת הציון המסכם).",
           "verdict": "פסיקה נוקבת ומנומקת.",
           "pros": ["נקודת חוזק 1", "נקודת חוזק 2", "נקודת חוזק 3"],
           "cons": ["נקודת תורפה 1", "נקודת תורפה 2", "נקודת תורפה 3"],
@@ -344,7 +348,7 @@ module.exports = async function(req, res) {
           "stop_loss": "מספר טהור לעצירת הפסד קריטית (למשל 138.0)",
           "target_price": "מספר טהור ליעד רווח לטווח הקרוב (למשל 160.5)",
           "rating": "קנייה / החזקה / מכירה / קנייה חזקה",
-          "scores": { "growth": 80, "momentum": 75, "value": 60, "quality": 90 }
+          "scores": { "growth": 80, "momentum": 75, "value": 60, "quality": 90, "overall": 82 }
         }
         חובה להחזיר רק את ה-JSON ללא שום מילים נוספות!`;
 
@@ -357,7 +361,7 @@ module.exports = async function(req, res) {
             }
         };
 
-        const modelName = "gemini-2.5-flash"; // המודל המעודכן, החזק והיציב שעובד
+        const modelName = "gemini-2.5-flash"; // המודל המעודכן שעובד מצוין אצלך בחשבון
 
         const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -366,19 +370,19 @@ module.exports = async function(req, res) {
 
         let aiVerdict = {};
 
-        // 💡 אם המודל נופל, הוא מושך את הרשימה המדויקת שמותרת לכם!
+        // 💡 הגיבוי החכם - אם המודל נופל, הוא ימשוך את הרשימה המדויקת שמותרת לכם!
         if (!aiResponse.ok) {
             const errorText = await aiResponse.text();
             if (aiResponse.status === 429) {
                 aiVerdict = {
-                    bottomLine: "המערכת חווה עומס זמני עקב כמות פניות גבוהה ל-AI. הנתונים הטכניים והפונדמנטליים נמשכו בהצלחה וניתנים לצפייה למטה.",
+                    bottomLine: "המערכת חווה עומס זמני עקב כמות פניות גבוהה ל-AI. הנתונים נמשכו בהצלחה וניתנים לצפייה למטה.",
                     verdict: "עומס זמני בשרתי ה-AI (שגיאת 429). אנא המתן כדקה ונסה שוב.",
                     pros: ["נתוני האמת של החברה נמשכו בהצלחה"],
                     cons: ["ניתוח ה-AI מושהה זמנית עקב עומס"],
                     pattern: detectedPattern,
                     price_target: meanTarget ? Number(meanTarget) : Number(quote?.c || 0),
                     rating: "החזקה",
-                    scores: { growth: 50, momentum: 50, value: 50, quality: 50 }
+                    scores: { growth: 50, momentum: 50, value: 50, quality: 50, overall: 50 }
                 };
             } else if (aiResponse.status === 404) {
                 let availableModels = "לא הצלחנו למשוך את הרשימה המדויקת מהשרת";
@@ -404,6 +408,7 @@ module.exports = async function(req, res) {
             try {
                 let text = aiData.candidates[0].content.parts[0].text;
                 
+                // חילוץ JSON יציב ועמיד
                 const jsonStart = text.indexOf('{');
                 const jsonEnd = text.lastIndexOf('}');
                 
@@ -423,7 +428,6 @@ module.exports = async function(req, res) {
                 
                 aiVerdict.price_target = (targetNum && targetNum > 0) ? targetNum : (meanTarget ? Number(meanTarget) : Number(quote?.c || 0) * 1.15);
 
-                // ניקוי רמות המסחר כדי למנוע קריסה אם ה-AI פספס אותן
                 aiVerdict.entry_price = aiVerdict.entry_price || '';
                 aiVerdict.stop_loss = aiVerdict.stop_loss || '';
                 aiVerdict.target_price = aiVerdict.target_price || '';
@@ -438,8 +442,26 @@ module.exports = async function(req, res) {
                 aiVerdict.negative = consArray; aiVerdict.weaknesses = consArray; aiVerdict.bearish = consArray;
                 
                 const s = aiVerdict.scores || {};
-                aiVerdict.scores = { growth: s.growth || 50, momentum: s.momentum || 50, value: s.value || 50, quality: s.quality || 50 };
+                
+                // סנכרון הציון המשוקלל הרשמי של ה-AI. אם ה-AI לא סיפק, נחשב לו ממוצע כגיבוי.
+                const aiOverall = s.overall || Math.round(((s.growth||50)+(s.momentum||50)+(s.value||50)+(s.quality||50))/4);
+
+                aiVerdict.scores = { 
+                    growth: s.growth || 50, 
+                    momentum: s.momentum || 50, 
+                    value: s.value || 50, 
+                    quality: s.quality || 50,
+                    overall: aiOverall
+                };
+
+                // התאמה אגרסיבית של ההמלצה (Rating) לציון הסופי של ה-AI כדי למנוע סתירות!
+                if (aiVerdict.scores.overall >= 80) aiVerdict.rating = "קנייה חזקה";
+                else if (aiVerdict.scores.overall >= 60) aiVerdict.rating = "קנייה";
+                else if (aiVerdict.scores.overall <= 40) aiVerdict.rating = "מכירה";
+                else aiVerdict.rating = "החזקה";
+
             } catch (e) { 
+                // גיבוי קריסה
                 aiVerdict = { 
                     bottomLine: "הנתונים נמשכו בהצלחה, אך ה-AI התקשה לנסח פסיקה בפורמט תקין.", 
                     verdict: "שגיאה בפענוח הנתונים מה-AI", 
@@ -447,7 +469,8 @@ module.exports = async function(req, res) {
                     cons: ["תקלה זמנית בסיכום המילולי"],
                     pattern: detectedPattern,
                     price_target: meanTarget ? Number(meanTarget) : Number(quote?.c || 0),
-                    scores: { growth: 50, momentum: 50, value: 50, quality: 50 }
+                    rating: "החזקה",
+                    scores: { growth: 50, momentum: 50, value: 50, quality: 50, overall: 50 }
                 }; 
             }
         }
