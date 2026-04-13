@@ -89,7 +89,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 
 /* Admin Dashboard */
 .admin-grid { display: grid; gap: 16px; margin-top: 20px; }
-.user-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); }
+.user-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); flex-wrap: wrap; gap:10px; }
 .user-info { display: flex; flex-direction: column; gap: 4px; }
 .user-name { font-weight: 700; font-size: 1.1rem; }
 .user-status { font-size: 0.8rem; padding: 4px 10px; border-radius: 6px; display: inline-block; width: fit-content; }
@@ -124,7 +124,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .news-card:hover { border-color: rgba(255,255,255,0.14); transform: translateY(-2px); }
 .news-source { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 8px; }
 .news-headline { font-size: 0.85rem; font-weight: 600; line-height: 1.5; margin-bottom: 10px; flex-grow:1;}
-.news-image { width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 10px; background: rgba(255,255,255,0.05); }
 
 /* Shark UI Additions */
 .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(10,132,255,0.12); border: 1px solid rgba(10,132,255,0.25); border-radius: 980px; padding: 5px 14px; font-size: 0.75rem; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 12px; }
@@ -137,6 +136,9 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .kbd-hint { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; opacity: 0.5; }
 .kbd-item { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--text-secondary); }
 .kbd { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 5px; padding: 2px 7px; font-size: 0.65rem; font-family: monospace; direction: ltr; }
+
+/* Rate Limit Warning */
+.rate-limit-box { display: none; background: rgba(255,69,58,0.15); border: 1px solid var(--red); color: #fff; padding: 14px 20px; border-radius: var(--radius-sm); margin-bottom: 20px; font-size: 0.95rem; font-weight: 600; text-align: center; align-items: center; justify-content: center; gap: 10px; animation: fadeUp 0.3s forwards; }
 
 /* Header Actions */
 .header-actions { display: flex; gap: 8px; align-items: center; }
@@ -418,6 +420,9 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
       <div class="kbd-item"><kbd class="kbd">Esc</kbd> <span>נקה תוצאות</span></div>
     </div>
 
+    <!-- תיבת אזהרת הגבלת משתמשים -->
+    <div id="rate-limit-warning" class="rate-limit-box"></div>
+
     <div id="results" class="mt-32" style="display:none">
       <div id="debug-analyze" style="display:none"></div>
       <div class="stock-header">
@@ -515,7 +520,7 @@ const State = { currentUser: null, currentTab: 'market', watchlist: [] }; window
 // טיפול בשגיאת "URL is not valid" בסביבות ללא דומיין אמיתי (כמו פיתוח מקומי בNetlify)
 let NETLIFY_API_URL = "/api/analyze";
 if (['blob:', 'file:', 'data:'].includes(window.location.protocol)) {
-    NETLIFY_API_URL = "http://localhost:8888/api/analyze"; 
+  NETLIFY_API_URL = "http://localhost:8888/api/analyze"; 
 }
 
 window.addEventListener('DOMContentLoaded', () => { loadMarketWeather(); });
@@ -524,53 +529,98 @@ window.openLogin = function() { document.getElementById('auth-error').style.disp
 window.closeLogin = function() { document.getElementById('modal-login').classList.remove('active'); };
 window.switchLoginTab = function(mode) { authMode = mode; document.getElementById('auth-error').style.display = 'none'; document.getElementById('tab-login').classList.toggle('active', mode === 'login'); document.getElementById('tab-register').classList.toggle('active', mode === 'register'); document.getElementById('btn-auth-action').textContent = mode === 'login' ? 'כניסה למערכת ←' : 'שלח בקשה לאישור'; };
 window.handleAuth = async function() {
-    const email = document.getElementById('auth-email').value.trim().toLowerCase(), pass = document.getElementById('auth-pass').value.trim(), errEl = document.getElementById('auth-error');
-    if (!email || !pass) { errEl.textContent = 'נא להזין אימייל וסיסמה'; errEl.style.display = 'block'; return; }
-    const getFirebaseError = (error) => { if(error.code === 'auth/email-already-in-use') return 'האימייל כבר קיים.'; if(error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') return 'אימייל או סיסמה שגויים.'; if(error.code === 'auth/weak-password') return 'סיסמה חלשה מדי.'; return 'שגיאה: ' + error.message; };
-    try {
-        if (authMode === 'register') { const userCredential = await createUserWithEmailAndPassword(auth, email, pass); const user = userCredential.user; const isAdmin = email === 'admin@finshark.com'; await setDoc(doc(db, 'users', user.uid), { email: email, role: isAdmin ? 'admin' : 'user', status: isAdmin ? 'approved' : 'pending', watchlist: ['AAPL', 'MSFT'] }); } 
-        else { await signInWithEmailAndPassword(auth, email, pass); }
-        document.getElementById('auth-email').value = ''; document.getElementById('auth-pass').value = ''; window.closeLogin();
-    } catch (error) { errEl.textContent = getFirebaseError(error); errEl.style.display = 'block'; }
+  const email = document.getElementById('auth-email').value.trim().toLowerCase(), pass = document.getElementById('auth-pass').value.trim(), errEl = document.getElementById('auth-error');
+  if (!email || !pass) { errEl.textContent = 'נא להזין אימייל וסיסמה'; errEl.style.display = 'block'; return; }
+  const getFirebaseError = (error) => { if(error.code === 'auth/email-already-in-use') return 'האימייל כבר קיים.'; if(error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') return 'אימייל או סיסמה שגויים.'; if(error.code === 'auth/weak-password') return 'סיסמה חלשה מדי.'; return 'שגיאה: ' + error.message; };
+  try {
+    if (authMode === 'register') { 
+        const userCredential = await createUserWithEmailAndPassword(auth, email, pass); 
+        const user = userCredential.user; 
+        const isAdmin = email === 'admin@finshark.com'; 
+        // יצירת יוזר חדש עם מונה שימושים התחלתי 0
+        await setDoc(doc(db, 'users', user.uid), { 
+            email: email, 
+            role: isAdmin ? 'admin' : 'user', 
+            status: isAdmin ? 'approved' : 'pending', 
+            watchlist: ['AAPL', 'MSFT'],
+            analysisCount: 0,
+            restrictedUntil: null
+        }); 
+    } 
+    else { await signInWithEmailAndPassword(auth, email, pass); }
+    document.getElementById('auth-email').value = ''; document.getElementById('auth-pass').value = ''; window.closeLogin();
+  } catch (error) { errEl.textContent = getFirebaseError(error); errEl.style.display = 'block'; }
 };
 window.logout = async function() { await signOut(auth); State.currentUser = null; State.watchlist = []; window.switchTab('market'); };
 
 onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
-            if (docSnap.exists()) {
-                const userData = docSnap.data();
-                State.currentUser = { uid: user.uid, ...userData };
-                State.watchlist = userData.watchlist || [];
+  if (user) {
+    onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
+      if (docSnap.exists()) {
+        const userData = docSnap.data();
+        State.currentUser = { uid: user.uid, ...userData };
+        State.watchlist = userData.watchlist || [];
 
-                // חילוץ מהיר: הפניה אוטומטית למסך הניתוח ברגע שהמשתמש מאושר
-                if (State.currentTab === 'pending' && userData.status === 'approved') {
-                    State.currentTab = 'shark';
-                } else if (State.currentTab === 'pending' && userData.role === 'admin') {
-                    State.currentTab = 'admin';
-                }
+        // חילוץ מהיר: הפניה אוטומטית למסך הניתוח ברגע שהמשתמש מאושר
+        if (State.currentTab === 'pending' && userData.status === 'approved') {
+          State.currentTab = 'shark';
+        } else if (State.currentTab === 'pending' && userData.role === 'admin') {
+          State.currentTab = 'admin';
+        }
 
-                renderApp();
-            }
-        });
-    } else {
-        State.currentUser = null;
-        State.watchlist = [];
-        if(State.currentTab !== 'market') State.currentTab = 'market';
         renderApp();
-    }
+      }
+    });
+  } else {
+    State.currentUser = null;
+    State.watchlist = [];
+    if(State.currentTab !== 'market') State.currentTab = 'market';
+    renderApp();
+  }
 });
 
 function setupAdminDashboard() {
-    if (State.currentUser?.role !== 'admin') return;
-    onSnapshot(collection(db, 'users'), (snapshot) => {
-        const listEl = document.getElementById('admin-users-list'); const users = [];
-        snapshot.forEach(doc => { if (doc.data().role !== 'admin') users.push({ id: doc.id, ...doc.data() }); });
-        if(users.length === 0) { listEl.innerHTML = '<p style="color:var(--text-secondary)">אין משתמשים במערכת כרגע.</p>'; return; }
-        listEl.innerHTML = users.map(u => { const isApproved = u.status === 'approved'; return `<div class="user-row"><div class="user-info"><span class="user-name">👤 ${u.email}</span><span class="user-status ${isApproved ? 'status-approved' : 'status-pending'}">${isApproved ? 'מאושר ✓' : 'ממתין לאישור ⏳'}</span></div><div>${!isApproved ? `<button class="btn btn-primary" onclick="approveUser('${u.id}')">אשר משתמש</button>` : `<button class="btn btn-ghost" onclick="revokeUser('${u.id}')">הסר הרשאה</button>`}</div></div>`; }).join('');
-    });
+  if (State.currentUser?.role !== 'admin') return;
+  onSnapshot(collection(db, 'users'), (snapshot) => {
+    const listEl = document.getElementById('admin-users-list'); const users = [];
+    snapshot.forEach(doc => { if (doc.data().role !== 'admin') users.push({ id: doc.id, ...doc.data() }); });
+    if(users.length === 0) { listEl.innerHTML = '<p style="color:var(--text-secondary)">אין משתמשים במערכת כרגע.</p>'; return; }
+    
+    listEl.innerHTML = users.map(u => { 
+        const isApproved = u.status === 'approved'; 
+        const isRestricted = u.restrictedUntil && Date.now() < u.restrictedUntil;
+        const count = u.analysisCount || 0;
+
+        const statusBadge = isApproved 
+            ? `<span class="user-status status-approved">מאושר ✓</span>` 
+            : `<span class="user-status status-pending">ממתין לאישור ⏳</span>`;
+
+        const restrictBadge = isRestricted
+            ? `<span style="color:var(--red); font-size:0.8rem; background:rgba(255,69,58,0.1); padding:4px 8px; border-radius:6px; border:1px solid rgba(255,69,58,0.3)">🚫 מוגבל זמנית</span>`
+            : `<span style="color:var(--text-secondary); font-size:0.8rem; border:1px solid var(--glass-border); padding:4px 8px; border-radius:6px;">📊 הרצות: ${count}/6</span>`;
+
+        const actionButtons = !isApproved 
+            ? `<button class="btn btn-primary" onclick="approveUser('${u.id}')">אשר משתמש</button>` 
+            : `<button class="btn btn-ghost" onclick="revokeUser('${u.id}')">הסר הרשאה</button>
+               ${isRestricted ? `<button class="btn btn-primary" style="margin-right:8px;" onclick="removeRestriction('${u.id}')">שחרר חסימה</button>` : ''}`;
+
+        return `
+        <div class="user-row">
+            <div class="user-info">
+                <span class="user-name">👤 ${u.email}</span>
+                <div style="display:flex; gap:10px; align-items:center; margin-top:6px;">
+                    ${statusBadge}
+                    ${restrictBadge}
+                </div>
+            </div>
+            <div>${actionButtons}</div>
+        </div>`; 
+    }).join('');
+  });
 }
-window.approveUser = async function(uid) { await updateDoc(doc(db, 'users', uid), { status: 'approved' }); }; window.revokeUser = async function(uid) { await updateDoc(doc(db, 'users', uid), { status: 'pending' }); };
+window.approveUser = async function(uid) { await updateDoc(doc(db, 'users', uid), { status: 'approved' }); }; 
+window.revokeUser = async function(uid) { await updateDoc(doc(db, 'users', uid), { status: 'pending' }); };
+window.removeRestriction = async function(uid) { await updateDoc(doc(db, 'users', uid), { restrictedUntil: null, analysisCount: 0 }); };
 
 window.addWatchlistItem = async function() { const val = document.getElementById('watch-input').value.trim().toUpperCase(); if (!val || !State.currentUser) return; document.getElementById('watch-input').value = ''; await updateDoc(doc(db, 'users', State.currentUser.uid), { watchlist: arrayUnion(val) }); };
 window.removeFromWatchlist = async function(ticker) { if(!State.currentUser) return; await updateDoc(doc(db, 'users', State.currentUser.uid), { watchlist: arrayRemove(ticker) }); };
@@ -586,98 +636,115 @@ window.shareAnalysis = function() { if (!State.currentData) return; const text =
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeLogin(); document.getElementById('results').style.display = 'none'; document.getElementById('ticker-input').value=''; } });
 
 window.switchTab = function(tab, el) {
-    const isLoggedIn = State.currentUser !== null;
-    const isApproved = isLoggedIn && State.currentUser.status === 'approved';
-    const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
-    
-    if ((tab === 'shark' || tab === 'watchlist') && !isAdmin) {
-        if (!isLoggedIn) { window.openLogin(); return; }
-        if (!isApproved) { State.currentTab = 'pending'; renderApp(); return; }
-    }
-    
-    State.currentTab = tab;
-    renderApp();
+  const isLoggedIn = State.currentUser !== null;
+  const isApproved = isLoggedIn && State.currentUser.status === 'approved';
+  const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
+  
+  if ((tab === 'shark' || tab === 'watchlist') && !isAdmin) {
+      if (!isLoggedIn) { window.openLogin(); return; }
+      if (!isApproved) { State.currentTab = 'pending'; renderApp(); return; }
+  }
+  
+  State.currentTab = tab;
+  renderApp();
 };
 
 function renderApp() {
-    ['section-market', 'section-pending', 'section-shark', 'section-admin', 'section-watchlist'].forEach(s => { const elem = document.getElementById(s); if(elem) elem.classList.remove('active'); });
-    
-    const isLoggedIn = State.currentUser !== null;
-    const isApproved = isLoggedIn && State.currentUser.status === 'approved';
-    const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
+  ['section-market', 'section-pending', 'section-shark', 'section-admin', 'section-watchlist'].forEach(s => { const elem = document.getElementById(s); if(elem) elem.classList.remove('active'); });
+  
+  const isLoggedIn = State.currentUser !== null;
+  const isApproved = isLoggedIn && State.currentUser.status === 'approved';
+  const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
 
-    // הפניה אוטומטית - מנגנון למניעת היתקעות
-    if ((State.currentTab === 'shark' || State.currentTab === 'watchlist') && !isAdmin && !isApproved) {
-        State.currentTab = isLoggedIn ? 'pending' : 'market';
-    }
-    if (State.currentTab === 'pending' && (isApproved || isAdmin)) {
-        State.currentTab = isAdmin ? 'admin' : 'shark';
-    }
+  // הפניה אוטומטית - מנגנון למניעת היתקעות
+  if ((State.currentTab === 'shark' || State.currentTab === 'watchlist') && !isAdmin && !isApproved) {
+      State.currentTab = isLoggedIn ? 'pending' : 'market';
+  }
+  if (State.currentTab === 'pending' && (isApproved || isAdmin)) {
+      State.currentTab = isAdmin ? 'admin' : 'shark';
+  }
 
-    document.getElementById('btn-login').style.display = isLoggedIn ? 'none' : '';
-    document.getElementById('btn-logout').style.display = isLoggedIn ? '' : 'none';
-    document.getElementById('lock-shark').style.display = (isApproved || isAdmin) ? 'none' : 'inline';
-    document.getElementById('lock-watch').style.display = (isApproved || isAdmin) ? 'none' : 'inline';
-    document.getElementById('promo-box').style.display = isLoggedIn ? 'none' : 'block';
-    
-    const greeting = document.getElementById('user-greeting');
-    if (isLoggedIn) { greeting.textContent = `שלום, ${State.currentUser.email.split('@')[0]}`; greeting.style.display = ''; } else greeting.style.display = 'none';
-    document.getElementById('nav-admin').style.display = isAdmin ? '' : 'none';
-    
-    if (isAdmin && State.currentTab === 'admin') { document.getElementById('section-admin').classList.add('active'); setupAdminDashboard(); }
-    else if (State.currentTab === 'pending') document.getElementById('section-pending').classList.add('active');
-    else if (State.currentTab === 'shark') document.getElementById('section-shark').classList.add('active');
-    else if (State.currentTab === 'watchlist') { document.getElementById('section-watchlist').classList.add('active'); renderWatchlist(); }
-    else document.getElementById('section-market').classList.add('active');
-    
-    document.querySelectorAll('.nav-tab').forEach(t => { if(t.getAttribute('onclick').includes(`'${State.currentTab}'`)) t.classList.add('active'); else t.classList.remove('active'); });
+  document.getElementById('btn-login').style.display = isLoggedIn ? 'none' : '';
+  document.getElementById('btn-logout').style.display = isLoggedIn ? '' : 'none';
+  document.getElementById('lock-shark').style.display = (isApproved || isAdmin) ? 'none' : 'inline';
+  document.getElementById('lock-watch').style.display = (isApproved || isAdmin) ? 'none' : 'inline';
+  document.getElementById('promo-box').style.display = isLoggedIn ? 'none' : 'block';
+  
+  const greeting = document.getElementById('user-greeting');
+  if (isLoggedIn) { greeting.textContent = `שלום, ${State.currentUser.email.split('@')[0]}`; greeting.style.display = ''; } else greeting.style.display = 'none';
+  document.getElementById('nav-admin').style.display = isAdmin ? '' : 'none';
+  
+  if (isAdmin && State.currentTab === 'admin') { document.getElementById('section-admin').classList.add('active'); setupAdminDashboard(); }
+  else if (State.currentTab === 'pending') document.getElementById('section-pending').classList.add('active');
+  else if (State.currentTab === 'shark') document.getElementById('section-shark').classList.add('active');
+  else if (State.currentTab === 'watchlist') { document.getElementById('section-watchlist').classList.add('active'); renderWatchlist(); }
+  else document.getElementById('section-market').classList.add('active');
+  
+  document.querySelectorAll('.nav-tab').forEach(t => { if(t.getAttribute('onclick').includes(`'${State.currentTab}'`)) t.classList.add('active'); else t.classList.remove('active'); });
 }
 
 window.loadMarketWeather = async function() {
-    const debugEl = document.getElementById('debug-market'); debugEl.style.display = 'none';
-    try {
-        const response = await fetch(`${NETLIFY_API_URL}?action=market`);
-        const rawText = await response.text();
-        let data; try { data = JSON.parse(rawText); } catch(e) { debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 השרת החזיר שגיאה (לא JSON) - אנא ודא מפתחות API.</strong>\n\n${rawText}`; document.getElementById('ticker-track').innerHTML = "שגיאת שרת."; return; }
-        if (data.success && data.marketData) renderMarketWeather(data.marketData);
-        else { debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 שגיאת שרת לוגית:</strong>\n\n${data.message || JSON.stringify(data)}`; }
-    } catch (e) {
-        console.error(e); 
-        debugEl.style.display = 'block'; 
-        debugEl.innerHTML = `<strong>🚨 כישלון רשת. האם השרת פועל?</strong><br><br>${e.message}<br><br><em>טיפ: אם אתה בסביבת תצוגה מקדימה, הדפדפן מנסה לפנות לכתובת: ${NETLIFY_API_URL}. ודא ששרת ה-Backend רץ.</em>`; 
-        document.getElementById('ticker-track').innerHTML = "שגיאת רשת.";
-    }
+  const debugEl = document.getElementById('debug-market'); debugEl.style.display = 'none';
+  try {
+      const response = await fetch(`${NETLIFY_API_URL}?action=market`);
+      const rawText = await response.text();
+      let data; try { data = JSON.parse(rawText); } catch(e) { debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 השרת החזיר שגיאה (לא JSON) - אנא ודא מפתחות API.</strong>\n\n${rawText}`; document.getElementById('ticker-track').innerHTML = "שגיאת שרת."; return; }
+      if (data.success && data.marketData) renderMarketWeather(data.marketData);
+      else { debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 שגיאת שרת לוגית:</strong>\n\n${data.message || JSON.stringify(data)}`; }
+  } catch (e) {
+      console.error(e); 
+      debugEl.style.display = 'block'; 
+      debugEl.innerHTML = `<strong>🚨 כישלון רשת. האם השרת פועל?</strong><br><br>${e.message}<br><br><em>טיפ: אם אתה בסביבת תצוגה מקדימה, הדפדפן מנסה לפנות לכתובת: ${NETLIFY_API_URL}. ודא ששרת ה-Backend רץ.</em>`; 
+      document.getElementById('ticker-track').innerHTML = "שגיאת רשת.";
+  }
 };
 
 const mapSectorToHebrew = (engName) => { const map = { "Technology": "טכנולוגיה", "Healthcare": "בריאות", "Financials": "פיננסים", "Consumer Cyclical": "מוצרי צריכה", "Communication Services": "תקשורת", "Industrials": "תעשייה", "Consumer Defensive": "מוצרי יסוד", "Energy": "אנרגיה", "Real Estate": "נדל\"ן", "Utilities": "תשתיות", "Basic Materials": "חומרי גלם", "כללי": "כללי" }; return map[engName] || engName; };
 
 function renderMarketWeather(data) {
-    let { indexes, sectors, news } = data;
-    if (!Array.isArray(indexes)) indexes = []; if (!Array.isArray(sectors)) sectors = []; if (!Array.isArray(news)) news = [];
-    
-    let tickerHtml = "", statsHtml = "";
+  let { indexes, sectors, news } = data;
+  if (!Array.isArray(indexes)) indexes = []; if (!Array.isArray(sectors)) sectors = []; if (!Array.isArray(news)) news = [];
+  
+  let tickerHtml = "", statsHtml = "";
 
-    if (indexes.length === 0) tickerHtml = "<div class='ticker-item' style='color:var(--red)'>המתן... לא הצלחנו למשוך נתונים.</div>";
-    else {
-        indexes.forEach(idx => {
-            const name = idx.symbol, isUp = idx.changesPercentage >= 0, price = idx.price >= 1000 ? idx.price.toLocaleString(undefined, {maximumFractionDigits: 0}) : idx.price.toFixed(2), change = `${isUp ? '+' : ''}${idx.changesPercentage.toFixed(2)}%`, colorUp = isUp;
-            tickerHtml += `<div class="ticker-item"><span class="ticker-name">${name}</span> <span class="ticker-price">${price}</span> <span class="ticker-change ${colorUp?'up':'down'}">${change}</span></div>`;
-            statsHtml += `<div class="stat-card"><div class="stat-label">${name}</div><div class="stat-value">${price}</div><div class="stat-change ${colorUp?'up':'down'}">${change} היום</div></div>`;
-        });
-    }
-    document.getElementById('ticker-track').innerHTML = tickerHtml + tickerHtml;
-    document.getElementById('market-stats').innerHTML = statsHtml;
+  if (indexes.length === 0) tickerHtml = "<div class='ticker-item' style='color:var(--red)'>המתן... לא הצלחנו למשוך נתונים.</div>";
+  else {
+      indexes.forEach(idx => {
+          const name = idx.symbol, isUp = idx.changesPercentage >= 0, price = idx.price >= 1000 ? idx.price.toLocaleString(undefined, {maximumFractionDigits: 0}) : idx.price.toFixed(2), change = `${isUp ? '+' : ''}${idx.changesPercentage.toFixed(2)}%`, colorUp = isUp;
+          tickerHtml += `<div class="ticker-item"><span class="ticker-name">${name}</span> <span class="ticker-price">${price}</span> <span class="ticker-change ${colorUp?'up':'down'}">${change}</span></div>`;
+          statsHtml += `<div class="stat-card"><div class="stat-label">${name}</div><div class="stat-value">${price}</div><div class="stat-change ${colorUp?'up':'down'}">${change} היום</div></div>`;
+      });
+  }
+  document.getElementById('ticker-track').innerHTML = tickerHtml + tickerHtml;
+  document.getElementById('market-stats').innerHTML = statsHtml;
 
-    if (sectors.length > 0) document.getElementById('heatmap-grid').innerHTML = sectors.slice(0, 12).map(s => { const chg = parseFloat(s.changesPercentage), isUp = chg > 0, isNeutral = chg === 0, cls = isNeutral ? 'neutral' : (isUp ? 'up' : 'down'); return `<div class="heatmap-cell ${cls}" title="${s.sector}"><div class="cell-name">${mapSectorToHebrew(s.sector)}</div><div class="cell-change ${cls}">${isUp?'+':''}${chg.toFixed(2)}%</div></div>`; }).join('');
-    
-    if (news.length > 0) document.getElementById('market-news-grid').innerHTML = news.map(n => { 
-        const date = new Date(n.publishedAt || n.date).toLocaleDateString('he-IL', {day:'numeric', month:'short'}); 
-        return `<div class="news-card" onclick="window.open('${n.url}', '_blank')"><div class="news-source">${n.source || n.site || 'חדשות שוק'} • ${date}</div><div class="news-headline" dir="ltr" style="text-align:left;">${n.headline || n.title}</div></div>`; 
-    }).join('');
+  if (sectors.length > 0) document.getElementById('heatmap-grid').innerHTML = sectors.slice(0, 12).map(s => { const chg = parseFloat(s.changesPercentage), isUp = chg > 0, isNeutral = chg === 0, cls = isNeutral ? 'neutral' : (isUp ? 'up' : 'down'); return `<div class="heatmap-cell ${cls}" title="${s.sector}"><div class="cell-name">${mapSectorToHebrew(s.sector)}</div><div class="cell-change ${cls}">${isUp?'+':''}${chg.toFixed(2)}%</div></div>`; }).join('');
+  
+  if (news.length > 0) document.getElementById('market-news-grid').innerHTML = news.map(n => { 
+      const date = new Date(n.publishedAt || n.date).toLocaleDateString('he-IL', {day:'numeric', month:'short'}); 
+      return `<div class="news-card" onclick="window.open('${n.url}', '_blank')"><div class="news-source">${n.source || n.site || 'חדשות שוק'} • ${date}</div><div class="news-headline" dir="ltr" style="text-align:left;">${n.headline || n.title}</div></div>`; 
+  }).join('');
 }
 
 window.analyzeStock = async function() {
   const ticker = document.getElementById('ticker-input').value.trim().toUpperCase(); if (!ticker) { document.getElementById('ticker-input').focus(); return; }
+  
+  // הגנת Rate Limiting למשתמשים (לא למנהל)
+  const user = State.currentUser;
+  const warningEl = document.getElementById('rate-limit-warning');
+  warningEl.style.display = 'none';
+
+  if (user && user.role !== 'admin') {
+      const now = Date.now();
+      if (user.restrictedUntil && now < user.restrictedUntil) {
+          const remainingMinutes = Math.ceil((user.restrictedUntil - now) / (1000 * 60));
+          warningEl.innerHTML = `🚫 הגעת למגבלת הניתוחים להיום (6).<br>האנלייזר יפתח מחדש בעוד <b>${remainingMinutes} דקות</b>.`;
+          warningEl.style.display = 'flex';
+          document.getElementById('ticker-input').value = '';
+          return; // עוצר את הביצוע!
+      }
+  }
+
   const debugEl = document.getElementById('debug-analyze'); debugEl.style.display = 'none'; document.getElementById('results').style.display = 'none';
   showLoading(); animateLoadingSteps(['יוצר קשר עם שרת FinShark...','מושך נתוני אמת מהבורסה...','מעביר נתונים למוח ה-AI (Gemini)...','מגבש פסיקת הכריש...']);
 
@@ -691,7 +758,21 @@ window.analyzeStock = async function() {
     State.aiAnalysis = data.aiVerdict; 
     window.currentChartData = data.chartHistory;
     
-    hideLoading(); renderResults(data, data.aiVerdict, data.chartHistory, data.news);
+    // ניתוח הצליח - עדכון מונה השימושים ב-Firebase
+    if (user && user.role !== 'admin') {
+        let newCount = (user.analysisCount || 0) + 1;
+        let newRestricted = user.restrictedUntil || null;
+        if (newCount >= 6) {
+            newRestricted = Date.now() + (3 * 60 * 60 * 1000); // חסימה ל-3 שעות מעכשיו
+            newCount = 0; // לאפס לקראת שחרור החסימה
+        }
+        await updateDoc(doc(db, 'users', user.uid), {
+            analysisCount: newCount,
+            restrictedUntil: newRestricted
+        });
+    }
+
+    hideLoading(); renderResults(data, data.aiVerdict, data.chartHistory, data.tickerNews || []);
   } catch (error) { 
     console.error("Analysis Error:", error); 
     hideLoading(); 
@@ -811,7 +892,7 @@ function renderResults(data, analysis, historyData, newsData) {
   const earningsGood = data.latestEarnings && data.latestEarnings.surprisePercent > 0;
   const earningsBad = data.latestEarnings && data.latestEarnings.surprisePercent < 0;
   
-  // טבלת נתוני העומק המלאה כולל דוחות רבעוניים!
+  // טבלת נתוני העומק המלאה כולל דוחות רבעוניים
   const fundRows = [ 
       { label: 'שווי שוק', val: formatNumberShort(data.marketCap), tag: 'M.CAP', isTag: false }, 
       { label: 'טווח 52 שבועות', val: `<span style="font-size:0.75rem; color:var(--text-secondary); margin-right:8px">$${rangeLow.toFixed(2)}</span> <div class="range-bar-wrap"><div class="range-indicator" style="left:${currentPos}%"></div></div> <span style="font-size:0.75rem; color:var(--text-secondary); margin-left:8px">$${rangeHigh.toFixed(2)}</span>`, isHtml: true }, 
@@ -843,7 +924,15 @@ function renderResults(data, analysis, historyData, newsData) {
   
   document.getElementById('ma-display').innerHTML = `<div class="ma-box"><div class="ma-label">MA 50</div><div class="ma-value">$${ma50val.toFixed(2)}</div><div class="ma-status ${a50 ? 'above' : 'below'}">${a50 ? '▲ מעל' : '▼ מתחת'}</div></div><div class="ma-box"><div class="ma-label">MA 200</div><div class="ma-value">$${ma200val.toFixed(2)}</div><div class="ma-status ${a200 ? 'above' : 'below'}">${a200 ? '▲ מעל' : '▼ מתחת'}</div></div>`;
   
-  document.getElementById('technical-content').innerHTML = `<div class="data-row"><span class="data-label">סקטור ותעשייה</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;text-align:left;">${data.sector} • ${data.industry}</span></div></div><div class="data-row"><span class="data-label">מגמה טכנית</span><div class="data-value-wrap"><span class="data-value">${a50&&a200?'Bull 🐂':!a50&&!a200?'Bear 🐻':'Mixed ⚖️'}</span><span class="tag ${a50&&a200?'tag-good':!a50&&!a200?'tag-bad':'tag-neutral'}">${a50&&a200?'חיובי':!a50&&!a200?'שלילי':'מעורב'}</span></div></div><div class="data-row"><span class="data-label">נפח מסחר ממוצע</span><div class="data-value-wrap"><span class="data-value">${formatNumberShort(data.volume)}</span></div></div><div class="data-row"><span class="data-label">קריאה טכנית - AI</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;max-width:200px;white-space:normal;text-align:left;line-height:1.5">${analysis.technical || "אין מספיק נתונים"}</span></div></div>`;
+  // הוספת התבנית הטכנית לפאנל
+  const patternText = data.pattern || "לא זוהתה תבנית מובהקת";
+
+  document.getElementById('technical-content').innerHTML = `
+    <div class="data-row"><span class="data-label">סקטור ותעשייה</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;text-align:left;">${data.sector} • ${data.industry}</span></div></div>
+    <div class="data-row"><span class="data-label">מגמה טכנית</span><div class="data-value-wrap"><span class="data-value">${a50&&a200?'Bull 🐂':!a50&&!a200?'Bear 🐻':'Mixed ⚖️'}</span><span class="tag ${a50&&a200?'tag-good':!a50&&!a200?'tag-bad':'tag-neutral'}">${a50&&a200?'חיובי':!a50&&!a200?'שלילי':'מעורב'}</span></div></div>
+    <div class="data-row"><span class="data-label">נפח מסחר ממוצע</span><div class="data-value-wrap"><span class="data-value">${formatNumberShort(data.volume)}</span></div></div>
+    <div class="data-row"><span class="data-label">תבנית גרפית (AI)</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;max-width:200px;white-space:normal;text-align:left;line-height:1.4;color:var(--gold);font-weight:800;">${patternText}</span></div></div>
+    <div class="data-row"><span class="data-label">קריאה טכנית - AI</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;max-width:200px;white-space:normal;text-align:left;line-height:1.5">${analysis.technical || "אין מספיק נתונים"}</span></div></div>`;
 
   renderScores(analysis.scores || { growth: 50, value: 50, momentum: 50, quality: 50, overall: 50 });
   document.getElementById('ai-score-desc').textContent = analysis.news_analysis || "ניתוח מבוסס על הנתונים הפונדמנטליים האחרונים.";
