@@ -180,11 +180,18 @@ module.exports = async function(req, res) {
         // 1. דף הבית - מזג האוויר של השוק
         // ==========================================
         if (action === 'market' || (!ticker && action !== 'analyze')) {
-            const [spy, qqq, dia, iwm, newsData] = await Promise.all([
-                fetchFinnhub('quote', 'symbol=SPY'),
-                fetchFinnhub('quote', 'symbol=QQQ'),
-                fetchFinnhub('quote', 'symbol=DIA'),
-                fetchFinnhub('quote', 'symbol=IWM'),
+            // מושכים את המדדים המרכזיים + תעודות סל שמייצגות סקטורים
+            const [spy, qqq, dia, iwm, xlk, xlv, xlf, xle, xly, xli, newsData] = await Promise.all([
+                fetchFinnhub('quote', 'symbol=SPY'), // S&P 500
+                fetchFinnhub('quote', 'symbol=QQQ'), // NASDAQ
+                fetchFinnhub('quote', 'symbol=DIA'), // DOW
+                fetchFinnhub('quote', 'symbol=IWM'), // RUSSELL
+                fetchFinnhub('quote', 'symbol=XLK'), // טכנולוגיה
+                fetchFinnhub('quote', 'symbol=XLV'), // בריאות
+                fetchFinnhub('quote', 'symbol=XLF'), // פיננסים
+                fetchFinnhub('quote', 'symbol=XLE'), // אנרגיה
+                fetchFinnhub('quote', 'symbol=XLY'), // צריכה מחזורית
+                fetchFinnhub('quote', 'symbol=XLI'), // תעשייה
                 fetchFinnhub('news', 'category=business') 
             ]);
 
@@ -198,9 +205,13 @@ module.exports = async function(req, res) {
                         { symbol: 'RUSSELL 2000', price: Number(iwm?.c || 0), changesPercentage: Number(iwm?.dp || 0) }
                     ],
                     sectors: [
-                        { sector: "טכנולוגיה", changesPercentage: String(qqq?.dp || "0") },
-                        { sector: "תעשייה", changesPercentage: String(dia?.dp || "0") },
-                        { sector: "כללי", changesPercentage: String(spy?.dp || "0") }
+                        { sector: "טכנולוגיה (XLK)", changesPercentage: String(xlk?.dp || "0") },
+                        { sector: "בריאות (XLV)", changesPercentage: String(xlv?.dp || "0") },
+                        { sector: "פיננסים (XLF)", changesPercentage: String(xlf?.dp || "0") },
+                        { sector: "תעשייה (XLI)", changesPercentage: String(xli?.dp || "0") },
+                        { sector: "צריכה (XLY)", changesPercentage: String(xly?.dp || "0") },
+                        { sector: "אנרגיה (XLE)", changesPercentage: String(xle?.dp || "0") },
+                        { sector: "שוק כללי (SPY)", changesPercentage: String(spy?.dp || "0") }
                     ],
                     // סינון בטוח של המערך כדי למנוע קריסת חזית
                     news: (Array.isArray(newsData) ? newsData : []).slice(0, 5).map(item => {
