@@ -342,8 +342,8 @@ module.exports = async function(req, res) {
             }
         };
 
-        // 💡 חזרנו למודל המקורי והחזק שעבד לנו - gemini-2.5-flash
-        const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        // 💡 הנה התיקון! חזרנו למודל gemini-2.0-flash העדכני עם נתיב v1beta התקין
+        const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
