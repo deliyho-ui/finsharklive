@@ -324,21 +324,25 @@ module.exports = async function(req, res) {
         הנחיות קריטיות - חסינות שגיאות נתונים (Anomaly Detection):
         מערכת הנתונים שולחת ערך "N/A" במקרה של נתון חסר או אפס לא הגיוני. במקרה שאתה מזהה נתון "N/A" - *התעלם ממנו לחלוטין* ואל תציין אותו כ"נקודת תורפה". הסתמך על שאר הנתונים התקינים שקיבלת!
         
-        הנחיות קריטיות לניתוח שווי (Valuation):
+        הנחיות קריטיות לניתוח שווי (Valuation) וסט-אפים:
         1. עצמאות המודל: אתה לא עובד אצל האנליסטים! יעד המחיר הממוצע שסופק הוא רק רפרנס. חשב מחיר יעד ריאלי (price_target) בעצמך בהתבסס על הרווחיות, ההפתעה בדוחות, החדשות, התבנית הטכנית, והמומנטום.
         2. תמחור נועז ואמיתי: לחברות מנצחות תן יעד אפסייד חזק. לחברות מפסידות חתוך את מחיר היעד למטה בחדות.
+        3. רמות מסחר והתנגדויות: עליך לנתח ולציין את רמות התמיכה וההתנגדות (Resistances) הבולטות ביותר בטקסט של הניתוח הטכני. בנוסף, ספק מספרים מדויקים עבור: מחיר כניסה אידיאלי (entry_price), נקודת עצירת הפסד (stop_loss), ויעד רווח לטווח הקרוב (target_price).
         
         ספק את הניתוח בפורמט JSON חוקי בלבד בעברית (חובה להשתמש במבנה הבא בדיוק):
         {
           "identity": "פרופיל החברה ומעמדה התחרותי בשוק.",
-          "technical": "ניתוח טכני מעמיק המשלב את הממוצעים ואת התבנית הגרפית שזוהתה (${detectedPattern}).",
+          "technical": "ניתוח טכני מעמיק המשלב את הממוצעים, תבנית הגרף שזוהתה (${detectedPattern}), ורמות תמיכה והתנגדות קריטיות שזיהית.",
           "news_analysis": "ניתוח פונדמנטלי המשלב את תוצאות הדוח הרבעוני, החדשות האחרונות, הצמיחה והתמחור.",
-          "summary": "השורה התחתונה שלך מחיבור כל הנתונים לכדי הערכת שווי כוללת.",
+          "summary": "השורה התחתונה שלך מחיבור כל הנתונים לכדי הערכת שווי וצפי.",
           "verdict": "פסיקה נוקבת ומנומקת.",
           "pros": ["נקודת חוזק 1", "נקודת חוזק 2", "נקודת חוזק 3"],
           "cons": ["נקודת תורפה 1", "נקודת תורפה 2", "נקודת תורפה 3"],
           "pattern": "משפט קצר המסביר את התבנית שזוהתה בגרף ומה משמעותה.",
-          "price_target": "מספר טהור בלבד ללא סימנים או פסיקים (למשל 150.5)",
+          "price_target": "מספר טהור בלבד ליעד ארוך טווח ל-12 חודשים (למשל 150.5)",
+          "entry_price": "מספר טהור למחיר כניסה אידיאלי טכני (למשל 145.2)",
+          "stop_loss": "מספר טהור לעצירת הפסד קריטית (למשל 138.0)",
+          "target_price": "מספר טהור ליעד רווח לטווח הקרוב (למשל 160.5)",
           "rating": "קנייה / החזקה / מכירה / קנייה חזקה",
           "scores": { "growth": 80, "momentum": 75, "value": 60, "quality": 90 }
         }
@@ -353,7 +357,7 @@ module.exports = async function(req, res) {
             }
         };
 
-        const modelName = "gemini-2.5-flash"; // מנסים את המודל היציב והזמין ביותר
+        const modelName = "gemini-2.5-flash"; // המודל המעודכן, החזק והיציב שעובד
 
         const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -362,11 +366,10 @@ module.exports = async function(req, res) {
 
         let aiVerdict = {};
 
-        // 💡 הנה הקסם שהוספנו: אם המודל נופל, הוא מושך את הרשימה המדויקת שמותרת לכם!
+        // 💡 אם המודל נופל, הוא מושך את הרשימה המדויקת שמותרת לכם!
         if (!aiResponse.ok) {
             const errorText = await aiResponse.text();
             if (aiResponse.status === 429) {
-                // המשתמש/המערכת חרגה ממגבלת הבקשות בדקה
                 aiVerdict = {
                     bottomLine: "המערכת חווה עומס זמני עקב כמות פניות גבוהה ל-AI. הנתונים הטכניים והפונדמנטליים נמשכו בהצלחה וניתנים לצפייה למטה.",
                     verdict: "עומס זמני בשרתי ה-AI (שגיאת 429). אנא המתן כדקה ונסה שוב.",
@@ -378,7 +381,6 @@ module.exports = async function(req, res) {
                     scores: { growth: 50, momentum: 50, value: 50, quality: 50 }
                 };
             } else if (aiResponse.status === 404) {
-                // שגיאת מודל לא נמצא - שליפת רשימת המודלים מהשרת של גוגל!
                 let availableModels = "לא הצלחנו למשוך את הרשימה המדויקת מהשרת";
                 try {
                     const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
@@ -402,7 +404,6 @@ module.exports = async function(req, res) {
             try {
                 let text = aiData.candidates[0].content.parts[0].text;
                 
-                // חילוץ JSON יציב ועמיד
                 const jsonStart = text.indexOf('{');
                 const jsonEnd = text.lastIndexOf('}');
                 
@@ -422,6 +423,11 @@ module.exports = async function(req, res) {
                 
                 aiVerdict.price_target = (targetNum && targetNum > 0) ? targetNum : (meanTarget ? Number(meanTarget) : Number(quote?.c || 0) * 1.15);
 
+                // ניקוי רמות המסחר כדי למנוע קריסה אם ה-AI פספס אותן
+                aiVerdict.entry_price = aiVerdict.entry_price || '';
+                aiVerdict.stop_loss = aiVerdict.stop_loss || '';
+                aiVerdict.target_price = aiVerdict.target_price || '';
+
                 aiVerdict.bottomLine = aiVerdict.summary || aiVerdict.verdict;
                 aiVerdict.verdict = aiVerdict.verdict || aiVerdict.summary;
                 
@@ -434,7 +440,6 @@ module.exports = async function(req, res) {
                 const s = aiVerdict.scores || {};
                 aiVerdict.scores = { growth: s.growth || 50, momentum: s.momentum || 50, value: s.value || 50, quality: s.quality || 50 };
             } catch (e) { 
-                // גיבוי קריסה
                 aiVerdict = { 
                     bottomLine: "הנתונים נמשכו בהצלחה, אך ה-AI התקשה לנסח פסיקה בפורמט תקין.", 
                     verdict: "שגיאה בפענוח הנתונים מה-AI", 
