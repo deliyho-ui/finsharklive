@@ -353,7 +353,7 @@ module.exports = async function(req, res) {
             }
         };
 
-        const modelName = "gemini-1.5-pro-latest"; // מנסים את המודל היציב והזמין ביותר
+        const modelName = "gemini-2.5-flash"; // מנסים את המודל היציב והזמין ביותר
 
         const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
