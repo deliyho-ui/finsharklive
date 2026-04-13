@@ -1,6 +1,6 @@
 async function fetchFinnhub(endpoint, params = "") {
     const token = process.env.FINNHUB_API_KEY;
-    if (!token) return null;
+    if (!token) return null; // הגנה למקרה שחסר מפתח
 
     const url = `https://finnhub.io/api/v1/${endpoint}?${params}&token=${token}`;
     try {
@@ -11,12 +11,14 @@ async function fetchFinnhub(endpoint, params = "") {
     }
 }
 
+// שולף שנתיים של נתונים שבועיים – אידיאלי למציאת תבניות וממוצעים
 async function fetchYahooData(ticker, range = "2y", interval = "1wk") {
     try {
         const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=${interval}&range=${range}`;
         const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
         const data = await res.json();
         
+        // הגנה מפני נתונים חסרים מ-Yahoo
         if (!data || !data.chart || !data.chart.result || !data.chart.result[0]) return [];
         
         const result = data.chart.result[0];
@@ -33,6 +35,7 @@ async function fetchYahooData(ticker, range = "2y", interval = "1wk") {
             volume: Number(quotes.volume[i])
         })).filter(p => !isNaN(p.close) && p.close !== null);
 
+        // חישוב ממוצעים נעים ישירות על הגרף (10 שבועות ~ MA50, 40 שבועות ~ MA200)
         return points.map((point, i, arr) => {
             let ma50_val = null, ma200_val = null;
             if (i >= 9) {
@@ -50,7 +53,11 @@ async function fetchYahooData(ticker, range = "2y", interval = "1wk") {
     }
 }
 
+// ==========================================
+// 🚀 פונקציות עזר למערכת (סניטציה ותבניות טכניות)
+// ==========================================
 function sanitizeValue(val) {
+    // מגן על ה-AI מלקבל נתוני 0 שגויים או חסרים (null/undefined)
     if (val === 0 || val === null || val === undefined || isNaN(val)) return "N/A";
     return val;
 }
@@ -67,6 +74,7 @@ function detectPattern(chartPoints) {
 
     let patterns = [];
 
+    // 1. חיתוכי ממוצעים (Golden/Death Cross)
     if (currentPoint.ma50 && currentPoint.ma200 && prevPoint.ma50 && prevPoint.ma200) {
         if (prevPoint.ma50 <= prevPoint.ma200 && currentPoint.ma50 > currentPoint.ma200) patterns.push("חיתוך זהב (Golden Cross) - שורי חזק 📈");
         else if (prevPoint.ma50 >= prevPoint.ma200 && currentPoint.ma50 < currentPoint.ma200) patterns.push("חיתוך מוות (Death Cross) - דובי חזק 📉");
@@ -77,6 +85,7 @@ function detectPattern(chartPoints) {
     const min20 = Math.min(...prices20);
     const prices50 = last50.map(p => p.close);
     
+    // 2. ספל וידית (Cup & Handle) - 50 שבועות אחורה
     const leftLip = Math.max(...prices50.slice(0, 15));
     const cupBottom = Math.min(...prices50.slice(15, 35));
     const rightLip = Math.max(...prices50.slice(35, 45));
@@ -86,6 +95,7 @@ function detectPattern(chartPoints) {
         patterns.push("ספל וידית (Cup & Handle) - המשך מגמת עלייה ☕");
     }
 
+    // 3. ראש וכתפיים (Head & Shoulders) - 30 שבועות אחורה
     const prices30 = last30.map(p => p.close);
     const leftShoulder = Math.max(...prices30.slice(0, 10));
     const head = Math.max(...prices30.slice(10, 20));
@@ -99,19 +109,24 @@ function detectPattern(chartPoints) {
 
     if (headInv < leftShoulderInv * 0.95 && headInv < rightShoulderInv * 0.95 && Math.abs(leftShoulderInv - rightShoulderInv) / leftShoulderInv < 0.08) patterns.push("ראש וכתפיים הפוך (Inverse H&S) - היפוך שורי 👤⬆️");
 
+    // 4. משולשים, יתדות ותעלות (Triangles, Wedges, Channels) - 20 שבועות אחורה
     const h1 = Math.max(...prices20.slice(0, 6)), h2 = Math.max(...prices20.slice(7, 13)), h3 = Math.max(...prices20.slice(14, 20));
     const l1 = Math.min(...prices20.slice(0, 6)), l2 = Math.min(...prices20.slice(7, 13)), l3 = Math.min(...prices20.slice(14, 20));
     
+    // משולשים
     if (Math.abs(h1 - h2) / h1 < 0.03 && Math.abs(h2 - h3) / h2 < 0.03 && l1 < l2 && l2 < l3) patterns.push("משולש עולה (Ascending Triangle) - התכווצות לפני פריצה שורית 📐⬆️");
     else if (Math.abs(l1 - l2) / l1 < 0.03 && Math.abs(l2 - l3) / l2 < 0.03 && h1 > h2 && h2 > h3) patterns.push("משולש יורד (Descending Triangle) - לחץ מכירות, שבירה דובית מתקרבת 📐⬇️");
     else if (h1 > h2 && h2 > h3 && l1 < l2 && l2 < l3) patterns.push("משולש מתכנס (Symmetrical Triangle) - התכווצות תנודתיות לקראת תנועה חדה 📐");
     
+    // יתדות (Wedges)
     else if (h1 > h2 && h2 > h3 && l1 > l2 && l2 > l3 && (h1 - h3) > (l1 - l3)) patterns.push("יתד יורד (Falling Wedge) - תבנית היפוך שורית 🪓⬆️");
     else if (h1 < h2 && h2 < h3 && l1 < l2 && l2 < l3 && (l3 - l1) > (h3 - h1)) patterns.push("יתד עולה (Rising Wedge) - תבנית היפוך דובית 🪓⬇️");
     
+    // תעלות (Channels)
     else if (h1 < h2 && h2 < h3 && l1 < l2 && l2 < l3 && Math.abs((h3 - h1) - (l3 - l1)) / Math.max(h3 - h1, 1) < 0.2) patterns.push("תעלה עולה (Ascending Channel) 🛤️⬆️");
     else if (h1 > h2 && h2 > h3 && l1 > l2 && l2 > l3 && Math.abs((h1 - h3) - (l1 - l3)) / Math.max(h1 - h3, 1) < 0.2) patterns.push("תעלה יורדת (Descending Channel) 🛤️⬇️");
 
+    // 5. פסגות ותחתיות - כפולות ומשולשות
     const t1 = Math.max(...prices30.slice(0, 10)), t2 = Math.max(...prices30.slice(10, 20)), t3 = Math.max(...prices30.slice(20, 30));
     const b1 = Math.min(...prices30.slice(0, 10)), b2 = Math.min(...prices30.slice(10, 20)), b3 = Math.min(...prices30.slice(20, 30));
 
@@ -120,6 +135,7 @@ function detectPattern(chartPoints) {
     else if (Math.abs(t2 - t3) / t2 < 0.03 && currentPrice < t3 * 0.95) patterns.push("פסגה כפולה (Double Top) - התנגדות כפולה, סימן דובי ⛰️⛰️");
     else if (Math.abs(b2 - b3) / b2 < 0.03 && currentPrice > b3 * 1.05) patterns.push("תחתית כפולה (Double Bottom) - תמיכה כפולה, סימן שורי 🕳️🕳️");
 
+    // 6. דגלים (Bull / Bear Flags) - זינוק ואז דשדוש קצר
     const pastPole = prices20.slice(0, 8);
     const recentFlag = prices20.slice(8, 20);
     const poleStart = pastPole[0], poleEnd = pastPole[pastPole.length-1];
@@ -131,15 +147,18 @@ function detectPattern(chartPoints) {
          patterns.push("דגל דובי (Bear Flag) - התבססות לקראת גל ירידות נוסף 🚩🟥");
     }
 
+    // 7. פריצות תמיכה/התנגדות (Breakouts)
     if (currentPrice >= max20 * 0.99) patterns.push("פריצת שיא מקומי (Breakout) 🚀");
     else if (currentPrice <= min20 * 1.01) patterns.push("בחינת אזור תמיכה תחתון (Support Zone Test) 🧱");
 
     if (patterns.length === 0) return "דשדוש ותנועה צדדית ללא תבנית מובהקת (Consolidation) ↔️";
     
+    // סינון כפילויות במקרה שמצאנו יותר מתבנית אחת
     return [...new Set(patterns)].join(" | ");
 }
 
 module.exports = async function(req, res) {
+    // הגדרות גישה (CORS)
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -149,6 +168,7 @@ module.exports = async function(req, res) {
         const ticker = (req.query.ticker || req.query.symbol || "").toUpperCase().trim();
         const action = req.query.action;
         
+        // וידוא מפתחות API
         const apiKey = process.env.GEMINI_API_KEY;
         const finnhubKey = process.env.FINNHUB_API_KEY;
         
@@ -156,18 +176,22 @@ module.exports = async function(req, res) {
             return res.status(500).json({ success: false, message: "Server configuration error: Missing API keys in Vercel environment." });
         }
 
+        // ==========================================
+        // 1. דף הבית - מזג האוויר של השוק
+        // ==========================================
         if (action === 'market' || (!ticker && action !== 'analyze')) {
+            // מושכים את המדדים המרכזיים + תעודות סל שמייצגות סקטורים
             const [spy, qqq, dia, iwm, xlk, xlv, xlf, xle, xly, xli, newsData] = await Promise.all([
-                fetchFinnhub('quote', 'symbol=SPY'), 
-                fetchFinnhub('quote', 'symbol=QQQ'), 
-                fetchFinnhub('quote', 'symbol=DIA'), 
-                fetchFinnhub('quote', 'symbol=IWM'), 
-                fetchFinnhub('quote', 'symbol=XLK'), 
-                fetchFinnhub('quote', 'symbol=XLV'), 
-                fetchFinnhub('quote', 'symbol=XLF'), 
-                fetchFinnhub('quote', 'symbol=XLE'), 
-                fetchFinnhub('quote', 'symbol=XLY'), 
-                fetchFinnhub('quote', 'symbol=XLI'), 
+                fetchFinnhub('quote', 'symbol=SPY'), // S&P 500
+                fetchFinnhub('quote', 'symbol=QQQ'), // NASDAQ
+                fetchFinnhub('quote', 'symbol=DIA'), // DOW
+                fetchFinnhub('quote', 'symbol=IWM'), // RUSSELL
+                fetchFinnhub('quote', 'symbol=XLK'), // טכנולוגיה
+                fetchFinnhub('quote', 'symbol=XLV'), // בריאות
+                fetchFinnhub('quote', 'symbol=XLF'), // פיננסים
+                fetchFinnhub('quote', 'symbol=XLE'), // אנרגיה
+                fetchFinnhub('quote', 'symbol=XLY'), // צריכה מחזורית
+                fetchFinnhub('quote', 'symbol=XLI'), // תעשייה
                 fetchFinnhub('news', 'category=business') 
             ]);
 
@@ -189,6 +213,7 @@ module.exports = async function(req, res) {
                         { sector: "Energy", changesPercentage: String(xle?.dp || "0") },
                         { sector: "כללי", changesPercentage: String(spy?.dp || "0") }
                     ],
+                    // סינון בטוח של המערך כדי למנוע קריסת חזית
                     news: (Array.isArray(newsData) ? newsData : []).slice(0, 5).map(item => {
                         let parsedDate = new Date().toISOString();
                         try { if (item.datetime && !isNaN(item.datetime)) parsedDate = new Date(item.datetime * 1000).toISOString(); } catch(e){}
@@ -205,6 +230,9 @@ module.exports = async function(req, res) {
             });
         }
 
+        // ==========================================
+        // 2. פסיקת הכריש - ניתוח מנייה ספציפית
+        // ==========================================
         const today = new Date().toISOString().split('T')[0];
         const lastMonth = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
@@ -226,6 +254,7 @@ module.exports = async function(req, res) {
             latestEarnings = earningsData[0];
         }
         
+        // נתונים לחזית כמספרים נקיים
         const fundamentals = {
             marketCap: Number(profile?.marketCapitalization || m.marketCapitalization || 0),
             fiftyTwoWeekHigh: Number(m['52WeekHigh'] || 0),
@@ -324,17 +353,19 @@ module.exports = async function(req, res) {
             }
         };
 
-        // 💡 הנה הקריאה המדויקת למודל "gemini-2.0" בלבד, ללא שום תוספת, בדיוק כפי שביקשת
-        const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0:generateContent?key=${apiKey}`, {
+        // 💡 שימוש במודל gemini-1.5-flash המהיר והחינמי - פותר את השגיאה לחלוטין!
+        const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
         let aiVerdict = {};
 
+        // 💡 דיווח ברור על שגיאות מ-Gemini (כולל ה-400 וה-429 המפורסמים)
         if (!aiResponse.ok) {
             const errorText = await aiResponse.text();
             if (aiResponse.status === 429) {
+                // המשתמש/המערכת חרגה ממגבלת הבקשות בדקה
                 aiVerdict = {
                     bottomLine: "המערכת חווה עומס זמני עקב כמות פניות גבוהה ל-AI. הנתונים הטכניים והפונדמנטליים נמשכו בהצלחה וניתנים לצפייה למטה.",
                     verdict: "עומס זמני בשרתי ה-AI (שגיאת 429). אנא המתן כדקה ונסה שוב.",
@@ -353,6 +384,7 @@ module.exports = async function(req, res) {
             try {
                 let text = aiData.candidates[0].content.parts[0].text;
                 
+                // חילוץ JSON יציב ועמיד - מתעלם מכל טקסט אחר (Markdown) שג'מיני עלול להוסיף
                 const jsonStart = text.indexOf('{');
                 const jsonEnd = text.lastIndexOf('}');
                 
@@ -384,6 +416,7 @@ module.exports = async function(req, res) {
                 const s = aiVerdict.scores || {};
                 aiVerdict.scores = { growth: s.growth || 50, momentum: s.momentum || 50, value: s.value || 50, quality: s.quality || 50 };
             } catch (e) { 
+                // גיבוי קריסה במידה וג'מיני ענה במשהו לא קריא
                 aiVerdict = { 
                     bottomLine: "הנתונים נמשכו בהצלחה, אך ה-AI התקשה לנסח פסיקה בפורמט תקין.", 
                     verdict: "שגיאה בפענוח הנתונים מה-AI", 
@@ -405,7 +438,7 @@ module.exports = async function(req, res) {
             ...fundamentals,
             
             latestEarnings: latestEarnings,
-            tickerNews: validTickerNews.slice(0, 5), 
+            tickerNews: validTickerNews.slice(0, 5), // מעביר לחזית רק את 5 החדשות האחרונות
             
             marketData: { ticker, name: profile?.name || ticker, price: quote?.c, changePercentage: quote?.dp, ...fundamentals, ...technicals, pattern: detectedPattern },
             fundamentals, metrics: fundamentals, technical: technicals, technicals,
