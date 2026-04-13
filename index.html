@@ -331,7 +331,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
             👥 <b>חוכמת ההמונים:</b><br><span style="font-size:0.85rem; color:var(--text-secondary);">כפתור חדש בניתוח מניה יאפשר לכם להצביע למניה ולהכניס אותה לתיק הקהילתי.</span>
         </li>
         <li style="background: rgba(255,214,10,0.08); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,214,10,0.2);">
-            📈 <b>סט-אפים ורמות מסחר טכניות (חדש!):</b><br><span style="font-size:0.85rem; color:var(--text-secondary);">ה-AI כעת יציג לכם נקודות כניסה, סטופ לוס ויעד רווח, ואתם תראו את המניות המובילות בלשונית הקהילה.</span>
+            📈 <b>סט-אפים ורמות מסחר (חדש!):</b><br><span style="font-size:0.85rem; color:var(--text-secondary);">ה-AI כעת מנתח תמיכות/התנגדויות, מציג נקודות כניסה/יעדים/סטופ, ומוסיף <b style="color:var(--blue)">מחזורי מסחר (Volumes)</b> לגרף המובנה!</span>
         </li>
     </ul>
     <button class="btn btn-primary" style="width:100%; padding:15px; border-radius:14px; font-size: 1rem;" onclick="closeUpdatesModal()">מעולה, בוא נתחיל! 🦈</button>
@@ -485,7 +485,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
       <div class="results-grid">
         <div class="card chart-card full-width">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-            <div class="chart-label">ביצועים תקופתיים - נרות שבועיים</div>
+            <div class="chart-label">ביצועים תקופתיים ומחזורי מסחר (Volume)</div>
             <div class="chart-controls">
               <button class="chart-btn" onclick="setChartPeriod(3,this)">3M</button>
               <button class="chart-btn" onclick="setChartPeriod(6,this)">6M</button>
@@ -565,9 +565,9 @@ if (['blob:', 'file:', 'data:'].includes(window.location.protocol) || window.loc
 
 window.addEventListener('DOMContentLoaded', () => { 
     loadMarketWeather(); 
-    if(!localStorage.getItem('finshark_update_v3')) {
+    if(!localStorage.getItem('finshark_update_v4')) {
         document.getElementById('modal-updates').classList.add('active');
-        localStorage.setItem('finshark_update_v3', 'true');
+        localStorage.setItem('finshark_update_v4', 'true');
     }
 });
 
@@ -965,6 +965,7 @@ let tvChart = null;
 let candleSeries = null;
 let ma50Series = null;
 let ma200Series = null;
+let volumeSeries = null; // הוספנו משתנה להיסטוגרמת הווליום!
 
 window.setChartPeriod = function(months, btn) { 
     document.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active')); 
@@ -986,6 +987,13 @@ function renderChart(historyData, months) {
     const candles = filteredData.map(d => ({ time: d.date, open: d.open, high: d.high, low: d.low, close: d.close }));
     const ma50Line = filteredData.filter(d => d.ma50 !== null).map(d => ({ time: d.date, value: d.ma50 }));
     const ma200Line = filteredData.filter(d => d.ma200 !== null).map(d => ({ time: d.date, value: d.ma200 }));
+    
+    // עיבוד נתוני הווליום (ירוק לעלייה, אדום לירידה)
+    const volumes = filteredData.map(d => ({ 
+        time: d.date, 
+        value: d.volume, 
+        color: d.close >= d.open ? 'rgba(48, 209, 88, 0.35)' : 'rgba(255, 69, 58, 0.35)' 
+    }));
 
     if (tvChart) {
         tvChart.remove();
@@ -1006,6 +1014,19 @@ function renderChart(historyData, months) {
         tvChart.applyOptions({ height: newRect.height, width: newRect.width });
     }).observe(container);
 
+    // הגדרת סדרת הווליום כהיסטוגרמה בתחתית הגרף
+    volumeSeries = tvChart.addHistogramSeries({
+        color: '#26a69a',
+        priceFormat: { type: 'volume' },
+        priceScaleId: '', // קנה מידה שקוף שיושב מאחורי הגרף
+        scaleMargins: {
+            top: 0.85, // עמודות הווליום יתחילו מ-85% גובה כדי לא להסתיר את הנרות
+            bottom: 0,
+        },
+    });
+    volumeSeries.setData(volumes);
+
+    // יצירת הנרות היפנים והממוצעים
     candleSeries = tvChart.addCandlestickSeries({
         upColor: '#30d158', downColor: '#ff453a', borderVisible: false,
         wickUpColor: '#30d158', wickDownColor: '#ff453a'
@@ -1029,9 +1050,22 @@ function renderScores(scores) {
   const cols = document.createElement('div'); cols.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:10px 32px;';
   items.forEach(item => { const v = scores[item.key] || 0; cols.innerHTML += `<div class="score-bar-wrap"><span class="score-bar-label">${item.label}</span><div class="score-bar-track"><div class="score-bar-fill" style="width:0%;background:${item.color};border-radius:3px;" data-target="${v}"></div></div><span class="score-bar-val" style="color:${item.color}">${v}</span></div>`; });
   document.getElementById('ai-scores').innerHTML = ''; document.getElementById('ai-scores').appendChild(cols);
-  const overall = scores.overall || Math.round((scores.growth + scores.value + scores.momentum + scores.quality) / 4), circle = document.getElementById('ai-score-circle'); circle.style.setProperty('--score', overall); document.getElementById('ai-score-text').textContent = overall;
-  let scoreTitle = "סביר", scoreColor = "var(--gold)"; if (overall >= 80) { scoreTitle = "מצוין (Strong Buy)"; scoreColor = "var(--green)"; } else if (overall >= 60) { scoreTitle = "חיובי (Buy)"; scoreColor = "var(--blue)"; } else if (overall <= 40) { scoreTitle = "שלילי (Sell)"; scoreColor = "var(--red)"; }
-  document.getElementById('ai-score-title').textContent = `ציון משוקלל: ${scoreTitle}`; document.getElementById('ai-score-title').style.color = scoreColor; circle.style.background = `conic-gradient(${scoreColor} calc(var(--score) * 1%), rgba(255,255,255,0.05) 0)`;
+  
+  // הציון עכשיו נשלט 100% על ידי ה-AI בצד השרת!
+  const overall = scores.overall || Math.round((scores.growth + scores.value + scores.momentum + scores.quality) / 4);
+  const circle = document.getElementById('ai-score-circle'); 
+  circle.style.setProperty('--score', overall); 
+  document.getElementById('ai-score-text').textContent = overall;
+  
+  let scoreTitle = "סביר", scoreColor = "var(--gold)"; 
+  if (overall >= 80) { scoreTitle = "מצוין (Strong Buy)"; scoreColor = "var(--green)"; } 
+  else if (overall >= 60) { scoreTitle = "חיובי (Buy)"; scoreColor = "var(--blue)"; } 
+  else if (overall <= 40) { scoreTitle = "שלילי (Sell)"; scoreColor = "var(--red)"; }
+  
+  document.getElementById('ai-score-title').textContent = `ציון משוקלל: ${scoreTitle}`; 
+  document.getElementById('ai-score-title').style.color = scoreColor; 
+  circle.style.background = `conic-gradient(${scoreColor} calc(var(--score) * 1%), rgba(255,255,255,0.05) 0)`;
+  
   requestAnimationFrame(() => { requestAnimationFrame(() => { document.querySelectorAll('.score-bar-fill').forEach(el => { el.style.width = el.dataset.target + '%'; }); }); });
 }
 
@@ -1106,10 +1140,16 @@ function renderResults(data, analysis, historyData, newsData) {
   renderScores(analysis.scores || { growth: 50, value: 50, momentum: 50, quality: 50, overall: 50 });
   document.getElementById('ai-score-desc').textContent = analysis.news_analysis || "ניתוח מבוסס על הנתונים הפונדמנטליים האחרונים.";
 
-  const rm = { BUY: { label: 'קנייה ✓', cls: 'buy' }, HOLD: { label: 'החזקה —', cls: 'hold' }, SELL: { label: 'מכירה ✗', cls: 'sell' }, "STRONG BUY": { label: 'קנייה חזקה 🔥', cls: 'buy' } }[analysis.rating?.toUpperCase()] || { label: analysis.rating || 'החזקה —', cls: 'hold' };
-  document.getElementById('verdict-rating-pill').innerHTML = `<div class="verdict-rating ${rm.cls}">${rm.label}</div>`;
+  // סנכרון אחיד ומוחלט: ציון מספרי הוליסטי מה-AI קובע את הפסיקה הסופית למניעת סתירות
+  const finalOverallScore = analysis.scores?.overall || 50;
+  let ratingLabel = 'החזקה —', ratingCls = 'hold';
+  if (finalOverallScore >= 80) { ratingLabel = 'קנייה חזקה 🔥'; ratingCls = 'buy'; }
+  else if (finalOverallScore >= 60) { ratingLabel = 'קנייה ✓'; ratingCls = 'buy'; }
+  else if (finalOverallScore <= 40) { ratingLabel = 'מכירה ✗'; ratingCls = 'sell'; }
+  
+  document.getElementById('verdict-rating-pill').innerHTML = `<div class="verdict-rating ${ratingCls}">${ratingLabel}</div>`;
 
-  // שליפת ועיצוב רמות המסחר (הפיצ'ר החדש!)
+  // שליפת ועיצוב רמות המסחר
   const upside = analysis.price_target ? (((analysis.price_target / data.price) - 1) * 100).toFixed(1) : 0;
   const entryPrice = analysis.entry_price ? `$${analysis.entry_price}` : 'N/A';
   const targetPriceShort = analysis.target_price ? `$${analysis.target_price}` : 'N/A';
