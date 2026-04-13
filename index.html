@@ -243,10 +243,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .verdict-summary-box { background: rgba(255,255,255,0.025); border-radius: var(--radius-sm); padding: 20px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05); }
 .verdict-summary-label { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--blue); margin-bottom: 10px; }
 .verdict-summary-text { font-size: 0.92rem; line-height: 1.75; }
-.price-target-row { display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, rgba(10,132,255,0.12), rgba(10,132,255,0.06)); border: 1px solid rgba(10,132,255,0.28); border-radius: var(--radius-sm); padding: 20px 24px; flex-wrap: wrap; gap: 14px; }
-.pt-label { font-size: 0.82rem; color: var(--text-secondary); }
-.pt-value { font-size: 1.8rem; font-weight: 900; color: var(--blue); direction: ltr; letter-spacing: -0.04em; }
-.pt-upside { font-size: 0.85rem; font-weight: 700; margin-top: 2px; }
 
 .tooltip-wrap { position: relative; cursor: help; }
 .tooltip-wrap::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: rgba(20,20,24,0.97); border: 1px solid var(--glass-border); border-radius: 8px; padding: 7px 12px; font-size: 0.73rem; color: var(--text-secondary); white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s; font-weight: 500; direction: rtl; z-index:100; }
@@ -293,9 +289,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   .verdict-header { flex-direction: column; align-items: flex-start; gap: 10px; }
   .verdict-rating { margin-right: 0; width: 100%; text-align: center; }
   
-  .price-target-row { flex-direction: column; align-items: flex-start; gap: 10px; }
-  .pt-value { font-size: 1.6rem; }
-  
   .data-row { padding: 12px 0; }
   .data-label { font-size: 0.8rem; }
   .data-value { font-size: 0.85rem; }
@@ -335,10 +328,10 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
             🔥 <b>מפת חום סקטוריאלית:</b><br><span style="font-size:0.85rem; color:var(--text-secondary);">עכשיו מבוססת על נתוני אמת מתעודות הסל האמריקאיות הגדולות.</span>
         </li>
         <li style="margin-bottom: 12px; background: rgba(10,132,255,0.08); padding: 12px; border-radius: 12px; border: 1px solid rgba(10,132,255,0.2);">
-            👥 <b>חוכמת ההמונים (חדש!):</b><br><span style="font-size:0.85rem; color:var(--text-secondary);">כפתור חדש בניתוח מניה יאפשר לכם להצביע למניה ולהכניס אותה לתיק הקהילתי.</span>
+            👥 <b>חוכמת ההמונים:</b><br><span style="font-size:0.85rem; color:var(--text-secondary);">כפתור חדש בניתוח מניה יאפשר לכם להצביע למניה ולהכניס אותה לתיק הקהילתי.</span>
         </li>
         <li style="background: rgba(255,214,10,0.08); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,214,10,0.2);">
-            📈 <b>סט-אפים מעניינים (חדש!):</b><br><span style="font-size:0.85rem; color:var(--text-secondary);">לשונית "קהילה" החדשה תציג דירוג של המניות שקיבלו את ציוני ה-AI הגבוהים ביותר.</span>
+            📈 <b>סט-אפים ורמות מסחר טכניות (חדש!):</b><br><span style="font-size:0.85rem; color:var(--text-secondary);">ה-AI כעת יציג לכם נקודות כניסה, סטופ לוס ויעד רווח, ואתם תראו את המניות המובילות בלשונית הקהילה.</span>
         </li>
     </ul>
     <button class="btn btn-primary" style="width:100%; padding:15px; border-radius:14px; font-size: 1rem;" onclick="closeUpdatesModal()">מעולה, בוא נתחיל! 🦈</button>
@@ -392,7 +385,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
     
     <div id="promo-box" style="text-align:center; padding: 40px; background:rgba(255,255,255,0.02); border-radius: 20px; border:1px solid var(--glass-border); margin-top:20px; margin-bottom:20px;">
         <h3 style="margin-bottom: 10px;">רוצה לצלול עמוק יותר?</h3>
-        <p style="color:var(--text-secondary); margin-bottom:20px; max-width: 500px; margin-left:auto; margin-right:auto;">כריש הניתוח שלנו משתמש בבינה מלאכותית (AI) כדי לנתח מניות בזמן אמת. הרגע הוספנו פיצ'ר קהילתי חדש!</p>
+        <p style="color:var(--text-secondary); margin-bottom:20px; max-width: 500px; margin-left:auto; margin-right:auto;">כריש הניתוח שלנו משתמש בבינה מלאכותית (AI) כדי לנתח מניות בזמן אמת. המערכת סגורה למשתמשים מורשים בלבד.</p>
         <button class="btn btn-primary" id="promo-btn" onclick="openLogin()">התחבר / הגש בקשה לחשבון</button>
     </div>
 
@@ -437,7 +430,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
         </div>
         <div class="card">
             <div class="card-title" style="color:var(--gold)">🔥 טופ סט-אפים (המלצות ה-AI)</div>
-            <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:15px;">המניות שקיבלו את ציוני ה-AI הגבוהים ביותר לאחרונה</p>
+            <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:15px;">המניות שקיבלו את ציוני ה-AI הגבוהים ביותר כולל רמות מסחר</p>
             <div id="top-setups-list" style="display:flex; flex-direction:column; gap:10px; min-height: 200px;">
                  טוען סט-אפים...
             </div>
@@ -565,7 +558,6 @@ const firebaseConfig = { apiKey: "AIzaSyBU77J3Nu8xh0_a1GLM9jcnWJmhZq8QHH4", auth
 const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
 const State = { currentUser: null, currentTab: 'market', watchlist: [] }; window.State = State; let authMode = 'login';
-
 let NETLIFY_API_URL = "/api/analyze";
 if (['blob:', 'file:', 'data:'].includes(window.location.protocol) || window.location.hostname === "localhost") {
   NETLIFY_API_URL = "http://localhost:8888/api/analyze"; 
@@ -573,10 +565,9 @@ if (['blob:', 'file:', 'data:'].includes(window.location.protocol) || window.loc
 
 window.addEventListener('DOMContentLoaded', () => { 
     loadMarketWeather(); 
-    // חלון עדכונים - יופיע פעם אחת פר משתמש בדפדפן
-    if(!localStorage.getItem('finshark_update_v2')) {
+    if(!localStorage.getItem('finshark_update_v3')) {
         document.getElementById('modal-updates').classList.add('active');
-        localStorage.setItem('finshark_update_v2', 'true');
+        localStorage.setItem('finshark_update_v3', 'true');
     }
 });
 
@@ -587,7 +578,6 @@ window.closeUpdatesModal = function() {
 window.openLogin = function() { document.getElementById('auth-error').style.display = 'none'; document.getElementById('modal-login').classList.add('active'); };
 window.closeLogin = function() { document.getElementById('modal-login').classList.remove('active'); };
 window.switchLoginTab = function(mode) { authMode = mode; document.getElementById('auth-error').style.display = 'none'; document.getElementById('tab-login').classList.toggle('active', mode === 'login'); document.getElementById('tab-register').classList.toggle('active', mode === 'register'); document.getElementById('btn-auth-action').textContent = mode === 'login' ? 'כניסה למערכת ←' : 'שלח בקשה לאישור'; };
-
 window.handleAuth = async function() {
   const email = document.getElementById('auth-email').value.trim().toLowerCase(), pass = document.getElementById('auth-pass').value.trim(), errEl = document.getElementById('auth-error');
   if (!email || !pass) { errEl.textContent = 'נא להזין אימייל וסיסמה'; errEl.style.display = 'block'; return; }
@@ -657,7 +647,7 @@ window.voteForCrowd = async function() {
         btn.textContent = '✓ תודה!';
         setTimeout(() => { btn.classList.remove('active'); btn.textContent = '👥'; }, 2000);
     } catch(e) {
-        console.error("Firebase Rules might need updating to allow writing to community_portfolio", e);
+        console.error("Firebase Rules might need updating", e);
         btn.textContent = '❌';
         setTimeout(() => { btn.classList.remove('active'); btn.textContent = '👥'; }, 2000);
     }
@@ -671,7 +661,7 @@ window.loadCommunityData = async function() {
     setupsContainer.innerHTML = '<div style="text-align:center; padding: 20px;">מושך נתונים...</div>';
     
     try {
-        // 1. טעינת תיק ההשקעות הקהילתי
+        // 1. קהילה
         const commSnap = await getDocs(collection(db, 'community_portfolio'));
         let portfolio = [];
         let totalVotes = 0;
@@ -680,7 +670,7 @@ window.loadCommunityData = async function() {
         portfolio.sort((a,b) => b.votes - a.votes);
         
         if(portfolio.length === 0) {
-            commContainer.innerHTML = '<p style="color:var(--text-secondary)">התיק הקהילתי עדיין ריק. חפשו מניה והיו הראשונים להוסיף אותה!</p>';
+            commContainer.innerHTML = '<p style="color:var(--text-secondary)">התיק הקהילתי עדיין ריק.</p>';
         } else {
             let html = '<div style="display:flex; flex-direction:column; gap:16px; width:100%;">';
             portfolio.slice(0, 10).forEach(item => {
@@ -699,7 +689,7 @@ window.loadCommunityData = async function() {
             commContainer.innerHTML = html;
         }
         
-        // 2. טעינת סט-אפים חמים (Top AI Scores)
+        // 2. סט-אפים חמים
         const setupsSnap = await getDocs(collection(db, 'ai_setups'));
         let setups = [];
         setupsSnap.forEach(d => setups.push(d.data()));
@@ -707,23 +697,32 @@ window.loadCommunityData = async function() {
         setups.sort((a,b) => b.score - a.score);
         
         if(setups.length === 0) {
-            setupsContainer.innerHTML = '<p style="color:var(--text-secondary)">המערכת מתחממת. מניות שיקבלו ציונים גבוהים מה-AI יופיעו כאן אוטומטית.</p>';
+            setupsContainer.innerHTML = '<p style="color:var(--text-secondary)">המערכת מתחממת. סט-אפים יופיעו כאן בקרוב.</p>';
         } else {
             let sHtml = '';
             setups.slice(0, 10).forEach((item, index) => {
                 const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index+1}`;
+                
+                const entryStr = item.entryPrice ? `כניסה: $${item.entryPrice}` : '';
+                const stopStr = item.stopLoss ? `סטופ: $${item.stopLoss}` : '';
+                const targetStr = item.targetPrice ? `יעד: $${item.targetPrice}` : '';
+                const levelsHtml = (entryStr || stopStr || targetStr) ? `<div style="margin-top:10px; display:flex; gap:12px; font-size:0.8rem; font-weight:800; color:var(--text); background:rgba(0,0,0,0.3); padding:8px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.05); width:fit-content; flex-wrap:wrap;"><span style="color:var(--blue); direction:ltr;">${entryStr}</span> <span style="color:var(--red); direction:ltr;">${stopStr}</span> <span style="color:var(--green); direction:ltr;">${targetStr}</span></div>` : '';
+                const expHtml = item.expectation ? `<div style="margin-top:10px; font-size:0.85rem; color:var(--text-secondary); line-height:1.5;"><b>צפי הכריש:</b> ${item.expectation}</div>` : '';
+
                 sHtml += `
-                <div style="background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); padding:16px; border-radius:12px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:var(--transition);" onclick="goToAnalysis('${item.ticker}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--glass-border)'">
-                    <div style="display:flex; align-items:center; gap:16px;">
-                        <div style="font-size:1.4rem; font-weight:bold; width:30px; text-align:center;">${medal}</div>
-                        <div>
-                            <div style="font-weight:900; font-size:1.1rem; direction:ltr; text-align:left; color:var(--text);">${item.ticker}</div>
-                            <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.pattern || 'ללא תבנית'}</div>
+                <div style="background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); padding:20px; border-radius:16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:flex-start; cursor:pointer; transition:var(--transition); flex-wrap:wrap; gap:12px;" onclick="goToAnalysis('${item.ticker}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--glass-border)'">
+                    <div style="display:flex; align-items:flex-start; gap:16px; flex:1; min-width:280px;">
+                        <div style="font-size:1.6rem; font-weight:bold; width:30px; text-align:center; padding-top:2px;">${medal}</div>
+                        <div style="flex:1;">
+                            <div style="font-weight:900; font-size:1.3rem; direction:ltr; text-align:left; color:var(--text);">${item.ticker}</div>
+                            <div style="font-size:0.8rem; font-weight:700; color:var(--gold); margin-top:2px;">${item.pattern || 'ללא תבנית'}</div>
+                            ${levelsHtml}
+                            ${expHtml}
                         </div>
                     </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:1.3rem; font-weight:900; color:var(--green);">${item.score} <span style="font-size:0.75rem; color:var(--text-secondary);">ציון AI</span></div>
-                        <div style="font-size:0.8rem; font-weight:bold; color:var(--gold); margin-top:2px;">${item.rating || 'קנייה'}</div>
+                    <div style="text-align:right; min-width:90px; padding-top:2px;">
+                        <div style="font-size:1.6rem; font-weight:900; color:var(--green);">${item.score} <span style="font-size:0.8rem; color:var(--text-secondary);">AI</span></div>
+                        <div style="font-size:0.9rem; font-weight:800; color:var(--blue); margin-top:6px; padding:4px 12px; background:rgba(10,132,255,0.1); border-radius:8px; display:inline-block;">${item.rating || 'קנייה'}</div>
                     </div>
                 </div>`;
             });
@@ -731,7 +730,7 @@ window.loadCommunityData = async function() {
         }
     } catch(e) {
         console.error("Error loading community data", e);
-        commContainer.innerHTML = 'שגיאה בטעינת הנתונים (בדקו הרשאות Firestore).';
+        commContainer.innerHTML = 'שגיאה בטעינת הנתונים.';
         setupsContainer.innerHTML = 'שגיאה בטעינת הנתונים.';
     }
 };
@@ -887,7 +886,7 @@ function renderMarketWeather(data) {
 window.analyzeStock = async function() {
   const ticker = document.getElementById('ticker-input').value.trim().toUpperCase(); if (!ticker) { document.getElementById('ticker-input').focus(); return; }
   
-  // הגנת Rate Limiting למשתמשים (לא למנהל)
+  // הגנת Rate Limiting
   const user = State.currentUser;
   const warningEl = document.getElementById('rate-limit-warning');
   warningEl.style.display = 'none';
@@ -899,24 +898,24 @@ window.analyzeStock = async function() {
           warningEl.innerHTML = `🚫 הגעת למגבלת הניתוחים להיום (6).<br>האנלייזר יפתח מחדש בעוד <b>${remainingMinutes} דקות</b>.`;
           warningEl.style.display = 'flex';
           document.getElementById('ticker-input').value = '';
-          return; // עוצר את הביצוע!
+          return; // עוצר
       }
   }
 
-  const debugEl = document.getElementById('debug-analyze'); if(debugEl) debugEl.style.display = 'none'; document.getElementById('results').style.display = 'none';
-  showLoading(); animateLoadingSteps(['יוצר קשר עם שרת FinShark...','מושך נתוני אמת מהבורסה...','מעביר נתונים למוח ה-AI (Gemini)...','מגבש פסיקת הכריש...']);
+  const debugEl = document.getElementById('debug-analyze'); debugEl.style.display = 'none'; document.getElementById('results').style.display = 'none';
+  showLoading(); animateLoadingSteps(['יוצר קשר עם שרת FinShark...','מושך נתוני אמת מהבורסה...','מעביר נתונים למוח ה-AI...','מגבש פסיקת הכריש ורמות מסחר...']);
 
   try {
     const response = await fetch(`${NETLIFY_API_URL}?action=analyze&ticker=${ticker}`);
     const rawText = await response.text();
-    let data; try { data = JSON.parse(rawText); } catch(e) { hideLoading(); document.getElementById('results').style.display = 'block'; if(debugEl) {debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 השרת לא מחזיר JSON! הנה מה שחזר:</strong>\n\n${rawText}`;} return; }
-    if (!response.ok || !data.success) { hideLoading(); document.getElementById('results').style.display = 'block'; if(debugEl) {debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 שגיאה מפורשת מהשרת:</strong>\n\n${data.message || JSON.stringify(data)}`;} return; }
+    let data; try { data = JSON.parse(rawText); } catch(e) { hideLoading(); document.getElementById('results').style.display = 'block'; debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 השרת לא מחזיר JSON! הנה מה שחזר:</strong>\n\n${rawText}`; return; }
+    if (!response.ok || !data.success) { hideLoading(); document.getElementById('results').style.display = 'block'; debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 שגיאה מפורשת מהשרת:</strong>\n\n${data.message || JSON.stringify(data)}`; return; }
     
     State.currentData = data; 
     State.aiAnalysis = data.aiVerdict; 
     window.currentChartData = data.chartHistory;
     
-    // --> שדרוג: שמירת סט-אפ מעניין ב-Firebase אם הציון גבוה מ-70
+    // שמירת סט-אפים כולל רמות מסחר!
     if (data.aiVerdict && data.aiVerdict.scores && data.aiVerdict.scores.overall >= 70 && user && user.status === 'approved') {
         try {
             await setDoc(doc(db, 'ai_setups', ticker), {
@@ -924,18 +923,21 @@ window.analyzeStock = async function() {
                 score: data.aiVerdict.scores.overall,
                 pattern: data.pattern || 'ללא תבנית',
                 rating: data.aiVerdict.rating || 'קנייה',
+                entryPrice: data.aiVerdict.entry_price || '',
+                stopLoss: data.aiVerdict.stop_loss || '',
+                targetPrice: data.aiVerdict.target_price || '',
+                expectation: data.aiVerdict.summary || '',
                 lastUpdated: Date.now()
             });
-        } catch(e) { console.warn("Failed to save setup to pool", e); }
+        } catch(e) { console.warn("Failed to save setup", e); }
     }
 
-    // ניתוח הצליח - עדכון מונה השימושים ב-Firebase
     if (user && user.role !== 'admin') {
         let newCount = (user.analysisCount || 0) + 1;
         let newRestricted = user.restrictedUntil || null;
         if (newCount >= 6) {
-            newRestricted = Date.now() + (3 * 60 * 60 * 1000); // חסימה ל-3 שעות מעכשיו
-            newCount = 0; // לאפס לקראת שחרור החסימה
+            newRestricted = Date.now() + (3 * 60 * 60 * 1000);
+            newCount = 0;
         }
         await updateDoc(doc(db, 'users', user.uid), {
             analysisCount: newCount,
@@ -948,10 +950,8 @@ window.analyzeStock = async function() {
     console.error("Analysis Error:", error); 
     hideLoading(); 
     document.getElementById('results').style.display = 'block';
-    if(debugEl) {
-        debugEl.style.display = 'block'; 
-        debugEl.innerHTML = `<strong>🚨 תקלת רשת מוחלטת בעת פנייה לשרת 🚨</strong><br><br>השגיאה: ${error.message}<br><br><em>טיפ: ודא ששרת ה-Backend פועל בכתובת <code>${NETLIFY_API_URL}</code>.</em>`;
-    }
+    debugEl.style.display = 'block'; 
+    debugEl.innerHTML = `<strong>🚨 תקלת רשת מוחלטת בעת פנייה לשרת 🚨</strong><br><br>השגיאה: ${error.message}<br><br><em>טיפ: ודא ששרת ה-Backend פועל בכתובת <code>${NETLIFY_API_URL}</code>.</em>`;
   }
 };
 
@@ -961,7 +961,6 @@ function setLoadingText(t) { document.getElementById('loading-text').textContent
 function hideLoading() { document.getElementById('loading').classList.remove('active'); }
 async function animateLoadingSteps(steps) { const container = document.getElementById('loading-steps'); container.innerHTML = ''; for (let i = 0; i < steps.length; i++) { await sleep(400); const prev = container.querySelector('.loading-step:not(.done)'); if (prev) { prev.classList.add('done'); prev.textContent = '✓ ' + prev.textContent; } setLoadingText(steps[i]); const el = document.createElement('div'); el.className = 'loading-step'; el.textContent = steps[i]; container.appendChild(el); if (container.children.length > 5) container.removeChild(container.firstChild); } }
 
-// --- TRADINGVIEW LIGHTWEIGHT CHARTS LOGIC ---
 let tvChart = null;
 let candleSeries = null;
 let ma50Series = null;
@@ -978,7 +977,6 @@ function renderChart(historyData, months) {
     const container = document.getElementById('stockChart');
     if(!container) return;
 
-    // Filter data based on selected months
     let cutoffDate = new Date();
     cutoffDate.setMonth(cutoffDate.getMonth() - months);
     
@@ -1065,7 +1063,6 @@ function renderResults(data, analysis, historyData, newsData) {
   const earningsGood = data.latestEarnings && data.latestEarnings.surprisePercent > 0;
   const earningsBad = data.latestEarnings && data.latestEarnings.surprisePercent < 0;
   
-  // טבלת נתוני העומק המלאה כולל דוחות רבעוניים
   const fundRows = [ 
       { label: 'שווי שוק', val: formatNumberShort(data.marketCap), tag: 'M.CAP', isTag: false }, 
       { label: 'טווח 52 שבועות', val: `<span style="font-size:0.75rem; color:var(--text-secondary); margin-right:8px">$${rangeLow.toFixed(2)}</span> <div class="range-bar-wrap"><div class="range-indicator" style="left:${currentPos}%"></div></div> <span style="font-size:0.75rem; color:var(--text-secondary); margin-left:8px">$${rangeHigh.toFixed(2)}</span>`, isHtml: true }, 
@@ -1103,8 +1100,8 @@ function renderResults(data, analysis, historyData, newsData) {
     <div class="data-row"><span class="data-label">סקטור ותעשייה</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;text-align:left;">${data.sector} • ${data.industry}</span></div></div>
     <div class="data-row"><span class="data-label">מגמה טכנית</span><div class="data-value-wrap"><span class="data-value">${a50&&a200?'Bull 🐂':!a50&&!a200?'Bear 🐻':'Mixed ⚖️'}</span><span class="tag ${a50&&a200?'tag-good':!a50&&!a200?'tag-bad':'tag-neutral'}">${a50&&a200?'חיובי':!a50&&!a200?'שלילי':'מעורב'}</span></div></div>
     <div class="data-row"><span class="data-label">נפח מסחר ממוצע</span><div class="data-value-wrap"><span class="data-value">${formatNumberShort(data.volume)}</span></div></div>
-    <div class="data-row"><span class="data-label">תבנית גרפית (AI)</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;max-width:200px;white-space:normal;text-align:left;line-height:1.4;color:var(--gold);font-weight:800;">${patternText}</span></div></div>
-    <div class="data-row"><span class="data-label">קריאה טכנית - AI</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;max-width:200px;white-space:normal;text-align:left;line-height:1.5">${analysis.technical || "אין מספיק נתונים"}</span></div></div>`;
+    <div class="data-row"><span class="data-label">תבנית ורמות (AI)</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;max-width:200px;white-space:normal;text-align:left;line-height:1.4;color:var(--gold);font-weight:800;">${patternText}</span></div></div>
+    <div class="data-row"><span class="data-label">קריאה טכנית מורחבת</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;max-width:200px;white-space:normal;text-align:left;line-height:1.5">${analysis.technical || "אין מספיק נתונים"}</span></div></div>`;
 
   renderScores(analysis.scores || { growth: 50, value: 50, momentum: 50, quality: 50, overall: 50 });
   document.getElementById('ai-score-desc').textContent = analysis.news_analysis || "ניתוח מבוסס על הנתונים הפונדמנטליים האחרונים.";
@@ -1112,8 +1109,47 @@ function renderResults(data, analysis, historyData, newsData) {
   const rm = { BUY: { label: 'קנייה ✓', cls: 'buy' }, HOLD: { label: 'החזקה —', cls: 'hold' }, SELL: { label: 'מכירה ✗', cls: 'sell' }, "STRONG BUY": { label: 'קנייה חזקה 🔥', cls: 'buy' } }[analysis.rating?.toUpperCase()] || { label: analysis.rating || 'החזקה —', cls: 'hold' };
   document.getElementById('verdict-rating-pill').innerHTML = `<div class="verdict-rating ${rm.cls}">${rm.label}</div>`;
 
+  // שליפת ועיצוב רמות המסחר (הפיצ'ר החדש!)
   const upside = analysis.price_target ? (((analysis.price_target / data.price) - 1) * 100).toFixed(1) : 0;
-  document.getElementById('verdict-content').innerHTML = `<div style="margin-bottom:22px"><div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--blue); margin-bottom:8px;">פרופיל חברה וזהות תחרותית</div><div style="font-size:0.95rem;line-height:1.6;color:var(--text); font-weight:500; margin-bottom:10px;">${analysis.identity || "מידע חסר"}</div><div style="font-size:0.8rem;line-height:1.6;color:var(--text-secondary);">${data.description ? data.description.substring(0, 200) + '...' : ''}</div></div><div class="verdict-columns"><div class="verdict-col"><div class="verdict-col-title pros">✅ נקודות חוזק</div><div class="verdict-col-content">${(analysis.verdict?.pros || analysis.pros || []).join('\n')}</div></div><div class="verdict-col"><div class="verdict-col-title cons">⚠️ גורמי סיכון</div><div class="verdict-col-content">${(analysis.verdict?.cons || analysis.cons || []).join('\n')}</div></div></div><div class="verdict-summary-box"><div class="verdict-summary-label">🎯 שורה תחתונה</div><div class="verdict-summary-text">${analysis.verdict?.summary || analysis.summary || "ה-AI לא הצליח לגבש פסיקה."}</div></div><div class="price-target-row"><div><div class="pt-label">יעד מחיר – 12 חודשים קדימה</div><div style="font-size:0.72rem;color:var(--text-tertiary);margin-top:3px">תחזית FinShark AI</div></div><div style="text-align:left"><div class="pt-value">$${analysis.price_target || "N/A"}</div><div class="pt-upside" style="color:${parseFloat(upside) >= 0?'var(--green)':'var(--red)'}">${parseFloat(upside) >= 0?'+':''}${upside}% פוטנציאל</div></div></div>`;
+  const entryPrice = analysis.entry_price ? `$${analysis.entry_price}` : 'N/A';
+  const targetPriceShort = analysis.target_price ? `$${analysis.target_price}` : 'N/A';
+  const stopLoss = analysis.stop_loss ? `$${analysis.stop_loss}` : 'N/A';
+
+  document.getElementById('verdict-content').innerHTML = `
+    <div style="margin-bottom:22px">
+        <div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--blue); margin-bottom:8px;">פרופיל חברה וזהות תחרותית</div>
+        <div style="font-size:0.95rem;line-height:1.6;color:var(--text); font-weight:500; margin-bottom:10px;">${analysis.identity || "מידע חסר"}</div>
+        <div style="font-size:0.8rem;line-height:1.6;color:var(--text-secondary);">${data.description ? data.description.substring(0, 200) + '...' : ''}</div>
+    </div>
+    <div class="verdict-columns">
+        <div class="verdict-col"><div class="verdict-col-title pros">✅ נקודות חוזק</div><div class="verdict-col-content">${(analysis.verdict?.pros || analysis.pros || []).join('\n')}</div></div>
+        <div class="verdict-col"><div class="verdict-col-title cons">⚠️ גורמי סיכון</div><div class="verdict-col-content">${(analysis.verdict?.cons || analysis.cons || []).join('\n')}</div></div>
+    </div>
+    <div class="verdict-summary-box">
+        <div class="verdict-summary-label">🎯 שורה תחתונה וצפי</div>
+        <div class="verdict-summary-text">${analysis.verdict?.summary || analysis.summary || "ה-AI לא הצליח לגבש פסיקה."}</div>
+    </div>
+    
+    <div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-secondary); margin-bottom:10px; margin-top:24px;">רמות מסחר טכניות (AI)</div>
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px;">
+        <div style="background: rgba(10,132,255,0.1); border: 1px solid rgba(10,132,255,0.2); padding: 16px; border-radius: 12px; text-align: center;">
+            <div style="font-size: 0.7rem; color: var(--blue); font-weight: 800; margin-bottom: 6px;">מחיר כניסה אידיאלי</div>
+            <div style="font-size: 1.4rem; font-weight: 900; color: var(--text); direction:ltr;">${entryPrice}</div>
+        </div>
+        <div style="background: rgba(48,209,88,0.1); border: 1px solid rgba(48,209,88,0.2); padding: 16px; border-radius: 12px; text-align: center;">
+            <div style="font-size: 0.7rem; color: var(--green); font-weight: 800; margin-bottom: 6px;">יעד קרוב (Target)</div>
+            <div style="font-size: 1.4rem; font-weight: 900; color: var(--green); direction:ltr;">${targetPriceShort}</div>
+        </div>
+        <div style="background: rgba(255,69,58,0.1); border: 1px solid rgba(255,69,58,0.2); padding: 16px; border-radius: 12px; text-align: center;">
+            <div style="font-size: 0.7rem; color: var(--red); font-weight: 800; margin-bottom: 6px;">סטופ לוס (Stop)</div>
+            <div style="font-size: 1.4rem; font-weight: 900; color: var(--red); direction:ltr;">${stopLoss}</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 12px; text-align: center;">
+            <div style="font-size: 0.7rem; color: var(--text-secondary); font-weight: 800; margin-bottom: 6px;">יעד 12M ופוטנציאל</div>
+            <div style="font-size: 1.4rem; font-weight: 900; color: var(--text); direction:ltr;">$${analysis.price_target || "N/A"}</div>
+            <div style="font-size: 0.85rem; font-weight: 800; color: ${parseFloat(upside) >= 0 ? 'var(--green)' : 'var(--red)'}; margin-top: 4px; direction:ltr;">${parseFloat(upside) >= 0 ? '+' : ''}${upside}%</div>
+        </div>
+    </div>`;
 
   if (newsData && newsData.length > 0) { 
       document.getElementById('stock-news-grid').innerHTML = newsData.map(n => { 
