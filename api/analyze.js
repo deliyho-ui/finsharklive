@@ -205,13 +205,13 @@ module.exports = async function(req, res) {
                         { symbol: 'RUSSELL 2000', price: Number(iwm?.c || 0), changesPercentage: Number(iwm?.dp || 0) }
                     ],
                     sectors: [
-                        { sector: "טכנולוגיה (XLK)", changesPercentage: String(xlk?.dp || "0") },
-                        { sector: "בריאות (XLV)", changesPercentage: String(xlv?.dp || "0") },
-                        { sector: "פיננסים (XLF)", changesPercentage: String(xlf?.dp || "0") },
-                        { sector: "תעשייה (XLI)", changesPercentage: String(xli?.dp || "0") },
-                        { sector: "צריכה (XLY)", changesPercentage: String(xly?.dp || "0") },
-                        { sector: "אנרגיה (XLE)", changesPercentage: String(xle?.dp || "0") },
-                        { sector: "שוק כללי (SPY)", changesPercentage: String(spy?.dp || "0") }
+                        { sector: "Technology", changesPercentage: String(xlk?.dp || "0") },
+                        { sector: "Healthcare", changesPercentage: String(xlv?.dp || "0") },
+                        { sector: "Financials", changesPercentage: String(xlf?.dp || "0") },
+                        { sector: "Industrials", changesPercentage: String(xli?.dp || "0") },
+                        { sector: "Consumer Cyclical", changesPercentage: String(xly?.dp || "0") },
+                        { sector: "Energy", changesPercentage: String(xle?.dp || "0") },
+                        { sector: "כללי", changesPercentage: String(spy?.dp || "0") }
                     ],
                     // סינון בטוח של המערך כדי למנוע קריסת חזית
                     news: (Array.isArray(newsData) ? newsData : []).slice(0, 5).map(item => {
@@ -353,8 +353,8 @@ module.exports = async function(req, res) {
             }
         };
 
-        // 💡 הנה התיקון! חזרנו למודל gemini-2.0-flash העדכני עם נתיב v1beta התקין
-        const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+        // 💡 שימוש בגרסת Gemini 2.0 Pro הנקייה והיציבה ביותר (ללא "flash") כדי למנוע את שגיאת ה-404!
+        const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-pro-exp-02-05:generateContent?key=${apiKey}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
