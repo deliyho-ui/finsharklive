@@ -353,15 +353,16 @@ module.exports = async function(req, res) {
             }
         };
 
-        // 💡 שימוש במודל gemini-1.5-flash המהיר והחינמי - פותר את השגיאה לחלוטין!
-        const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        const modelName = "gemini-1.5-pro-latest"; // מנסים את המודל היציב והזמין ביותר
+
+        const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
         let aiVerdict = {};
 
-        // 💡 דיווח ברור על שגיאות מ-Gemini (כולל ה-400 וה-429 המפורסמים)
+        // 💡 הנה הקסם שהוספנו: אם המודל נופל, הוא מושך את הרשימה המדויקת שמותרת לכם!
         if (!aiResponse.ok) {
             const errorText = await aiResponse.text();
             if (aiResponse.status === 429) {
@@ -376,6 +377,23 @@ module.exports = async function(req, res) {
                     rating: "החזקה",
                     scores: { growth: 50, momentum: 50, value: 50, quality: 50 }
                 };
+            } else if (aiResponse.status === 404) {
+                // שגיאת מודל לא נמצא - שליפת רשימת המודלים מהשרת של גוגל!
+                let availableModels = "לא הצלחנו למשוך את הרשימה המדויקת מהשרת";
+                try {
+                    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+                    if (listRes.ok) {
+                        const listData = await listRes.json();
+                        if (listData && listData.models) {
+                            availableModels = listData.models
+                                .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+                                .map(m => m.name.replace('models/', ''))
+                                .join(', \n');
+                        }
+                    }
+                } catch(e) {}
+                
+                throw new Error(`\n\n🚨 שגיאה מפורשת מהשרת: המודל חסום או לא קיים בחשבון שלכם.\n\n💡 הנה רשימת המודלים ש**כן** זמינים לכם כרגע (תעתיקו לי אחד מהם):\n${availableModels}\n\n(שגיאה מקורית: 404 NOT FOUND)`);
             } else {
                 throw new Error(`שגיאה מ-Gemini API (סטטוס ${aiResponse.status}): ${errorText}`);
             }
@@ -384,7 +402,7 @@ module.exports = async function(req, res) {
             try {
                 let text = aiData.candidates[0].content.parts[0].text;
                 
-                // חילוץ JSON יציב ועמיד - מתעלם מכל טקסט אחר (Markdown) שג'מיני עלול להוסיף
+                // חילוץ JSON יציב ועמיד
                 const jsonStart = text.indexOf('{');
                 const jsonEnd = text.lastIndexOf('}');
                 
@@ -416,7 +434,7 @@ module.exports = async function(req, res) {
                 const s = aiVerdict.scores || {};
                 aiVerdict.scores = { growth: s.growth || 50, momentum: s.momentum || 50, value: s.value || 50, quality: s.quality || 50 };
             } catch (e) { 
-                // גיבוי קריסה במידה וג'מיני ענה במשהו לא קריא
+                // גיבוי קריסה
                 aiVerdict = { 
                     bottomLine: "הנתונים נמשכו בהצלחה, אך ה-AI התקשה לנסח פסיקה בפורמט תקין.", 
                     verdict: "שגיאה בפענוח הנתונים מה-AI", 
