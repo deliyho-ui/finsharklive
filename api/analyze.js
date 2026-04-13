@@ -203,28 +203,28 @@ module.exports = async function(req, res) {
             latestEarnings = earningsData[0];
         }
         
-        // שימוש בפונקציית sanitizeValue במקום "|| 0" ששבר את ה-AI בנתונים חסרים
+        // החזרנו את הפונדמנטלס למספרים נקיים כדי שה-Frontend לא יקרוס בפונקציית toFixed()
         const fundamentals = {
-            marketCap: sanitizeValue(profile?.marketCapitalization || m.marketCapitalization),
-            fiftyTwoWeekHigh: sanitizeValue(m['52WeekHigh']),
-            fiftyTwoWeekLow: sanitizeValue(m['52WeekLow']),
-            peRatio: sanitizeValue(m.peBasicExclExtraTTM || m.peExclExtraAnnual),
-            pbRatio: sanitizeValue(m.pbAnnual || m.pbQuarterly),
-            psRatio: sanitizeValue(m.psTTM || m.psAnnual), 
-            eps: sanitizeValue(m.epsTTM || m.epsExclExtraItemsAnnual),
-            epsGrowth5Y: sanitizeValue(m.epsGrowth5Y), 
-            roe: sanitizeValue(m.roeTTM),
-            roa: sanitizeValue(m.roaTTM), 
-            roic: sanitizeValue(m.roicTTM), 
-            debtToEquity: sanitizeValue(m.totalDebtToEquityAnnual || m.totalDebtToEquityQuarterly),
-            dividendYield: sanitizeValue(m.dividendYieldIndicatedAnnual),
-            revenueGrowth: sanitizeValue(m.revenueGrowthTTMYoy || m.revenueGrowth5Y),
-            grossMargin: sanitizeValue(m.grossMarginTTM || m.grossMarginAnnual), 
-            operatingMargin: sanitizeValue(m.operatingMarginTTM || m.operatingMarginAnnual), 
-            netMargin: sanitizeValue(m.netProfitMarginTTM || m.netMarginTTM),
-            currentRatio: sanitizeValue(m.currentRatioQuarterly || m.currentRatioAnnual),
-            quickRatio: sanitizeValue(m.quickRatioQuarterly || m.quickRatioAnnual), 
-            beta: sanitizeValue(m.beta)
+            marketCap: profile?.marketCapitalization || m.marketCapitalization || 0,
+            fiftyTwoWeekHigh: m['52WeekHigh'] || 0,
+            fiftyTwoWeekLow: m['52WeekLow'] || 0,
+            peRatio: m.peBasicExclExtraTTM || m.peExclExtraAnnual || 0,
+            pbRatio: m.pbAnnual || m.pbQuarterly || 0,
+            psRatio: m.psTTM || m.psAnnual || 0, 
+            eps: m.epsTTM || m.epsExclExtraItemsAnnual || 0,
+            epsGrowth5Y: m.epsGrowth5Y || 0, 
+            roe: m.roeTTM || 0,
+            roa: m.roaTTM || 0, 
+            roic: m.roicTTM || 0, 
+            debtToEquity: m.totalDebtToEquityAnnual || m.totalDebtToEquityQuarterly || 0,
+            dividendYield: m.dividendYieldIndicatedAnnual || 0,
+            revenueGrowth: m.revenueGrowthTTMYoy || m.revenueGrowth5Y || 0,
+            grossMargin: m.grossMarginTTM || m.grossMarginAnnual || 0, 
+            operatingMargin: m.operatingMarginTTM || m.operatingMarginAnnual || 0, 
+            netMargin: m.netProfitMarginTTM || m.netMarginTTM || 0,
+            currentRatio: m.currentRatioQuarterly || m.currentRatioAnnual || 0,
+            quickRatio: m.quickRatioQuarterly || m.quickRatioAnnual || 0, 
+            beta: m.beta || 0
         };
 
         // משיכת הממוצעים מהגרף האמיתי במקום מהנתון הריק של Finnhub
@@ -261,14 +261,15 @@ module.exports = async function(req, res) {
             newsPromptText = `כותרות מרכזיות מהתקופה האחרונה:\n${topNews}`;
         }
 
+        // הסניטציה (התעלמות מאפסים) מתבצעת *רק* עבור הפרומפט שנשלח ל-AI
         const prompt = `אתה "הכריש" - מודל בינה מלאכותית (AI) פיננסי מתקדם, עצמאי ואובייקטיבי לחלוטין. המטרה שלך היא לספק ניתוח עומק אמיתי למניית ${ticker} (${profile?.name}), ללא תלות עיוורת באנליסטים אנושיים. המטרה היא להכות את השוק.
         
         נתוני אמת מהשוק לעיבוד עמוק (חובה לנתח את כולם כדי לקבוע מחיר יעד!):
         - מחיר ומגמה טכנית: מחיר נוכחי: $${quote?.c}. ממוצע 50: $${technicals.ma50}, ממוצע 200: $${technicals.ma200}. (מגמה: ${technicals.trend}). תבנית בגרף: ${detectedPattern}.
-        - תמחור (Valuation): מכפיל רווח (P/E): ${fundamentals.peRatio}, מכפיל הון (P/B): ${fundamentals.pbRatio}, מכפיל מכירות (P/S): ${fundamentals.psRatio}.
-        - רווחיות ויעילות (Profitability): שולי רווח גולמי: ${fundamentals.grossMargin}%, רווח נקי: ${fundamentals.netMargin}%. תשואה להון (ROE): ${fundamentals.roe}%, תשואה להון מושקע (ROIC): ${fundamentals.roic}%.
-        - צמיחה ודוחות: ${earningsPromptText}. צמיחת הכנסות (YoY): ${fundamentals.revenueGrowth}%, צמיחת רווח למניה (5Y): ${fundamentals.epsGrowth5Y}%.
-        - חוסן פיננסי וסיכון: יחס נזילות (Current): ${fundamentals.currentRatio}, חוב להון: ${fundamentals.debtToEquity}, תנודתיות (Beta): ${fundamentals.beta}.
+        - תמחור (Valuation): מכפיל רווח (P/E): ${sanitizeValue(fundamentals.peRatio)}, מכפיל הון (P/B): ${sanitizeValue(fundamentals.pbRatio)}, מכפיל מכירות (P/S): ${sanitizeValue(fundamentals.psRatio)}.
+        - רווחיות ויעילות (Profitability): שולי רווח גולמי: ${sanitizeValue(fundamentals.grossMargin)}%, רווח נקי: ${sanitizeValue(fundamentals.netMargin)}%. תשואה להון (ROE): ${sanitizeValue(fundamentals.roe)}%, תשואה להון מושקע (ROIC): ${sanitizeValue(fundamentals.roic)}%.
+        - צמיחה ודוחות: ${earningsPromptText}. צמיחת הכנסות (YoY): ${sanitizeValue(fundamentals.revenueGrowth)}%, צמיחת רווח למניה (5Y): ${sanitizeValue(fundamentals.epsGrowth5Y)}%.
+        - חוסן פיננסי וסיכון: יחס נזילות (Current): ${sanitizeValue(fundamentals.currentRatio)}, חוב להון: ${sanitizeValue(fundamentals.debtToEquity)}, תנודתיות (Beta): ${sanitizeValue(fundamentals.beta)}.
         - סנטימנט השוק: ${analystConsensus}. (יעד ממוצע בשוק: $${meanTarget || 'לא זמין'}, יעד גבוה: $${highTarget || 'לא זמין'}).
         - חדשות אחרונות למניה:
         ${newsPromptText}
