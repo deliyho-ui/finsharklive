@@ -168,7 +168,7 @@ module.exports = async function(req, res) {
         const ticker = (req.query.ticker || req.query.symbol || "").toUpperCase().trim();
         const action = req.query.action;
         
-        // וידוא מפתחות API - חשוב כדי שלא נקבל שגיאה 500 אילמת מ-Vercel
+        // וידוא מפתחות API
         const apiKey = process.env.GEMINI_API_KEY;
         const finnhubKey = process.env.FINNHUB_API_KEY;
         
@@ -202,7 +202,7 @@ module.exports = async function(req, res) {
                         { sector: "תעשייה", changesPercentage: String(dia?.dp || "0") },
                         { sector: "כללי", changesPercentage: String(spy?.dp || "0") }
                     ],
-                    // סינון בטוח של המערך כדי למנוע קריסת חזית כש-Finnhub מתנתק
+                    // סינון בטוח של המערך כדי למנוע קריסת חזית
                     news: (Array.isArray(newsData) ? newsData : []).slice(0, 5).map(item => {
                         let parsedDate = new Date().toISOString();
                         try { if (item.datetime && !isNaN(item.datetime)) parsedDate = new Date(item.datetime * 1000).toISOString(); } catch(e){}
@@ -243,7 +243,7 @@ module.exports = async function(req, res) {
             latestEarnings = earningsData[0];
         }
         
-        // 💡 הנתונים נשלחים לחזית כמספרים נקיים כדי שה-HTML לא יקרוס
+        // נתונים לחזית כמספרים נקיים
         const fundamentals = {
             marketCap: Number(profile?.marketCapitalization || m.marketCapitalization || 0),
             fiftyTwoWeekHigh: Number(m['52WeekHigh'] || 0),
@@ -297,7 +297,6 @@ module.exports = async function(req, res) {
             newsPromptText = `כותרות מרכזיות מהתקופה האחרונה:\n${topNews}`;
         }
 
-        // 💡 הסניטציה (sanitizeValue) מופעלת רק פה, כדי להעלים 0 מהעיניים של ה-AI ולאפשר לו לנתח במקצועיות
         const prompt = `אתה "הכריש" - מודל בינה מלאכותית (AI) פיננסי מתקדם, עצמאי ואובייקטיבי לחלוטין. המטרה שלך היא לספק ניתוח עומק מקיף וריאלי למניית ${ticker} (${profile?.name || ticker}), ללא תלות עיוורת באנליסטים אנושיים. 
         הדרישה הקריטית שלי אליך: פרט לעומק על כל סעיף. כתוב לפחות 2-3 משפטים עשירים ואנליטיים על הפונדמנטלס ועל המצב הטכני. אל תזרוק סתם סיסמאות קצרות. תן ערך אמיתי.
         
@@ -338,7 +337,8 @@ module.exports = async function(req, res) {
             generationConfig: {
                 temperature: 0.4, 
                 topP: 0.8,
-                topK: 10
+                topK: 10,
+                responseMimeType: "application/json"
             }
         };
 
@@ -347,48 +347,73 @@ module.exports = async function(req, res) {
             body: JSON.stringify(payload)
         });
 
-        if (!aiResponse.ok) {
-            throw new Error(`שגיאה מ-Gemini API (סטטוס ${aiResponse.status})`);
-        }
-
-        const aiData = await aiResponse.json();
         let aiVerdict = {};
-        try {
-            let text = aiData.candidates[0].content.parts[0].text;
-            
-            // 💡 חילוץ חכם של ה-JSON בלבד (מתעלם מכל טקסט מסביב שה-AI אולי הוסיף)
-            const jsonStart = text.indexOf('{');
-            const jsonEnd = text.lastIndexOf('}');
-            
-            if (jsonStart !== -1 && jsonEnd !== -1) {
-                text = text.substring(jsonStart, jsonEnd + 1);
-                aiVerdict = JSON.parse(text);
-            } else {
-                throw new Error("Invalid JSON structure returned from AI");
-            }
-            
-            let targetNum;
-            if (typeof aiVerdict.price_target === 'string') {
-                targetNum = Number(aiVerdict.price_target.replace(/[^0-9.]/g, ''));
-            } else {
-                targetNum = Number(aiVerdict.price_target);
-            }
-            
-            aiVerdict.price_target = (targetNum && targetNum > 0) ? targetNum : (meanTarget ? Number(meanTarget) : Number(quote?.c || 0) * 1.15);
 
-            aiVerdict.bottomLine = aiVerdict.summary || aiVerdict.verdict;
-            aiVerdict.verdict = aiVerdict.verdict || aiVerdict.summary;
-            const prosArray = Array.isArray(aiVerdict.pros) ? aiVerdict.pros : ["נתונים חיוביים"];
-            const consArray = Array.isArray(aiVerdict.cons) ? aiVerdict.cons : ["סיכוני שוק"];
-            
-            aiVerdict.positive = prosArray; aiVerdict.strengths = prosArray; aiVerdict.bullish = prosArray;
-            aiVerdict.negative = consArray; aiVerdict.weaknesses = consArray; aiVerdict.bearish = consArray;
-            
-            const s = aiVerdict.scores || {};
-            aiVerdict.scores = { growth: s.growth || 50, momentum: s.momentum || 50, value: s.value || 50, quality: s.quality || 50 };
-        } catch (e) { 
-            // גיבוי קריסה
-            aiVerdict = { bottomLine: "הניתוח נכשל טכנית", verdict: "שגיאה בפענוח הנתונים מה-AI", pros: [], cons: [] }; 
+        // 💡 הגנה חדשה וחשובה: טיפול אלגנטי בעומס על ה-API (שגיאה 429) בלי להפיל את האתר
+        if (!aiResponse.ok) {
+            if (aiResponse.status === 429) {
+                // המשתמש/המערכת חרגה ממגבלת הבקשות בדקה
+                aiVerdict = {
+                    bottomLine: "המערכת חווה עומס זמני עקב כמות פניות גבוהה ל-AI. הנתונים הטכניים והפונדמנטליים נמשכו בהצלחה וניתנים לצפייה למטה.",
+                    verdict: "עומס זמני בשרתי ה-AI (שגיאת 429). אנא המתן כדקה ונסה שוב.",
+                    pros: ["נתוני האמת של החברה נמשכו בהצלחה"],
+                    cons: ["ניתוח ה-AI מושהה זמנית עקב עומס"],
+                    pattern: detectedPattern,
+                    price_target: meanTarget ? Number(meanTarget) : Number(quote?.c || 0),
+                    rating: "החזקה",
+                    scores: { growth: 50, momentum: 50, value: 50, quality: 50 }
+                };
+            } else {
+                throw new Error(`שגיאה מ-Gemini API (סטטוס ${aiResponse.status})`);
+            }
+        } else {
+            const aiData = await aiResponse.json();
+            try {
+                let text = aiData.candidates[0].content.parts[0].text;
+                
+                // חילוץ JSON יציב ועמיד
+                const jsonStart = text.indexOf('{');
+                const jsonEnd = text.lastIndexOf('}');
+                
+                if (jsonStart !== -1 && jsonEnd !== -1) {
+                    text = text.substring(jsonStart, jsonEnd + 1);
+                    aiVerdict = JSON.parse(text);
+                } else {
+                    throw new Error("Invalid JSON structure returned from AI");
+                }
+                
+                let targetNum;
+                if (typeof aiVerdict.price_target === 'string') {
+                    targetNum = Number(aiVerdict.price_target.replace(/[^0-9.]/g, ''));
+                } else {
+                    targetNum = Number(aiVerdict.price_target);
+                }
+                
+                aiVerdict.price_target = (targetNum && targetNum > 0) ? targetNum : (meanTarget ? Number(meanTarget) : Number(quote?.c || 0) * 1.15);
+
+                aiVerdict.bottomLine = aiVerdict.summary || aiVerdict.verdict;
+                aiVerdict.verdict = aiVerdict.verdict || aiVerdict.summary;
+                
+                const prosArray = Array.isArray(aiVerdict.pros) ? aiVerdict.pros : ["נתונים חיוביים"];
+                const consArray = Array.isArray(aiVerdict.cons) ? aiVerdict.cons : ["סיכוני שוק"];
+                
+                aiVerdict.positive = prosArray; aiVerdict.strengths = prosArray; aiVerdict.bullish = prosArray;
+                aiVerdict.negative = consArray; aiVerdict.weaknesses = consArray; aiVerdict.bearish = consArray;
+                
+                const s = aiVerdict.scores || {};
+                aiVerdict.scores = { growth: s.growth || 50, momentum: s.momentum || 50, value: s.value || 50, quality: s.quality || 50 };
+            } catch (e) { 
+                // גיבוי קריסה במידה וג'מיני ענה במשהו לא קריא
+                aiVerdict = { 
+                    bottomLine: "הנתונים נמשכו בהצלחה, אך ה-AI התקשה לנסח פסיקה בפורמט תקין.", 
+                    verdict: "שגיאה בפענוח הנתונים מה-AI", 
+                    pros: ["כל נתוני השוק, הגרפים והחדשות זמינים לצפייה"], 
+                    cons: ["תקלה זמנית בסיכום המילולי"],
+                    pattern: detectedPattern,
+                    price_target: meanTarget ? Number(meanTarget) : Number(quote?.c || 0),
+                    scores: { growth: 50, momentum: 50, value: 50, quality: 50 }
+                }; 
+            }
         }
 
         return res.status(200).json({
