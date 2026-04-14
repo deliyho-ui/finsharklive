@@ -312,7 +312,7 @@ module.exports = async function(req, res) {
         }
 
         // =========================================================
-        // פקודת המוח המעודכנת של הכריש: ציון הוליסטי ורמות מסחר טכניות (עדכון Swing Trade)
+        // פקודת המוח של הכריש (AI Prompt)
         // =========================================================
         const prompt = `אתה "הכריש" - מודל בינה מלאכותית (AI) פיננסי מתקדם, עצמאי ואובייקטיבי לחלוטין. המטרה שלך היא לספק ניתוח עומק מקיף וריאלי למניית ${ticker} (${profile?.name || ticker}), ללא תלות עיוורת באנליסטים אנושיים. 
         הדרישה הקריטית שלי אליך: פרט לעומק על כל סעיף. כתוב לפחות 2-3 משפטים עשירים ואנליטיים על הפונדמנטלס ועל המצב הטכני. אל תזרוק סתם סיסמאות קצרות.
@@ -330,24 +330,22 @@ module.exports = async function(req, res) {
         
         הנחיות קריטיות לניתוח שווי (Valuation), סט-אפים, וציון מסכם:
         1. עצמאות המודל: אתה לא עובד אצל האנליסטים! יעד המחיר הממוצע הוא רק רפרנס. חשב מחיר יעד ריאלי ל-12 חודשים קדימה (price_target).
-        2. ציון הוליסטי (overall score): עליך לקבוע ציון מסכם אחד (מ-0 עד 100) שמתבסס באופן מוחלט על *כל* הנתונים יחד (מחזורי מסחר, דוחות, חדשות, תבניות גרף, אנליסטים). הציון הזה הוא "השורה התחתונה" והוא יקבע את דירוג הקנייה (מעל 60 = קנייה, מתחת ל-40 = מכירה, באמצע = החזקה).
-        3. רמות מסחר והתנגדויות לסווינג (Swing): נתח וציין את רמות התמיכה וההתנגדות (Resistances) הבולטות בטקסט הניתוח הטכני. ספק בנוסף מספרים מדויקים עבור: מחיר כניסה טכני (entry_price), סטופ לוס קריטי (stop_loss), ויעד רווח קרוב (target_price).
-        * חובה קריטית: יעד הרווח הקרוב (target_price) חייב להיות יעד סווינג משתלם המבוסס על רמת התנגדות מהותית, שמייצג מהלך של לפחות 5% עד 15% ומעלה ממחיר הכניסה. בשום אופן אל תספק יעדי Day Trading (Scalping) של סנטים בודדים או אחוז אחד!
+        2. ציון הוליסטי (overall score): עליך לקבוע ציון מסכם אחד (מ-0 עד 100) שמתבסס באופן מוחלט על *כל* הנתונים יחד. הציון הזה קובע את ההמלצה (מעל 60 = קנייה, מתחת 40 = מכירה).
+        3. רמות מסחר לסווינג (Swing): ציין רמות תמיכה והתנגדות בטקסט הניתוח הטכני. בנוסף ספק מספרים מדויקים עבור כניסה (entry_price), עצירת הפסד (stop_loss), ויעד רווח קרוב (target_price).
+        * יעד הרווח הקרוב חייב לשקף מהלך סווינג של לפחות 5%-15% ולא סקלפינג קצר.
         
         ספק את הניתוח בפורמט JSON חוקי בלבד בעברית (חובה להשתמש במבנה הבא בדיוק):
         {
           "identity": "פרופיל החברה ומעמדה התחרותי בשוק.",
-          "technical": "ניתוח טכני מעמיק המשלב את הממוצעים, מחזורי המסחר (ווליום), תבנית הגרף (${detectedPattern}), ורמות תמיכה/התנגדות.",
-          "news_analysis": "ניתוח פונדמנטלי המשלב את תוצאות הדוח הרבעוני, החדשות האחרונות, הצמיחה והתמחור.",
-          "summary": "השורה התחתונה שלך מחיבור כל הנתונים (הצדקת הציון המסכם).",
-          "verdict": "פסיקה נוקבת ומנומקת.",
-          "pros": ["נקודת חוזק 1", "נקודת חוזק 2", "נקודת חוזק 3"],
-          "cons": ["נקודת תורפה 1", "נקודת תורפה 2", "נקודת תורפה 3"],
-          "pattern": "משפט קצר המסביר את התבנית שזוהתה בגרף ומה משמעותה.",
-          "price_target": "מספר טהור בלבד ליעד ארוך טווח ל-12 חודשים (למשל 150.5)",
-          "entry_price": "מספר טהור למחיר כניסה אידיאלי טכני (למשל 145.2)",
-          "stop_loss": "מספר טהור לעצירת הפסד קריטית (למשל 138.0)",
-          "target_price": "מספר טהור ליעד רווח סווינג משתלם, מבוסס התנגדות משמעותית (למשל 160.5)",
+          "technical": "ניתוח טכני מעמיק המשלב את הממוצעים, מחזורי המסחר, התבנית שזוהתה ורמות תמיכה/התנגדות.",
+          "news_analysis": "ניתוח פונדמנטלי המשלב את תוצאות הדוח, החדשות, הצמיחה והתמחור.",
+          "summary": "השורה התחתונה מחיבור הנתונים שמצדיקה את הציון המסכם.",
+          "pros": ["חוזקה 1", "חוזקה 2", "חוזקה 3"],
+          "cons": ["חולשה 1", "חולשה 2", "חולשה 3"],
+          "price_target": "מספר טהור (למשל 150.5)",
+          "entry_price": "מספר טהור למחיר כניסה טכני",
+          "stop_loss": "מספר טהור לעצירת הפסד קריטית",
+          "target_price": "מספר טהור ליעד רווח קרוב לסווינג",
           "rating": "קנייה / החזקה / מכירה / קנייה חזקה",
           "scores": { "growth": 80, "momentum": 75, "value": 60, "quality": 90, "overall": 82 }
         }
@@ -362,7 +360,7 @@ module.exports = async function(req, res) {
             }
         };
 
-        const modelName = "gemini-2.5-flash"; // המודל המעודכן שעובד מצוין אצלך בחשבון
+        const modelName = "gemini-2.5-flash"; 
 
         const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -371,36 +369,18 @@ module.exports = async function(req, res) {
 
         let aiVerdict = {};
 
-        // 💡 הגיבוי החכם - אם המודל נופל, הוא ימשוך את הרשימה המדויקת שמותרת לכם!
+        // טיפול בשגיאות מה-AI
         if (!aiResponse.ok) {
             const errorText = await aiResponse.text();
             if (aiResponse.status === 429) {
                 aiVerdict = {
-                    bottomLine: "המערכת חווה עומס זמני עקב כמות פניות גבוהה ל-AI. הנתונים נמשכו בהצלחה וניתנים לצפייה למטה.",
-                    verdict: "עומס זמני בשרתי ה-AI (שגיאת 429). אנא המתן כדקה ונסה שוב.",
-                    pros: ["נתוני האמת של החברה נמשכו בהצלחה"],
-                    cons: ["ניתוח ה-AI מושהה זמנית עקב עומס"],
-                    pattern: detectedPattern,
+                    summary: "המערכת חווה עומס זמני עקב כמות פניות גבוהה ל-AI. הנתונים נמשכו בהצלחה וניתנים לצפייה למטה.",
+                    pros: ["נתוני האמת נמשכו בהצלחה"],
+                    cons: ["ניתוח ה-AI מושהה זמנית"],
                     price_target: meanTarget ? Number(meanTarget) : Number(quote?.c || 0),
                     rating: "החזקה",
                     scores: { growth: 50, momentum: 50, value: 50, quality: 50, overall: 50 }
                 };
-            } else if (aiResponse.status === 404) {
-                let availableModels = "לא הצלחנו למשוך את הרשימה המדויקת מהשרת";
-                try {
-                    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-                    if (listRes.ok) {
-                        const listData = await listRes.json();
-                        if (listData && listData.models) {
-                            availableModels = listData.models
-                                .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
-                                .map(m => m.name.replace('models/', ''))
-                                .join(', \n');
-                        }
-                    }
-                } catch(e) {}
-                
-                throw new Error(`\n\n🚨 שגיאה מפורשת מהשרת: המודל חסום או לא קיים בחשבון שלכם.\n\n💡 הנה רשימת המודלים ש**כן** זמינים לכם כרגע (תעתיקו לי אחד מהם):\n${availableModels}\n\n(שגיאה מקורית: 404 NOT FOUND)`);
             } else {
                 throw new Error(`שגיאה מ-Gemini API (סטטוס ${aiResponse.status}): ${errorText}`);
             }
@@ -409,7 +389,7 @@ module.exports = async function(req, res) {
             try {
                 let text = aiData.candidates[0].content.parts[0].text;
                 
-                // חילוץ JSON יציב ועמיד
+                // חילוץ JSON נקי
                 const jsonStart = text.indexOf('{');
                 const jsonEnd = text.lastIndexOf('}');
                 
@@ -420,31 +400,19 @@ module.exports = async function(req, res) {
                     throw new Error("Invalid JSON structure returned from AI");
                 }
                 
-                let targetNum;
-                if (typeof aiVerdict.price_target === 'string') {
-                    targetNum = Number(aiVerdict.price_target.replace(/[^0-9.]/g, ''));
-                } else {
-                    targetNum = Number(aiVerdict.price_target);
-                }
-                
+                // המרת יעדים למספרים נקיים
+                let targetNum = typeof aiVerdict.price_target === 'string' ? Number(aiVerdict.price_target.replace(/[^0-9.]/g, '')) : Number(aiVerdict.price_target);
                 aiVerdict.price_target = (targetNum && targetNum > 0) ? targetNum : (meanTarget ? Number(meanTarget) : Number(quote?.c || 0) * 1.15);
-
+                
                 aiVerdict.entry_price = aiVerdict.entry_price || '';
                 aiVerdict.stop_loss = aiVerdict.stop_loss || '';
                 aiVerdict.target_price = aiVerdict.target_price || '';
-
-                aiVerdict.bottomLine = aiVerdict.summary || aiVerdict.verdict;
-                aiVerdict.verdict = aiVerdict.verdict || aiVerdict.summary;
                 
-                const prosArray = Array.isArray(aiVerdict.pros) ? aiVerdict.pros : ["נתונים חיוביים"];
-                const consArray = Array.isArray(aiVerdict.cons) ? aiVerdict.cons : ["סיכוני שוק"];
-                
-                aiVerdict.positive = prosArray; aiVerdict.strengths = prosArray; aiVerdict.bullish = prosArray;
-                aiVerdict.negative = consArray; aiVerdict.weaknesses = consArray; aiVerdict.bearish = consArray;
+                // וידוא שקיים מערך חוזקות וחולשות
+                aiVerdict.pros = Array.isArray(aiVerdict.pros) ? aiVerdict.pros : ["נתונים חיוביים"];
+                aiVerdict.cons = Array.isArray(aiVerdict.cons) ? aiVerdict.cons : ["סיכוני שוק"];
                 
                 const s = aiVerdict.scores || {};
-                
-                // סנכרון הציון המשוקלל הרשמי של ה-AI. אם ה-AI לא סיפק, נחשב לו ממוצע כגיבוי.
                 const aiOverall = s.overall || Math.round(((s.growth||50)+(s.momentum||50)+(s.value||50)+(s.quality||50))/4);
 
                 aiVerdict.scores = { 
@@ -455,20 +423,18 @@ module.exports = async function(req, res) {
                     overall: aiOverall
                 };
 
-                // התאמה אגרסיבית של ההמלצה (Rating) לציון הסופי של ה-AI כדי למנוע סתירות!
+                // התאמת המלצה מילולית לציון
                 if (aiVerdict.scores.overall >= 80) aiVerdict.rating = "קנייה חזקה";
                 else if (aiVerdict.scores.overall >= 60) aiVerdict.rating = "קנייה";
                 else if (aiVerdict.scores.overall <= 40) aiVerdict.rating = "מכירה";
                 else aiVerdict.rating = "החזקה";
 
             } catch (e) { 
-                // גיבוי קריסה
+                // גיבוי במקרה של קריסה בפענוח ה-JSON
                 aiVerdict = { 
-                    bottomLine: "הנתונים נמשכו בהצלחה, אך ה-AI התקשה לנסח פסיקה בפורמט תקין.", 
-                    verdict: "שגיאה בפענוח הנתונים מה-AI", 
-                    pros: ["כל נתוני השוק, הגרפים והחדשות זמינים לצפייה"], 
+                    summary: "הנתונים נמשכו בהצלחה, אך ה-AI התקשה לנסח פסיקה בפורמט תקין.", 
+                    pros: ["כל נתוני השוק זמינים לצפייה"], 
                     cons: ["תקלה זמנית בסיכום המילולי"],
-                    pattern: detectedPattern,
                     price_target: meanTarget ? Number(meanTarget) : Number(quote?.c || 0),
                     rating: "החזקה",
                     scores: { growth: 50, momentum: 50, value: 50, quality: 50, overall: 50 }
@@ -476,21 +442,31 @@ module.exports = async function(req, res) {
             }
         }
 
+        // שימו לב: כאן מתבצעת שליחת המידע הנקי לחזית (הסרנו כפילויות!)
         return res.status(200).json({
             success: true,
-            ticker, name: profile?.name || ticker, industry: profile?.finnhubIndustry || "N/A", sector: profile?.finnhubIndustry || "N/A",
-            price: Number(quote?.c || 0), changePercentage: Number(quote?.dp || 0),
+            ticker, 
+            name: profile?.name || ticker, 
+            industry: profile?.finnhubIndustry || "N/A", 
+            sector: profile?.finnhubIndustry || "N/A",
+            price: Number(quote?.c || 0), 
+            changePercentage: Number(quote?.dp || 0),
             
-            ma50: technicals.ma50, ma200: technicals.ma200, volume: technicals.volume, trend: technicals.trend, pattern: detectedPattern,
+            // נתונים טכניים בחזית
+            ma50: technicals.ma50, 
+            ma200: technicals.ma200, 
+            volume: technicals.volume, 
+            trend: technicals.trend, 
+            pattern: detectedPattern,
+            
             ...fundamentals,
             
             latestEarnings: latestEarnings,
-            tickerNews: validTickerNews.slice(0, 5), // מעביר לחזית רק את 5 החדשות האחרונות
+            tickerNews: validTickerNews.slice(0, 5),
             
-            marketData: { ticker, name: profile?.name || ticker, price: quote?.c, changePercentage: quote?.dp, ...fundamentals, ...technicals, pattern: detectedPattern },
-            fundamentals, metrics: fundamentals, technical: technicals, technicals,
-            verdict: aiVerdict, aiVerdict,
-            chartData: chartPoints, chartHistory: chartPoints
+            // שמות מפתחות נקיים וללא שכפולים!
+            analysis: aiVerdict,
+            chartData: chartPoints
         });
 
     } catch (error) {
