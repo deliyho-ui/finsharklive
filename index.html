@@ -865,56 +865,58 @@ window.analyzeStock = async function() {
   showLoading(); 
   animateLoadingSteps(['בודק זיכרון מטמון בענן (Cache)...']);
 
-  // ===============================================
-  // 1. שלב ה-CACHE: בדיקה אם המניה נותחה לאחרונה 
-  // ===============================================
   let cachedData = null;
+  let shouldBypassCache = false;
   try {
       const cacheDoc = await getDoc(doc(db, 'ai_cache', ticker));
       if (cacheDoc.exists()) {
           const cacheObj = cacheDoc.data();
-          // ה-Cache תקף ל-48 שעות (48 * 60 * 60 * 1000 = 172800000 מילי-שניות)
-          if (cacheObj.lastUpdated && (Date.now() - cacheObj.lastUpdated) < 172800000) {
+          // שומרים ל-7 ימים (604,800,000 מילי-שניות)
+          if (cacheObj.lastUpdated && (Date.now() - cacheObj.lastUpdated) < 604800000) {
               cachedData = cacheObj.data;
           }
       }
   } catch(e) { console.warn("Cache read error", e); }
 
-  // אם מצאנו ב-Cache, מושכים רק נתוני מסחר עדכניים! (חיסכון אדיר בטוקנים)
   if (cachedData) {
-      animateLoadingSteps(['נמצא ניתוח AI בתוקף!', 'מושך נתוני מסחר עדכניים מ-Finnhub...']);
+      animateLoadingSteps(['נמצא ניתוח בענן!', 'מוודא שאין תנודת מחיר קיצונית...']);
       try {
           const liveRes = await fetch(`${NETLIFY_API_URL}?action=live_data&ticker=${ticker}`);
           const liveData = await liveRes.json();
           if (liveData.success) {
-              // דורסים את הנתונים הישנים עם החדשים מהלייב
-              cachedData.price = liveData.price;
-              cachedData.changePercentage = liveData.changePercentage;
-              cachedData.chartData = liveData.chartData;
-              cachedData.ma50 = liveData.ma50;
-              cachedData.ma200 = liveData.ma200;
-              cachedData.volume = liveData.volume;
-              cachedData.trend = liveData.trend;
-              cachedData.pattern = liveData.pattern;
+              // חישוב סטיית מחיר: האם המחיר היום שונה ביותר מ-5% מהמחיר שבו ה-AI ניתח?
+              const originalPrice = cachedData.price || liveData.price;
+              const currentPrice = liveData.price;
+              const priceDiffPct = Math.abs(currentPrice - originalPrice) / originalPrice;
               
-              State.currentData = cachedData; 
-              State.aiAnalysis = cachedData.analysis; 
-              window.currentChartData = cachedData.chartData; 
-              
-              hideLoading(); 
-              renderResults(cachedData, cachedData.analysis, cachedData.chartData, cachedData.tickerNews || []);
-              
-              // שים לב: אנחנו קוטעים את הפונקציה פה! המשתמש לא מבזבז קרדיט מתוך ה-6 היומיים שלו. 
-              return; 
+              if (priceDiffPct > 0.05) {
+                  // סטייה של מעל 5%! מבטלים את ה-Cache ונותנים ל-AI לנתח שוב את המצב החדש
+                  shouldBypassCache = true;
+                  console.log(`Price changed by ${(priceDiffPct*100).toFixed(1)}%. Bypassing 7-day cache.`);
+              } else {
+                  // המחיר יציב. מעדכנים את נתוני הלייב בלבד ומציגים!
+                  cachedData.price = liveData.price;
+                  cachedData.changePercentage = liveData.changePercentage;
+                  cachedData.chartData = liveData.chartData;
+                  cachedData.ma50 = liveData.ma50;
+                  cachedData.ma200 = liveData.ma200;
+                  cachedData.volume = liveData.volume;
+                  cachedData.trend = liveData.trend;
+                  cachedData.pattern = liveData.pattern;
+                  cachedData.rsi = liveData.rsi; 
+                  
+                  State.currentData = cachedData; 
+                  State.aiAnalysis = cachedData.analysis; 
+                  window.currentChartData = cachedData.chartData; 
+                  
+                  hideLoading(); 
+                  renderResults(cachedData, cachedData.analysis, cachedData.chartData, cachedData.tickerNews || []);
+                  return; 
+              }
           }
       } catch(e) { console.warn("Failed live update, falling back to full analysis", e); }
   }
 
-  // ===============================================
-  // 2. פסיקת כריש מלאה (אם אין Cache או פג תוקפו)
-  // ===============================================
-  
-  // הגנת Rate Limiting
   if (user && user.role !== 'admin') {
       const now = Date.now();
       if (user.restrictedUntil && now < user.restrictedUntil) {
@@ -923,7 +925,7 @@ window.analyzeStock = async function() {
           warningEl.style.display = 'flex';
           hideLoading();
           document.getElementById('ticker-input').value = '';
-          return; // עוצר
+          return;
       }
   }
 
@@ -939,28 +941,14 @@ window.analyzeStock = async function() {
     State.aiAnalysis = data.analysis; 
     window.currentChartData = data.chartData; 
     
-    // שמירת הניתוח המלא למטמון (Cache) כדי שהמשתמש הבא יקבל את זה בחינם!
     try {
-        await setDoc(doc(db, 'ai_cache', ticker), {
-            ticker: ticker,
-            data: data, 
-            lastUpdated: Date.now()
-        });
+        await setDoc(doc(db, 'ai_cache', ticker), { ticker: ticker, data: data, lastUpdated: Date.now() });
     } catch(e) { console.warn("Failed to save cache", e); }
 
-    // מעדכן את מאגר הסטאפים למסך הקהילה
     if (data.analysis && data.analysis.scores && data.analysis.scores.overall >= 70 && user && user.status === 'approved') {
         try {
             await setDoc(doc(db, 'ai_setups', ticker), {
-                ticker: ticker,
-                score: data.analysis.scores.overall,
-                pattern: data.pattern || 'ללא תבנית',
-                rating: data.analysis.rating || 'קנייה',
-                entryPrice: data.analysis.entry_price || '',
-                stopLoss: data.analysis.stop_loss || '',
-                targetPrice: data.analysis.target_price || '',
-                expectation: data.analysis.summary || '',
-                lastUpdated: Date.now()
+                ticker: ticker, score: data.analysis.scores.overall, pattern: data.pattern || 'ללא תבנית', rating: data.analysis.rating || 'קנייה', entryPrice: data.analysis.entry_price || '', stopLoss: data.analysis.stop_loss || '', targetPrice: data.analysis.target_price || '', expectation: data.analysis.summary || '', lastUpdated: Date.now()
             });
         } catch(e) { console.warn("Failed to save setup", e); }
     }
@@ -968,14 +956,8 @@ window.analyzeStock = async function() {
     if (user && user.role !== 'admin') {
         let newCount = (user.analysisCount || 0) + 1;
         let newRestricted = user.restrictedUntil || null;
-        if (newCount >= 6) {
-            newRestricted = Date.now() + (3 * 60 * 60 * 1000);
-            newCount = 0;
-        }
-        await updateDoc(doc(db, 'users', user.uid), {
-            analysisCount: newCount,
-            restrictedUntil: newRestricted
-        });
+        if (newCount >= 6) { newRestricted = Date.now() + (3 * 60 * 60 * 1000); newCount = 0; }
+        await updateDoc(doc(db, 'users', user.uid), { analysisCount: newCount, restrictedUntil: newRestricted });
     }
 
     hideLoading(); renderResults(data, data.analysis, data.chartData, data.tickerNews || []);
@@ -1155,10 +1137,14 @@ function renderResults(data, analysis, historyData, newsData) {
   document.getElementById('ma-display').innerHTML = `<div class="ma-box"><div class="ma-label">MA 50</div><div class="ma-value">$${ma50val.toFixed(2)}</div><div class="ma-status ${a50 ? 'above' : 'below'}">${a50 ? '▲ מעל' : '▼ מתחת'}</div></div><div class="ma-box"><div class="ma-label">MA 200</div><div class="ma-value">$${ma200val.toFixed(2)}</div><div class="ma-status ${a200 ? 'above' : 'below'}">${a200 ? '▲ מעל' : '▼ מתחת'}</div></div>`;
   
   const patternText = data.pattern || "לא זוהתה תבנית מובהקת";
+  const rsiVal = Number(data.rsi) || 50;
+  const rsiTag = rsiVal > 70 ? 'קניית יתר (Overbought)' : rsiVal < 30 ? 'מכירת יתר (Oversold)' : 'ניטרלי';
+  const rsiClass = rsiVal > 70 ? 'tag-bad' : rsiVal < 30 ? 'tag-good' : 'tag-neutral';
 
   document.getElementById('technical-content').innerHTML = `
     <div class="data-row"><span class="data-label">סקטור ותעשייה</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;text-align:left;">${data.sector} • ${data.industry}</span></div></div>
     <div class="data-row"><span class="data-label">מגמה טכנית</span><div class="data-value-wrap"><span class="data-value">${a50&&a200?'Bull 🐂':!a50&&!a200?'Bear 🐻':'Mixed ⚖️'}</span><span class="tag ${a50&&a200?'tag-good':!a50&&!a200?'tag-bad':'tag-neutral'}">${a50&&a200?'חיובי':!a50&&!a200?'שלילי':'מעורב'}</span></div></div>
+    <div class="data-row"><span class="data-label">RSI (14 שבועות)</span><div class="data-value-wrap"><span class="data-value">${rsiVal.toFixed(1)}</span><span class="tag ${rsiClass}">${rsiTag}</span></div></div>
     <div class="data-row"><span class="data-label">נפח מסחר ממוצע</span><div class="data-value-wrap"><span class="data-value">${formatNumberShort(data.volume)}</span></div></div>
     <div class="data-row"><span class="data-label">תבנית ורמות (AI)</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;max-width:200px;white-space:normal;text-align:left;line-height:1.4;color:var(--gold);font-weight:800;">${patternText}</span></div></div>
     <div class="data-row"><span class="data-label">קריאה טכנית מורחבת</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;max-width:200px;white-space:normal;text-align:left;line-height:1.5">${analysis.technical || "אין מספיק נתונים"}</span></div></div>`;
