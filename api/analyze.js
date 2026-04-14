@@ -322,13 +322,12 @@ module.exports = async function(req, res) {
             newsPromptText = `כותרות מרכזיות מהתקופה האחרונה:\n${topNews}`;
         }
 
-        // שיפור הפרומפט: הוספת RSI ומומנטום
         const prompt = `אתה "הכריש" - מודל בינה מלאכותית (AI) פיננסי מתקדם, עצמאי ואובייקטיבי לחלוטין. המטרה שלך היא לספק ניתוח עומק מקיף וריאלי למניית ${ticker} (${profile?.name || ticker}), ללא תלות עיוורת באנליסטים אנושיים. 
         הדרישה הקריטית שלי אליך: פרט לעומק על כל סעיף. כתוב לפחות 2-3 משפטים עשירים ואנליטיים על הפונדמנטלס ועל המצב הטכני. אל תזרוק סתם סיסמאות קצרות.
         
         נתוני אמת מהשוק לעיבוד עמוק:
         - מחיר, מגמה, ותבנית: מחיר נוכחי: $${quote?.c || 0}. ממוצע 50: $${technicals.ma50}, ממוצע 200: $${technicals.ma200}. (מגמה: ${technicals.trend}). תבנית בגרף שזוהתה: ${detectedPattern}.
-        - מומנטום קנייה/מכירה (RSI): מדד העוצמה היחסית (RSI 14 שבועות) עומד על ${technicals.rsi.toFixed(1)}. (הערה: מעל 70 = קניית יתר שיכולה לאותת על תיקון, מתחת 30 = מכירת יתר ופוטנציאל לתיקון כלפי מעלה). התייחס לזה בניתוח הטכני!
+        - מומנטום קנייה/מכירה (RSI): מדד העוצמה היחסית (RSI 14 שבועות) עומד על ${technicals.rsi.toFixed(1)}. (הערה: מעל 70 = קניית יתר, מתחת 30 = מכירת יתר).
         - נפח מסחר (Volume): נפח מסחר נוכחי הינו ${currentVolume}. 
         - תמחור (Valuation): מכפיל רווח (P/E): ${sanitizeValue(fundamentals.peRatio)}, מכפיל הון (P/B): ${sanitizeValue(fundamentals.pbRatio)}, מכפיל מכירות (P/S): ${sanitizeValue(fundamentals.psRatio)}.
         - רווחיות ויעילות (Profitability): שולי רווח גולמי: ${sanitizeValue(fundamentals.grossMargin)}%, רווח נקי: ${sanitizeValue(fundamentals.netMargin)}%. תשואה להון (ROE): ${sanitizeValue(fundamentals.roe)}%, תשואה להון מושקע (ROIC): ${sanitizeValue(fundamentals.roic)}%.
@@ -340,8 +339,8 @@ module.exports = async function(req, res) {
         
         הנחיות קריטיות לניתוח שווי (Valuation), סט-אפים, וציון מסכם:
         1. עצמאות המודל: אתה לא עובד אצל האנליסטים! יעד המחיר הממוצע הוא רק רפרנס. חשב מחיר יעד ריאלי ל-12 חודשים קדימה (price_target).
-        2. ציון הוליסטי (overall score): עליך לקבוע ציון מסכם אחד (מ-0 עד 100) שמתבסס באופן מוחלט על *כל* הנתונים יחד (פונדמנטלי, טכני, מומנטום). ציון קובע המלצה (מעל 60 = קנייה, מתחת 40 = מכירה).
-        3. רמות מסחר לסווינג (Swing): ציין רמות תמיכה והתנגדות בטקסט הניתוח הטכני, בהתחשב בתבנית, בממוצעים וב-RSI. ספק מספרים מדויקים עבור כניסה, עצירת הפסד ויעד רווח.
+        2. ציון הוליסטי (overall score): עליך לקבוע ציון מסכם אחד (מ-0 עד 100) שמתבסס באופן מוחלט על *כל* הנתונים יחד. 
+        3. רמות מסחר לסווינג (Swing): ציין רמות תמיכה והתנגדות בטקסט הניתוח הטכני. ספק מספרים מדויקים עבור כניסה, עצירת הפסד ויעד רווח.
         
         ספק את הניתוח בפורמט JSON חוקי בלבד בעברית (חובה להשתמש במבנה הבא בדיוק):
         {
@@ -379,7 +378,7 @@ module.exports = async function(req, res) {
                     scores: { growth: 50, momentum: 50, value: 50, quality: 50, overall: 50 }
                 };
             } else {
-                throw new Error(`שגיאה מ-Gemini API (סטטוס ${aiResponse.status}): ${errorText}`);
+                throw new Error(`שגיאה מ-Gemini API: ${errorText}`);
             }
         } else {
             const aiData = await aiResponse.json();
@@ -421,7 +420,7 @@ module.exports = async function(req, res) {
             }
         }
 
-        // החזרת ה-JSON הנקי, הפעם כולל את ה-RSI בפנים
+        // חזית מקבלת עכשיו רק את המידע הנחוץ - ללא כפילויות!
         return res.status(200).json({
             success: true,
             ticker, name: profile?.name || ticker, industry: profile?.finnhubIndustry || "N/A", sector: profile?.finnhubIndustry || "N/A",
