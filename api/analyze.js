@@ -11,7 +11,7 @@ async function fetchFinnhub(endpoint, params = "") {
     }
 }
 
-// שולף נתונים טכניים ושבועיים (2 שנים מספקות פרספקטיבה מעולה)
+// שולף נתונים טכניים ושבועיים
 async function fetchYahooData(ticker, range = "2y", interval = "1wk") {
     try {
         const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=${interval}&range=${range}`;
@@ -100,13 +100,11 @@ function calculateRSI(prices, period = 14) {
     return 100 - (100 / (1 + rs));
 }
 
-// זיהוי רמות תמיכה והתנגדות היסטוריות ע"פ Price Action
 function extractKeyLevels(points) {
     if (points.length < 20) return [];
     let levels = [];
     for (let i = 2; i < points.length - 2; i++) {
         const p = points[i];
-        // זיהוי פיבוטים - רמות שבהן המחיר "נבלם"
         if (p.high >= points[i-1].high && p.high >= points[i+1].high && p.high >= points[i-2].high && p.high >= points[i+2].high) {
             levels.push({ price: p.high, type: 'התנגדות היסטורית' });
         }
@@ -114,7 +112,6 @@ function extractKeyLevels(points) {
             levels.push({ price: p.low, type: 'תמיכה היסטורית' });
         }
     }
-    // סינון רמות כפולות ומיון
     let filtered = [];
     levels.sort((a, b) => b.price - a.price);
     levels.forEach(l => {
@@ -125,18 +122,14 @@ function extractKeyLevels(points) {
     return filtered.slice(0, 8);
 }
 
-// פונקציית זיהוי תבניות מקיפה - "העיניים של הכריש"
 function detectAllPatterns(chartPoints) {
     if (!chartPoints || chartPoints.length < 50) return "אין מספיק נתונים לזיהוי תבניות מורכבות";
 
-    const last20 = chartPoints.slice(-20); 
     const last40 = chartPoints.slice(-40);
     const currentPrice = chartPoints[chartPoints.length - 1].close;
-    const prevPrice = chartPoints[chartPoints.length - 2].close;
 
     let patterns = [];
 
-    // 1. ממוצעים נעים (Golden/Death Cross)
     const curr = chartPoints[chartPoints.length - 1];
     const prev = chartPoints[chartPoints.length - 2];
     if (curr.ma50 && curr.ma200 && prev.ma50 && prev.ma200) {
@@ -144,31 +137,26 @@ function detectAllPatterns(chartPoints) {
         if (prev.ma50 >= prev.ma200 && curr.ma50 < curr.ma200) patterns.push("חיתוך מוות (Death Cross) 📉");
     }
 
-    // 2. תבניות היפוך והמשכיות (ניתוח מבנה מחיר)
     const highs = last40.map(p => p.high);
     const lows = last40.map(p => p.low);
     const closes = last40.map(p => p.close);
 
-    // פסגה כפולה / תחתית כפולה
     const h1 = Math.max(...highs.slice(0, 15)), h2 = Math.max(...highs.slice(25));
     const l1 = Math.min(...lows.slice(0, 15)), l2 = Math.min(...lows.slice(25));
     
     if (Math.abs(h1 - h2) / h1 < 0.02 && currentPrice < h1 * 0.96) patterns.push("פסגה כפולה (Double Top) - היפוך דובי 👤👤");
     if (Math.abs(l1 - l2) / l1 < 0.02 && currentPrice > l1 * 1.04) patterns.push("תחתית כפולה (Double Bottom) - היפוך שורי 🕳️🕳️");
 
-    // ראש וכתפיים
     const leftS = Math.max(...highs.slice(0, 12));
     const head = Math.max(...highs.slice(12, 28));
     const rightS = Math.max(...highs.slice(28));
     if (head > leftS * 1.04 && head > rightS * 1.04 && Math.abs(leftS - rightS) / leftS < 0.05) patterns.push("ראש וכתפיים (H&S) - היפוך דובי חזק 👤");
 
-    // דגל שורי / דובי (Bull/Bear Flag)
     const poleStart = closes[0], poleEnd = closes[10];
     const flagMax = Math.max(...closes.slice(11)), flagMin = Math.min(...closes.slice(11));
     if (poleEnd > poleStart * 1.1 && flagMax <= poleEnd * 1.02 && flagMin > poleStart) patterns.push("דגל שורי (Bull Flag) - המשכיות לעלייה 🚩");
     if (poleEnd < poleStart * 0.9 && flagMin >= poleEnd * 0.98 && flagMax < poleStart) patterns.push("דגל דובי (Bear Flag) - המשכיות לירידה 🚩");
 
-    // יתד (Wedge) ותעלות
     const h_recent = highs.slice(-15), l_recent = lows.slice(-15);
     const isRising = h_recent[0] < h_recent[h_recent.length-1] && l_recent[0] < l_recent[l_recent.length-1];
     const isFalling = h_recent[0] > h_recent[h_recent.length-1] && l_recent[0] > l_recent[l_recent.length-1];
@@ -176,7 +164,6 @@ function detectAllPatterns(chartPoints) {
     if (isRising && (h_recent[h_recent.length-1] - l_recent[l_recent.length-1]) < (h_recent[0] - l_recent[0])) patterns.push("יתד עולה (Rising Wedge) 📐⬇️");
     if (isFalling && (h_recent[h_recent.length-1] - l_recent[l_recent.length-1]) < (h_recent[0] - l_recent[0])) patterns.push("יתד יורד (Falling Wedge) 📐⬆️");
 
-    // פריצה או תמיכה
     const maxHist = Math.max(...highs.slice(0, 39));
     const minHist = Math.min(...lows.slice(0, 39));
     if (currentPrice >= maxHist) patterns.push("פריצת שיא (All-Time High / Multi-Year Breakout) 🚀");
@@ -187,7 +174,7 @@ function detectAllPatterns(chartPoints) {
 }
 
 function sanitizeValue(val) {
-    if (val === 0 || val === null || val === undefined || isNaN(val)) return "N/A";
+    if (val === null || val === undefined || isNaN(val) || val === '') return "N/A";
     return val;
 }
 
@@ -216,23 +203,37 @@ module.exports = async function(req, res) {
         if (!apiKey || !finnhubKey) return res.status(500).json({ success: false, message: "Missing API keys." });
 
         if (action === 'live_data' && ticker) {
-            // משיכה רזה ומהירה בלבד - מחיר וגרף. חוסך משאבים כי הפונדמנטלס נלקחים מהקאש.
-            const [quote, chartPoints] = await Promise.all([
+            // הוספנו פה משיכה של הפונדמנטלס גם ל-live_data כדי שהפרונטאנד לא יאפס אותם!
+            const [quote, chartPoints, profile, metricsData] = await Promise.all([
                 fetchFinnhub('quote', `symbol=${ticker}`),
-                fetchYahooData(ticker, '2y', '1wk')
+                fetchYahooData(ticker, '2y', '1wk'),
+                fetchFinnhub('stock/profile2', `symbol=${ticker}`),
+                fetchFinnhub('stock/metric', `symbol=${ticker}&metric=all`)
             ]);
             
             const lastChartPoint = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1] : {};
+            const m = metricsData?.metric || {};
+            
+            const fundamentals = {
+                marketCap: profile?.marketCapitalization || m?.marketCapitalization || null,
+                peRatio: m?.peBasicExclExtraTTM || m?.peExclExtraAnnual || null,
+                roe: m?.roeTTM || null, 
+                netMargin: m?.netProfitMarginTTM || null,
+                revenueGrowth: m?.revenueGrowthTTMYoy || null, 
+                debtToEquity: m?.totalDebtToEquityAnnual || null
+            };
             
             return res.status(200).json({
                 success: true, 
                 ticker, 
                 price: Number(quote?.c || 0), 
                 changePercentage: Number(quote?.dp || 0),
-                ma50: lastChartPoint.ma50 || 0, 
-                ma200: lastChartPoint.ma200 || 0,
-                volume: Number(quote?.v || 0), 
+                ma50: lastChartPoint.ma50 || null, 
+                ma200: lastChartPoint.ma200 || null,
+                // תיקון ווליום למקרה ש-finnhub מחזיר 0
+                volume: Number(quote?.v || lastChartPoint.volume || 0), 
                 pattern: detectAllPatterns(chartPoints), 
+                ...fundamentals,
                 chartData: chartPoints
             });
         }
@@ -289,11 +290,15 @@ module.exports = async function(req, res) {
         ]);
 
         const m = metricsData?.metric || {};
+        
+        // תיקון קריטי: הסרת העטיפה של Number() שחייבה ערכים להיות 0, כעת נתון חסר נשאר null
         const fundamentals = {
-            marketCap: Number(profile?.marketCapitalization || m.marketCapitalization || 0),
-            peRatio: Number(m.peBasicExclExtraTTM || m.peExclExtraAnnual || 0),
-            roe: Number(m.roeTTM || 0), netMargin: Number(m.netProfitMarginTTM || 0),
-            revenueGrowth: Number(m.revenueGrowthTTMYoy || 0), debtToEquity: Number(m.totalDebtToEquityAnnual || 0)
+            marketCap: profile?.marketCapitalization || m?.marketCapitalization || null,
+            peRatio: m?.peBasicExclExtraTTM || m?.peExclExtraAnnual || null,
+            roe: m?.roeTTM || null, 
+            netMargin: m?.netProfitMarginTTM || null,
+            revenueGrowth: m?.revenueGrowthTTMYoy || null, 
+            debtToEquity: m?.totalDebtToEquityAnnual || null
         };
 
         const insiders = Array.isArray(insiderData?.data) ? insiderData.data : [];
@@ -306,12 +311,12 @@ module.exports = async function(req, res) {
         const levelsPrompt = keyLevels.map(l => `${l.type}: $${l.price.toFixed(2)}`).join(', ');
         const patternsDetected = detectAllPatterns(chartPoints);
 
-        // הגדרה דינמית: האם זה ETF או מדד?
         const isETF = profile?.finnhubIndustry === "" || (!fundamentals.marketCap && !fundamentals.peRatio);
 
+        // הנחיות מעודכנות וחזקות יותר ל-AI לגבי נתונים חסרים
         const dataInstruction = isETF 
             ? "שים לב: נכס זה מזוהה כקרן סל (ETF) או מדד סקטוריאלי. התעלם לחלוטין מחוסר בנתוני פונדמנטלס (כמו מכפילים, רווחיות או שווי שוק). אל תוריד על כך ציון ואל תציין שחסר מידע. התבסס 100% על הניתוח הטכני, רמות המחיר, התבניות, והמאקרו."
-            : "שים לב: זוהי חברה ציבורית. אם אתה רואה שרוב הנתונים הפונדמנטליים (P/E, ROE, שולי רווח) מופיעים כ-0 או N/A, עליך לציין מפורשות בסעיף ה-'summary' שלתחושתך חסרים נתוני דוחות קריטיים במערכת (ייתכן עקב עדכון שרתים), ולכן הערכת השווי עלולה להיות חסרה. במקביל, המשך לנתח ולתת ציון כמיטב יכולתך על בסיס הטכני והנתונים שכן קיימים.";
+            : "שים לב חשוב מאוד: זוהי חברה ציבורית. אם חלק מהנתונים הפונדמנטליים (P/E, ROE, שולי רווח) מופיעים כ-'N/A', משמעות הדבר היא שספק הנתונים (ה-API) נכשל בהבאתם. *אסור לך* להניח שהחברה מפסידה או שהנתון שלה שואף לאפס. במצב כזה, ציין ב'summary' שחסרים נתוני יסוד עקב שגיאת חיבור, והתבסס רק על הטכני והמומנטום בניתוח.";
 
         const prompt = `אתה "הכריש" - אנליסט בכיר בקרן גידור. עליך לספק ניתוח מניות מקצועי ואובייקטיבי.
         
@@ -329,7 +334,7 @@ module.exports = async function(req, res) {
         - נתוני מאקרו: VIX (פחד): ${vix}, תשואת אג"ח 10 שנים: ${tnx}%.
         - פעילות בעלי עניין (Insider): סנטימנט ${insiderSentiment} (נטו שינוי: ${formatNumberShort(netInsiderShares)} מניות).
         - טכני: ממוצע 50: $${lastPoint.ma50}, ממוצע 200: $${lastPoint.ma200}. RSI: ${calculateRSI(chartPoints.map(p=>p.close)).toFixed(1)}.
-        - פונדמנטלס: P/E: ${sanitizeValue(fundamentals.peRatio)}, ROE: ${sanitizeValue(fundamentals.roe)}%, שולי רווח: ${sanitizeValue(fundamentals.netMargin)}%, צמיחה YoY: ${sanitizeValue(fundamentals.revenueGrowth)}%.
+        - פונדמנטלס: P/E: ${sanitizeValue(fundamentals.peRatio)}, ROE: ${sanitizeValue(fundamentals.roe)}${fundamentals.roe ? '%' : ''}, שולי רווח: ${sanitizeValue(fundamentals.netMargin)}${fundamentals.netMargin ? '%' : ''}, צמיחה YoY: ${sanitizeValue(fundamentals.revenueGrowth)}${fundamentals.revenueGrowth ? '%' : ''}.
         
         דרישות פלט חובה:
         - שווי הוגן (Intrinsic Value): ציין מספר דולרי ספציפי (או "לא רלוונטי ל-ETF").
@@ -366,7 +371,7 @@ module.exports = async function(req, res) {
         return res.status(200).json({
             success: true, ticker, name: profile?.name || ticker, industry: profile?.finnhubIndustry || "N/A", sector: profile?.finnhubIndustry || "N/A",
             price: Number(quote?.c || 0), changePercentage: Number(quote?.dp || 0),
-            ma50: lastPoint.ma50, ma200: lastPoint.ma200, volume: Number(quote?.v || 0),
+            ma50: lastPoint.ma50, ma200: lastPoint.ma200, volume: Number(quote?.v || lastPoint.volume || 0),
             pattern: patternsDetected, rsi: calculateRSI(chartPoints.map(p=>p.close)), ...fundamentals,
             tickerNews: (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 5),
             insiderTransactions: insiders.slice(0, 6),
