@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FinShark | כריש פיננסי - AI Market Analysis</title>
-<link rel="icon" href="data:,">
+<link rel="icon" href="data:,\">
 <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
@@ -499,6 +499,14 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
           <div class="card-title">📈 נתונים טכניים ופרופיל</div>
           <div class="ma-display" id="ma-display"></div>
           <div id="technical-content"></div>
+        </div>
+
+        <div class="card full-width">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+            <div class="card-title" style="margin-bottom:0;">💼 תנועות כסף חכם (בעלי עניין)</div>
+            <div id="insider-badge"></div>
+          </div>
+          <div id="insider-content"></div>
         </div>
 
         <div class="card full-width">
@@ -1152,7 +1160,15 @@ function renderScores(scores) {
   requestAnimationFrame(() => { requestAnimationFrame(() => { document.querySelectorAll('.score-bar-fill').forEach(el => { el.style.width = el.dataset.target + '%'; }); }); });
 }
 
-function formatNumberShort(num) { if(!num) return "N/A"; if (num >= 1e12) return (num / 1e12).toFixed(2) + "T"; if (num >= 1e9) return (num / 1e9).toFixed(2) + "B"; if (num >= 1e6) return (num / 1e6).toFixed(2) + "M"; return num.toLocaleString(); }
+function formatNumberShort(num) { 
+    if(!num) return "N/A"; 
+    let absNum = Math.abs(num);
+    let sign = num < 0 ? "-" : "";
+    if (absNum >= 1e12) return sign + (absNum / 1e12).toFixed(2) + "T"; 
+    if (absNum >= 1e9) return sign + (absNum / 1e9).toFixed(2) + "B"; 
+    if (absNum >= 1e6) return sign + (absNum / 1e6).toFixed(2) + "M"; 
+    return num.toLocaleString(); 
+}
 
 function renderResults(data, analysis, historyData, newsData) {
   const isUp = data.changePercentage >= 0; 
@@ -1224,6 +1240,37 @@ function renderResults(data, analysis, historyData, newsData) {
     <div class="data-row"><span class="data-label">תבנית ורמות (AI)</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;max-width:200px;white-space:normal;text-align:left;line-height:1.4;color:var(--gold);font-weight:800;">${patternText}</span></div></div>
     <div class="data-row"><span class="data-label">קריאה טכנית מורחבת</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;max-width:200px;white-space:normal;text-align:left;line-height:1.5">${analysis.technical || "אין מספיק נתונים"}</span></div></div>`;
 
+  const insiders = data.insiderTransactions || [];
+  const badgeEl = document.getElementById('insider-badge');
+  const contentEl = document.getElementById('insider-content');
+  
+  if (data.insiderSentiment === 'חיובי (קניות)') badgeEl.innerHTML = '<span class="tag tag-good">סנטימנט חיובי</span>';
+  else if (data.insiderSentiment === 'שלילי (מכירות)') badgeEl.innerHTML = '<span class="tag tag-bad">סנטימנט שלילי</span>';
+  else badgeEl.innerHTML = '<span class="tag tag-neutral">ניטרלי</span>';
+
+  if (insiders.length === 0) {
+      contentEl.innerHTML = '<p style="color:var(--text-secondary); font-size:0.85rem;">לא זוהו עסקאות בעלי עניין בחודשים האחרונים.</p>';
+  } else {
+      contentEl.style.cssText = 'display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:12px;';
+      contentEl.innerHTML = insiders.map(t => {
+          const isBuy = t.change > 0;
+          const changeFmt = Math.abs(t.change).toLocaleString();
+          const priceFmt = t.transactionPrice ? `$${t.transactionPrice.toFixed(2)}` : 'N/A';
+          const name = (t.name || 'Unknown').split(' ').slice(0,2).join(' ');
+          return `
+          <div style="background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); padding:14px; border-radius:12px; display:flex; flex-direction:column; gap:6px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-weight:700; font-size:0.9rem; color:var(--text);">${name}</span>
+                  <span class="tag ${isBuy ? 'tag-good' : 'tag-bad'}" style="font-size:0.65rem;">${isBuy ? 'קנייה' : 'מכירה'}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+                  <span style="font-size:0.85rem; font-weight:700; direction:ltr; color:${isBuy ? 'var(--green)' : 'var(--red)'}">${isBuy ? '+' : '-'}${changeFmt} מניות</span>
+                  <span style="font-size:0.8rem; color:var(--text-secondary); direction:ltr;">${priceFmt}</span>
+              </div>
+          </div>`;
+      }).join('');
+  }
+
   renderScores(analysis.scores || { growth: 50, value: 50, momentum: 50, quality: 50, overall: 50 });
   document.getElementById('ai-score-desc').textContent = analysis.news_analysis || "ניתוח מבוסס על הנתונים הפונדמנטליים האחרונים.";
 
@@ -1237,7 +1284,6 @@ function renderResults(data, analysis, historyData, newsData) {
 
   const upside = analysis.price_target && data.price ? (((analysis.price_target / data.price) - 1) * 100).toFixed(1) : 0;
   
-  // נתוני Value חדשים
   const intrinsicVal = analysis.intrinsic_value || 'N/A';
   const accumZone = analysis.accumulation_zone || 'N/A';
   const riskLvl = analysis.risk_level || 'N/A';
