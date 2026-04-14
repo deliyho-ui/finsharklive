@@ -1020,7 +1020,7 @@ function renderChart(historyData, months) {
         priceFormat: { type: 'volume' },
         priceScaleId: '', // קנה מידה שקוף שיושב מאחורי הגרף
         scaleMargins: {
-            top: 0.85, // עמודות הווליום יתחילו מ-85% גובה כדי לא להסתיר את הנרות
+            top: 0.85, // עמודות הווליום יתחילו מ-85% כדי לא להסתיר את הנרות
             bottom: 0,
         },
     });
@@ -1170,8 +1170,8 @@ function renderResults(data, analysis, historyData, newsData) {
         <div class="verdict-summary-text">${analysis.verdict?.summary || analysis.summary || "ה-AI לא הצליח לגבש פסיקה."}</div>
     </div>
     
-    <div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-secondary); margin-bottom:10px; margin-top:24px;">רמות מסחר טכניות (AI)</div>
-    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px;">
+    <div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-secondary); margin-bottom:14px; margin-top:28px;">רמות מסחר טכניות (Swing)</div>
+    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px;">
         <div style="background: rgba(10,132,255,0.1); border: 1px solid rgba(10,132,255,0.2); padding: 16px; border-radius: 12px; text-align: center;">
             <div style="font-size: 0.7rem; color: var(--blue); font-weight: 800; margin-bottom: 6px;">מחיר כניסה אידיאלי</div>
             <div style="font-size: 1.4rem; font-weight: 900; color: var(--text); direction:ltr;">${entryPrice}</div>
@@ -1181,14 +1181,16 @@ function renderResults(data, analysis, historyData, newsData) {
             <div style="font-size: 1.4rem; font-weight: 900; color: var(--green); direction:ltr;">${targetPriceShort}</div>
         </div>
         <div style="background: rgba(255,69,58,0.1); border: 1px solid rgba(255,69,58,0.2); padding: 16px; border-radius: 12px; text-align: center;">
-            <div style="font-size: 0.7rem; color: var(--red); font-weight: 800; margin-bottom: 6px;">סטופ לוס (Stop)</div>
+            <div style="font-size: 0.7rem; color: var(--red); font-weight: 800; margin-bottom: 6px;">סטופ לוס קריטי</div>
             <div style="font-size: 1.4rem; font-weight: 900; color: var(--red); direction:ltr;">${stopLoss}</div>
         </div>
-        <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 12px; text-align: center;">
-            <div style="font-size: 0.7rem; color: var(--text-secondary); font-weight: 800; margin-bottom: 6px;">יעד 12M ופוטנציאל</div>
-            <div style="font-size: 1.4rem; font-weight: 900; color: var(--text); direction:ltr;">$${analysis.price_target || "N/A"}</div>
-            <div style="font-size: 0.85rem; font-weight: 800; color: ${parseFloat(upside) >= 0 ? 'var(--green)' : 'var(--red)'}; margin-top: 4px; direction:ltr;">${parseFloat(upside) >= 0 ? '+' : ''}${upside}%</div>
-        </div>
+    </div>
+    
+    <!-- הבלוק החדש והבולט ליעד ארוך הטווח -->
+    <div style="background: linear-gradient(135deg, rgba(255,214,10,0.1), rgba(255,214,10,0.02)); border: 1px solid rgba(255,214,10,0.3); padding: 24px; border-radius: 16px; text-align: center; box-shadow: 0 8px 32px rgba(255,214,10,0.06);">
+         <div style="font-size: 0.85rem; color: var(--gold); font-weight: 800; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em;">🎯 יעד מחיר ריאלי ל-12 חודשים</div>
+         <div style="font-size: 2.8rem; font-weight: 900; color: #fff; direction:ltr; line-height: 1; margin-bottom: 4px;">$${analysis.price_target || "N/A"}</div>
+         <div style="font-size: 1.05rem; font-weight: 800; color: ${parseFloat(upside) >= 0 ? 'var(--green)' : 'var(--red)'}; margin-top: 10px; direction:ltr;">${parseFloat(upside) >= 0 ? '▲ פוטנציאל אפסייד:' : '▼ דאונסייד:'} ${parseFloat(upside) >= 0 ? '+' : ''}${upside}%</div>
     </div>`;
 
   if (newsData && newsData.length > 0) { 
