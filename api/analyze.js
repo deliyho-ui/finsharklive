@@ -51,6 +51,34 @@ async function fetchYahooData(ticker, range = "2y", interval = "1wk") {
     }
 }
 
+// שולף נתוני מאקרו בסיסיים (VIX, תשואות אג"ח)
+async function fetchYahooQuote(ticker) {
+    try {
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`;
+        const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+        const data = await res.json();
+        return data.chart.result[0].meta.regularMarketPrice;
+    } catch (e) { return null; }
+}
+
+// שולף 5 מניות מובילות או יורדות מהסורק של Yahoo Finance
+async function fetchYahooScreener(scrId) {
+    try {
+        const url = `https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=false&lang=en-US&region=US&scrIds=${scrId}&count=5`;
+        const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+        const data = await res.json();
+        if(data && data.finance && data.finance.result && data.finance.result[0]) {
+            return data.finance.result[0].quotes.map(q => ({
+                symbol: q.symbol,
+                name: q.shortName || q.longName || q.symbol,
+                price: q.regularMarketPrice,
+                changesPercentage: q.regularMarketChangePercent
+            }));
+        }
+        return [];
+    } catch(e) { return []; }
+}
+
 // פונקציה לחישוב מדד ה-RSI
 function calculateRSI(prices, period = 14) {
     if (prices.length <= period) return 50; 
@@ -78,6 +106,14 @@ function calculateRSI(prices, period = 14) {
 function sanitizeValue(val) {
     if (val === 0 || val === null || val === undefined || isNaN(val)) return "N/A";
     return val;
+}
+
+function formatNumberShort(num) { 
+    if(!num) return "N/A"; 
+    if (num >= 1e12) return (num / 1e12).toFixed(2) + "T"; 
+    if (num >= 1e9) return (num / 1e9).toFixed(2) + "B"; 
+    if (num >= 1e6) return (num / 1e6).toFixed(2) + "M"; 
+    return num.toLocaleString(); 
 }
 
 function detectPattern(chartPoints) {
@@ -211,10 +247,11 @@ module.exports = async function(req, res) {
         // 2. דף הבית - מזג האוויר של השוק
         // ==========================================
         if (action === 'market' || (!ticker && action !== 'analyze')) {
-            const [spy, qqq, dia, iwm, xlk, xlv, xlf, xle, xly, xli, newsData] = await Promise.all([
+            const [spy, qqq, dia, iwm, xlk, xlv, xlf, xle, xly, xli, newsData, topGainers, topLosers] = await Promise.all([
                 fetchFinnhub('quote', 'symbol=SPY'), fetchFinnhub('quote', 'symbol=QQQ'), fetchFinnhub('quote', 'symbol=DIA'), fetchFinnhub('quote', 'symbol=IWM'), 
                 fetchFinnhub('quote', 'symbol=XLK'), fetchFinnhub('quote', 'symbol=XLV'), fetchFinnhub('quote', 'symbol=XLF'), fetchFinnhub('quote', 'symbol=XLE'), 
-                fetchFinnhub('quote', 'symbol=XLY'), fetchFinnhub('quote', 'symbol=XLI'), fetchFinnhub('news', 'category=business') 
+                fetchFinnhub('quote', 'symbol=XLY'), fetchFinnhub('quote', 'symbol=XLI'), fetchFinnhub('news', 'category=business'),
+                fetchYahooScreener('day_gainers'), fetchYahooScreener('day_losers')
             ]);
 
             return res.status(200).json({
@@ -235,6 +272,8 @@ module.exports = async function(req, res) {
                         { sector: "Energy", changesPercentage: String(xle?.dp || "0") },
                         { sector: "כללי", changesPercentage: String(spy?.dp || "0") }
                     ],
+                    gainers: topGainers,
+                    losers: topLosers,
                     news: (Array.isArray(newsData) ? newsData : []).slice(0, 5).map(item => {
                         let parsedDate = new Date().toISOString();
                         try { if (item.datetime && !isNaN(item.datetime)) parsedDate = new Date(item.datetime * 1000).toISOString(); } catch(e){}
@@ -252,12 +291,12 @@ module.exports = async function(req, res) {
         }
 
         // ==========================================
-        // 3. ניתוח מלא על ידי ה-AI
+        // 3. ניתוח מלא על ידי ה-AI (משודרג להשקעות טווח ארוך)
         // ==========================================
         const today = new Date().toISOString().split('T')[0];
         const lastMonth = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-        const [quote, profile, chartPoints, metricsData, recommendations, priceTargets, earningsData, tickerNews] = await Promise.all([
+        const [quote, profile, chartPoints, metricsData, recommendations, priceTargets, earningsData, tickerNews, insiderData, peersData, sentimentData, vix, tnx] = await Promise.all([
             fetchFinnhub('quote', `symbol=${ticker}`),
             fetchFinnhub('stock/profile2', `symbol=${ticker}`),
             fetchYahooData(ticker, '2y', '1wk'), 
@@ -265,7 +304,12 @@ module.exports = async function(req, res) {
             fetchFinnhub('stock/recommendation', `symbol=${ticker}`),
             fetchFinnhub('stock/price-target', `symbol=${ticker}`),
             fetchFinnhub('stock/earnings', `symbol=${ticker}`),
-            fetchFinnhub('company-news', `symbol=${ticker}&from=${lastMonth}&to=${today}`)
+            fetchFinnhub('company-news', `symbol=${ticker}&from=${lastMonth}&to=${today}`),
+            fetchFinnhub('insider-transactions', `symbol=${ticker}`),
+            fetchFinnhub('stock/peers', `symbol=${ticker}`),
+            fetchFinnhub('news-sentiment', `symbol=${ticker}`),
+            fetchYahooQuote('^VIX'),
+            fetchYahooQuote('^TNX')
         ]);
 
         const m = metricsData?.metric || {};
@@ -303,6 +347,13 @@ module.exports = async function(req, res) {
         const closes = chartPoints.map(p => p.close);
         const rsiVal = calculateRSI(closes);
 
+        // חישוב ווליום יחסי מול 10 שבועות אחרונים (מכיוון שהגרף שלנו שבועי)
+        const last10Candles = chartPoints.slice(-10);
+        const avgVolume10d = last10Candles.reduce((sum, p) => sum + p.volume, 0) / (last10Candles.length || 1);
+        const volumeContext = currentVolume > 0 && avgVolume10d > 0
+            ? `נפח מסחר נוכחי הינו ${formatNumberShort(currentVolume)} (מהווה ${((currentVolume/avgVolume10d)*100).toFixed(0)}% מהממוצע התקופתי)`
+            : `נפח מסחר נוכחי הינו ${currentVolume}`;
+
         const technicals = {
             ma50: calcMa50, ma200: calcMa200, volume: currentVolume, rsi: rsiVal,
             trend: Number(quote?.c) > calcMa50 ? "שורית (מעל ממוצע 50)" : "דובית (מתחת לממוצע 50)"
@@ -315,6 +366,30 @@ module.exports = async function(req, res) {
         
         const earningsPromptText = latestEarnings ? `דוח רבעוני אחרון (${latestEarnings.period}): רווח בפועל $${latestEarnings.actual} מול צפי של $${latestEarnings.estimate}. הפתעה של ${latestEarnings.surprisePercent}%.` : `אין נתוני דוח רבעוני אחרון.`;
 
+        // עיבוד פעילות בעלי עניין
+        let insiderContext = "אין עסקאות בעלי עניין משמעותיות לאחרונה.";
+        if (insiderData && insiderData.data && insiderData.data.length > 0) {
+            const recentInsiders = insiderData.data.slice(0, 3);
+            let buyShare = 0; let sellShare = 0;
+            recentInsiders.forEach(t => { if(t.change > 0) buyShare+=t.change; else sellShare+=Math.abs(t.change); });
+            if (buyShare > sellShare && buyShare > 0) insiderContext = "פעילות בעלי עניין חיובית: נושאי משרה ודירקטורים קונים מניות לאחרונה.";
+            else if (sellShare > buyShare && sellShare > 0) insiderContext = "פעילות בעלי עניין שלילית: קיימת מגמת מכירת מניות מצד נושאי משרה.";
+        }
+
+        // עיבוד השוואת מתחרים (Peers)
+        let peersContext = "לא נמצאו מתחרים ישירים למניה זו במערכת.";
+        if (Array.isArray(peersData) && peersData.length > 0) {
+            peersContext = `מתחרות ישירות בסקטור (Peers): ${peersData.filter(p => p !== ticker).slice(0, 5).join(', ')}`;
+        }
+
+        // עיבוד סנטימנט תקשורתי
+        let sentimentContext = "";
+        if (sentimentData && sentimentData.sentiment) {
+            const bullPct = (sentimentData.sentiment.bullishPercent * 100).toFixed(0);
+            const bearPct = (sentimentData.sentiment.bearishPercent * 100).toFixed(0);
+            sentimentContext = `מדד סנטימנט תקשורתי (Buzz): שורי ${bullPct}%, דובי ${bearPct}%.`;
+        }
+
         const validTickerNews = Array.isArray(tickerNews) ? tickerNews : [];
         let newsPromptText = "לא נמצאו חדשות רלוונטיות לחברה בחודש האחרון.";
         if (validTickerNews.length > 0) {
@@ -322,38 +397,40 @@ module.exports = async function(req, res) {
             newsPromptText = `כותרות מרכזיות מהתקופה האחרונה:\n${topNews}`;
         }
 
-        const prompt = `אתה "הכריש" - מודל בינה מלאכותית (AI) פיננסי מתקדם, עצמאי ואובייקטיבי לחלוטין. המטרה שלך היא לספק ניתוח עומק מקיף וריאלי למניית ${ticker} (${profile?.name || ticker}), ללא תלות עיוורת באנליסטים אנושיים. 
-        הדרישה הקריטית שלי אליך: פרט לעומק על כל סעיף. כתוב לפחות 2-3 משפטים עשירים ואנליטיים על הפונדמנטלס ועל המצב הטכני. אל תזרוק סתם סיסמאות קצרות.
+        const prompt = `אתה "הכריש" - מודל בינה מלאכותית (AI) פיננסי מתקדם המיועד למשקיעי ערך (Value) וטווח ארוך (Growth). המטרה שלך היא לספק ניתוח עומק מקיף ואובייקטיבי לחלוטין למניית/נכס ${ticker} (${profile?.name || ticker}).
         
+        הנחיות קריטיות לניתוח והתמודדות עם נתונים (Graceful Degradation):
+        1. עצמאות המודל והשקעת ערך: אינך מחפש עסקאות סווינג קצרות, אלא מעריך שווי הוגן (Intrinsic Value), אזורי איסוף ארוכי טווח, ורמת סיכון לתיק ההשקעות.
+        2. התעלמות מנתוני קיצון חסרי היגיון: אם אתה מזהה נתון פונדמנטלי אבסורדי (כמו מכפיל רווח P/E של 8000), התעלם ממנו והנח שמדובר בעיוות מס.
+        3. תמיכה בתעודות סל ומדדים (ETFs): אם חסרים נתונים פונדמנטליים מרכזיים (כגון EPS, מכפילים, שולי רווח), סביר להניח שזהו מדד או תעודת סל סקטוריאלית. במקרה כזה, אל תוריד נקודות בציון! העבר את משקל הניתוח באופן אוטומטי למומנטום הטכני, לזרימת הכספים (Volume), לסביבת המאקרו ולחשיבות הסקטור.
+
         נתוני אמת מהשוק לעיבוד עמוק:
+        - סביבת מאקרו (Macro): מדד הפחד (VIX) עומד על ${vix || 'N/A'}, ותשואת אג"ח ארה"ב ל-10 שנים היא ${tnx || 'N/A'}%. (שקלל את נתוני המאקרו בעת תמחור הסיכון).
         - מחיר, מגמה, ותבנית: מחיר נוכחי: $${quote?.c || 0}. ממוצע 50: $${technicals.ma50}, ממוצע 200: $${technicals.ma200}. (מגמה: ${technicals.trend}). תבנית בגרף שזוהתה: ${detectedPattern}.
-        - מומנטום קנייה/מכירה (RSI): מדד העוצמה היחסית (RSI 14 שבועות) עומד על ${technicals.rsi.toFixed(1)}. (הערה: מעל 70 = קניית יתר, מתחת 30 = מכירת יתר).
-        - נפח מסחר (Volume): נפח מסחר נוכחי הינו ${currentVolume}. 
+        - מומנטום קנייה/מכירה (RSI): מדד העוצמה היחסית (RSI 14 שבועות) עומד על ${technicals.rsi.toFixed(1)}. (מעל 70 = קניית יתר, מתחת 30 = מכירת יתר).
+        - נפח מסחר ויחסיות (Volume): ${volumeContext}. (שים לב לכך בעת בחינת אמינות הפריצות או המגמה).
+        - השוואת מתחרות וסקטור: ${peersContext}
+        - פעילות בעלי עניין (Insider Trading): ${insiderContext}
         - תמחור (Valuation): מכפיל רווח (P/E): ${sanitizeValue(fundamentals.peRatio)}, מכפיל הון (P/B): ${sanitizeValue(fundamentals.pbRatio)}, מכפיל מכירות (P/S): ${sanitizeValue(fundamentals.psRatio)}.
         - רווחיות ויעילות (Profitability): שולי רווח גולמי: ${sanitizeValue(fundamentals.grossMargin)}%, רווח נקי: ${sanitizeValue(fundamentals.netMargin)}%. תשואה להון (ROE): ${sanitizeValue(fundamentals.roe)}%, תשואה להון מושקע (ROIC): ${sanitizeValue(fundamentals.roic)}%.
         - צמיחה ודוחות: ${earningsPromptText}. צמיחת הכנסות (YoY): ${sanitizeValue(fundamentals.revenueGrowth)}%, צמיחת רווח למניה (5Y): ${sanitizeValue(fundamentals.epsGrowth5Y)}%.
-        - חוסן פיננסי וסיכון: יחס נזילות (Current): ${sanitizeValue(fundamentals.currentRatio)}, חוב להון: ${sanitizeValue(fundamentals.debtToEquity)}, תנודתיות (Beta): ${sanitizeValue(fundamentals.beta)}.
-        - סנטימנט השוק: ${analystConsensus}. (יעד ממוצע בשוק: $${meanTarget || 'לא זמין'}, יעד גבוה: $${highTarget || 'לא זמין'}).
+        - חוסן פיננסי: יחס נזילות (Current): ${sanitizeValue(fundamentals.currentRatio)}, חוב להון: ${sanitizeValue(fundamentals.debtToEquity)}, תנודתיות (Beta): ${sanitizeValue(fundamentals.beta)}.
+        - סנטימנט השוק: קונצנזוס אנליסטים: ${analystConsensus}. ${sentimentContext}
         - חדשות אחרונות למניה:
         ${newsPromptText}
         
-        הנחיות קריטיות לניתוח שווי (Valuation), סט-אפים, וציון מסכם:
-        1. עצמאות המודל: אתה לא עובד אצל האנליסטים! יעד המחיר הממוצע הוא רק רפרנס. חשב מחיר יעד ריאלי ל-12 חודשים קדימה (price_target).
-        2. ציון הוליסטי (overall score): עליך לקבוע ציון מסכם אחד (מ-0 עד 100) שמתבסס באופן מוחלט על *כל* הנתונים יחד. 
-        3. רמות מסחר לסווינג (Swing): ציין רמות תמיכה והתנגדות בטקסט הניתוח הטכני. ספק מספרים מדויקים עבור כניסה, עצירת הפסד ויעד רווח.
-        
-        ספק את הניתוח בפורמט JSON חוקי בלבד בעברית (חובה להשתמש במבנה הבא בדיוק):
+        ספק את הניתוח בפורמט JSON חוקי בלבד בעברית (חובה להשתמש במבנה הבא בדיוק, ללא טקסט מחוץ לסוגריים המסולסלים):
         {
-          "identity": "פרופיל החברה ומעמדה התחרותי בשוק.",
-          "technical": "ניתוח טכני מעמיק המשלב את הממוצעים, מחזורי המסחר, מדד ה-RSI, התבנית שזוהתה ורמות תמיכה/התנגדות.",
-          "news_analysis": "ניתוח פונדמנטלי המשלב את תוצאות הדוח, החדשות, הצמיחה והתמחור.",
-          "summary": "השורה התחתונה מחיבור הנתונים שמצדיקה את הציון המסכם.",
+          "identity": "הסבר מעמיק על זהות החברה, הפעילות המרכזית, או תיאור של תעודת הסל.",
+          "technical": "ניתוח טכני ארוך טווח המשלב את הממוצעים, הווליום היחסי, תבניות, וזיהוי אזורי תמיכה/התנגדות מהותיים בגרף השבועי.",
+          "news_analysis": "ניתוח המשלב דוחות כספיים, סנטימנט תקשורתי, מגמות מאקרו ופעילות בעלי עניין.",
+          "summary": "שורה תחתונה חותכת - האם זה הזמן לקנות, להחזיק או לשחרר, תוך התייחסות למאקרו.",
           "pros": ["חוזקה 1", "חוזקה 2", "חוזקה 3"],
-          "cons": ["חולשה 1", "חולשה 2", "חולשה 3"],
-          "price_target": "מספר טהור (למשל 150.5)",
-          "entry_price": "מספר טהור למחיר כניסה טכני",
-          "stop_loss": "מספר טהור לעצירת הפסד קריטית",
-          "target_price": "מספר טהור ליעד רווח קרוב לסווינג",
+          "cons": ["חולשה/סיכון 1", "חולשה/סיכון 2", "חולשה/סיכון 3"],
+          "price_target": "מספר טהור המייצג יעד מחיר ל-12 חודשים (או N/A אם מדובר בתעודת סל)",
+          "intrinsic_value": "הערכת שווי הוגן בטקסט קצר (למשל: 'מתומחרת בחסר עמוק', 'יקרה', 'שווי הוגן' או 'N/A')",
+          "accumulation_zone": "טווח מחירים אידיאלי לאיסוף הדרגתי (למשל: '$140-$145' או 'קניה בשער הנוכחי')",
+          "risk_level": "נמוך / בינוני / גבוה (הערכת רמת הסיכון הכוללת להשקעה ארוכת טווח)",
           "rating": "קנייה / החזקה / מכירה / קנייה חזקה",
           "scores": { "growth": 80, "momentum": 75, "value": 60, "quality": 90, "overall": 82 }
         }
@@ -375,6 +452,7 @@ module.exports = async function(req, res) {
                     summary: "המערכת חווה עומס זמני עקב כמות פניות גבוהה ל-AI. הנתונים נמשכו בהצלחה וניתנים לצפייה למטה.",
                     pros: ["נתוני האמת נמשכו בהצלחה"], cons: ["ניתוח ה-AI מושהה זמנית"],
                     price_target: meanTarget ? Number(meanTarget) : Number(quote?.c || 0), rating: "החזקה",
+                    intrinsic_value: "N/A", accumulation_zone: "N/A", risk_level: "N/A",
                     scores: { growth: 50, momentum: 50, value: 50, quality: 50, overall: 50 }
                 };
             } else {
@@ -393,9 +471,11 @@ module.exports = async function(req, res) {
                 
                 let targetNum = typeof aiVerdict.price_target === 'string' ? Number(aiVerdict.price_target.replace(/[^0-9.]/g, '')) : Number(aiVerdict.price_target);
                 aiVerdict.price_target = (targetNum && targetNum > 0) ? targetNum : (meanTarget ? Number(meanTarget) : Number(quote?.c || 0) * 1.15);
-                aiVerdict.entry_price = aiVerdict.entry_price || '';
-                aiVerdict.stop_loss = aiVerdict.stop_loss || '';
-                aiVerdict.target_price = aiVerdict.target_price || '';
+                
+                // הזרקת ברירות מחדל במקרה שה-AI שכח שדות חדשים
+                aiVerdict.intrinsic_value = aiVerdict.intrinsic_value || 'לא הוגדר';
+                aiVerdict.accumulation_zone = aiVerdict.accumulation_zone || 'לא הוגדר';
+                aiVerdict.risk_level = aiVerdict.risk_level || 'לא הוגדר';
                 
                 aiVerdict.pros = Array.isArray(aiVerdict.pros) ? aiVerdict.pros : ["נתונים חיוביים"];
                 aiVerdict.cons = Array.isArray(aiVerdict.cons) ? aiVerdict.cons : ["סיכוני שוק"];
@@ -415,12 +495,12 @@ module.exports = async function(req, res) {
                     summary: "הנתונים נמשכו בהצלחה, אך ה-AI התקשה לנסח פסיקה בפורמט תקין.", 
                     pros: ["כל נתוני השוק זמינים לצפייה"], cons: ["תקלה זמנית בסיכום המילולי"],
                     price_target: meanTarget ? Number(meanTarget) : Number(quote?.c || 0), rating: "החזקה",
+                    intrinsic_value: "N/A", accumulation_zone: "N/A", risk_level: "N/A",
                     scores: { growth: 50, momentum: 50, value: 50, quality: 50, overall: 50 }
                 }; 
             }
         }
 
-        // חזית מקבלת עכשיו רק את המידע הנחוץ - ללא כפילויות!
         return res.status(200).json({
             success: true,
             ticker, name: profile?.name || ticker, industry: profile?.finnhubIndustry || "N/A", sector: profile?.finnhubIndustry || "N/A",
