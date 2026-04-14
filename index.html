@@ -323,7 +323,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
             📉 <b>קווים טכניים חכמים:</b><br><span style="font-size:0.85rem; color:var(--text-secondary);">רמות תמיכה, התנגדות, יעדים וסטופ-לוס של ה-AI מצוירים כעת אוטומטית על הגרף.</span>
         </li>
         <li style="background: rgba(48,209,88,0.08); padding: 12px; border-radius: 12px; border: 1px solid rgba(48,209,88,0.2);">
-            🧠 <b>הגנת נתונים אמינה:</b><br><span style="font-size:0.85rem; color:var(--text-secondary);">המערכת עברה מקצה שיפורים מקיף נגד קריסות ויודעת לסנן נתונים חסרים.</span>
+            🧠 <b>הגנת נתונים אמינה:</b><br><span style="font-size:0.85rem; color:var(--text-secondary);">המערכת עברה מקצה שיפורים מקיף נגד קריסות ויודעת לסנן נתונים חסרים (כמו P/E של מניות הפסדיות).</span>
         </li>
     </ul>
     <button class="btn btn-primary" style="width:100%; padding:15px; border-radius:14px; font-size: 1rem;" onclick="closeUpdatesModal()">מעולה, בוא נתחיל! 🦈</button>
@@ -495,9 +495,9 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
             <div class="chart-label">ביצועים, מחזורי מסחר ורמות תמיכה/התנגדות טכניות</div>
             <div class="chart-controls">
               <button class="chart-btn" onclick="setChartPeriod(3,this)">3M</button>
-              <button class="chart-btn" onclick="setChartPeriod(6,this)">6M</button>
+              <button class="chart-btn active" onclick="setChartPeriod(6,this)">6M</button>
               <button class="chart-btn" onclick="setChartPeriod(12,this)">1Y</button>
-              <button class="chart-btn active" onclick="setChartPeriod(999,this)">ALL</button>
+              <button class="chart-btn" onclick="setChartPeriod(999,this)">ALL</button>
             </div>
           </div>
           <div class="chart-container" id="stockChart"></div>
@@ -578,20 +578,16 @@ if (['blob:', 'file:', 'data:'].includes(window.location.protocol) || window.loc
   NETLIFY_API_URL = "http://localhost:8888/api/analyze"; 
 }
 
-// 💡 חגורות בטיחות שמונעות קריסה במקרה של אלמנטים חסרים ב-HTML
-function safeHTML(id, html) {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = html;
-}
-function safeText(id, text) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = text;
-}
-// 💡 פונקציה קריטית: עוטפת כל מספר באתר. אם חסר (null/NaN/string) - מחזירה N/A ולא קורסת!
+// 🛡️ חגורות בטיחות 🛡️
+function safeHTML(id, html) { const el = document.getElementById(id); if (el) el.innerHTML = html; }
+function safeText(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
+
+// פונקציית הקסם שמונעת מקריסות .toFixed() כשהנתון לא קיים!
 function safeNum(val, decimals = 1, prefix = '', suffix = '') {
     if (typeof val !== 'number' || isNaN(val)) return 'N/A';
     return prefix + val.toFixed(decimals) + suffix;
 }
+
 function formatNumberShort(num) { 
     if(typeof num !== 'number' || isNaN(num)) return "N/A"; 
     let absNum = Math.abs(num);
@@ -604,10 +600,10 @@ function formatNumberShort(num) {
 
 window.addEventListener('DOMContentLoaded', () => { 
     loadMarketWeather(); 
-    if(!localStorage.getItem('finshark_update_v4_1')) {
+    if(!localStorage.getItem('finshark_update_v4_2')) {
         const updateModal = document.getElementById('modal-updates');
         if(updateModal) updateModal.classList.add('active');
-        localStorage.setItem('finshark_update_v4_1', 'true');
+        localStorage.setItem('finshark_update_v4_2', 'true');
     }
 });
 
@@ -630,9 +626,7 @@ window.switchLoginTab = function(mode) {
     const btn = document.getElementById('btn-auth-action'); if(btn) btn.textContent = mode === 'login' ? 'כניסה למערכת ←' : 'שלח בקשה לאישור'; 
 };
 window.handleAuth = async function() {
-  const emailEl = document.getElementById('auth-email');
-  const passEl = document.getElementById('auth-pass');
-  const errEl = document.getElementById('auth-error');
+  const emailEl = document.getElementById('auth-email'), passEl = document.getElementById('auth-pass'), errEl = document.getElementById('auth-error');
   if(!emailEl || !passEl || !errEl) return;
   const email = emailEl.value.trim().toLowerCase(), pass = passEl.value.trim();
   if (!email || !pass) { errEl.textContent = 'נא להזין אימייל וסיסמה'; errEl.style.display = 'block'; return; }
@@ -646,8 +640,7 @@ window.handleAuth = async function() {
             email: email, role: isAdmin ? 'admin' : 'user', status: isAdmin ? 'approved' : 'pending', 
             watchlist: ['AAPL', 'MSFT'], analysisCount: 0, restrictedUntil: null
         }); 
-    } 
-    else { await signInWithEmailAndPassword(auth, email, pass); }
+    } else { await signInWithEmailAndPassword(auth, email, pass); }
     emailEl.value = ''; passEl.value = ''; window.closeLogin();
   } catch (error) { errEl.textContent = getFirebaseError(error); errEl.style.display = 'block'; }
 };
@@ -661,18 +654,13 @@ onAuthStateChanged(auth, async (user) => {
         State.currentUser = { uid: user.uid, ...userData };
         State.watchlist = userData.watchlist || [];
 
-        if (State.currentTab === 'pending' && userData.status === 'approved') {
-          State.currentTab = 'shark';
-        } else if (State.currentTab === 'pending' && userData.role === 'admin') {
-          State.currentTab = 'admin';
-        }
-
+        if (State.currentTab === 'pending' && userData.status === 'approved') State.currentTab = 'shark';
+        else if (State.currentTab === 'pending' && userData.role === 'admin') State.currentTab = 'admin';
         renderApp();
       }
     });
   } else {
-    State.currentUser = null;
-    State.watchlist = [];
+    State.currentUser = null; State.watchlist = [];
     if(State.currentTab !== 'market') State.currentTab = 'market';
     renderApp();
   }
@@ -681,18 +669,13 @@ onAuthStateChanged(auth, async (user) => {
 window.voteForCrowd = async function() {
     const ticker = State.currentData?.ticker;
     if (!ticker || !State.currentUser) return;
-    
     const btn = document.getElementById('btn-vote-crowd');
     if(btn) { btn.textContent = '⏳'; btn.classList.add('active'); }
-    
     try {
         const docRef = doc(db, 'community_portfolio', ticker);
         const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            await updateDoc(docRef, { votes: increment(1), lastUpdated: Date.now() });
-        } else {
-            await setDoc(docRef, { ticker: ticker, votes: 1, lastUpdated: Date.now() });
-        }
+        if (docSnap.exists()) await updateDoc(docRef, { votes: increment(1), lastUpdated: Date.now() });
+        else await setDoc(docRef, { ticker: ticker, votes: 1, lastUpdated: Date.now() });
         if(btn) { btn.textContent = '✓ תודה!'; setTimeout(() => { btn.classList.remove('active'); btn.textContent = '👥'; }, 2000); }
     } catch(e) {
         console.error("Firebase Rules might need updating", e);
@@ -710,10 +693,8 @@ window.loadCommunityData = async function() {
     
     try {
         const commSnap = await getDocs(collection(db, 'community_portfolio'));
-        let portfolio = [];
-        let totalVotes = 0;
+        let portfolio = []; let totalVotes = 0;
         commSnap.forEach(d => { const data = d.data(); portfolio.push(data); totalVotes += (data.votes || 0); });
-        
         portfolio.sort((a,b) => b.votes - a.votes);
         
         if(portfolio.length === 0) {
@@ -725,21 +706,16 @@ window.loadCommunityData = async function() {
                 html += `
                 <div style="display:flex; align-items:center; gap:12px; cursor:pointer;" onclick="goToAnalysis('${item.ticker}')">
                     <div style="width:50px; font-weight:800; color:var(--blue); direction:ltr; text-align:left;">${item.ticker}</div>
-                    <div style="flex:1; height:10px; background:rgba(255,255,255,0.05); border-radius:5px; overflow:hidden;">
-                        <div style="width:${pct}%; height:100%; background:var(--blue); border-radius:5px;"></div>
-                    </div>
+                    <div style="flex:1; height:10px; background:rgba(255,255,255,0.05); border-radius:5px; overflow:hidden;"><div style="width:${pct}%; height:100%; background:var(--blue); border-radius:5px;"></div></div>
                     <div style="width:60px; font-size:0.85rem; font-weight:700; text-align:right;">${pct}%</div>
                     <div style="font-size:0.75rem; color:var(--text-secondary); width:50px;">(${item.votes} קולות)</div>
                 </div>`;
             });
-            html += '</div>';
-            commContainer.innerHTML = html;
+            html += '</div>'; commContainer.innerHTML = html;
         }
         
         const setupsSnap = await getDocs(collection(db, 'ai_setups'));
-        let setups = [];
-        setupsSnap.forEach(d => setups.push(d.data()));
-        
+        let setups = []; setupsSnap.forEach(d => setups.push(d.data()));
         setups.sort((a,b) => b.score - a.score);
         
         if(setups.length === 0) {
@@ -748,11 +724,9 @@ window.loadCommunityData = async function() {
             let sHtml = '';
             setups.slice(0, 10).forEach((item, index) => {
                 const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index+1}`;
-                
                 const entryStr = item.entryPrice ? `כניסה: $${item.entryPrice}` : '';
                 const stopStr = item.stopLoss ? `סטופ: $${item.stopLoss}` : '';
                 const targetStr = item.targetPrice ? `יעד: $${item.targetPrice}` : '';
-                
                 const levelsHtml = (entryStr || stopStr || targetStr) ? `<div style="margin-top:10px; display:flex; gap:12px; font-size:0.8rem; font-weight:800; color:var(--text); background:rgba(0,0,0,0.3); padding:8px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.05); width:fit-content; flex-wrap:wrap;"><span style="color:var(--blue); direction:ltr;">${entryStr}</span> <span style="color:var(--red); direction:ltr;">${stopStr}</span> <span style="color:var(--green); direction:ltr;">${targetStr}</span></div>` : '';
                 const expHtml = item.expectation ? `<div style="margin-top:10px; font-size:0.85rem; color:var(--text-secondary); line-height:1.5;"><b>צפי הכריש:</b> ${item.expectation}</div>` : '';
 
@@ -775,11 +749,7 @@ window.loadCommunityData = async function() {
             });
             setupsContainer.innerHTML = sHtml;
         }
-    } catch(e) {
-        console.error("Error loading community data", e);
-        commContainer.innerHTML = 'שגיאה בטעינת הנתונים.';
-        setupsContainer.innerHTML = 'שגיאה בטעינת הנתונים.';
-    }
+    } catch(e) { console.error("Error loading community data", e); commContainer.innerHTML = 'שגיאה בטעינת הנתונים.'; setupsContainer.innerHTML = 'שגיאה בטעינת הנתונים.'; }
 };
 
 function setupAdminDashboard() {
@@ -795,30 +765,11 @@ function setupAdminDashboard() {
         const isRestricted = u.restrictedUntil && Date.now() < u.restrictedUntil;
         const count = u.analysisCount || 0;
 
-        const statusBadge = isApproved 
-            ? `<span class="user-status status-approved">מאושר ✓</span>` 
-            : `<span class="user-status status-pending">ממתין לאישור ⏳</span>`;
+        const statusBadge = isApproved ? `<span class="user-status status-approved">מאושר ✓</span>` : `<span class="user-status status-pending">ממתין לאישור ⏳</span>`;
+        const restrictBadge = isRestricted ? `<span style="color:var(--red); font-size:0.8rem; background:rgba(255,69,58,0.1); padding:4px 8px; border-radius:6px; border:1px solid rgba(255,69,58,0.3)">🚫 מוגבל זמנית</span>` : `<span style="color:var(--text-secondary); font-size:0.8rem; border:1px solid var(--glass-border); padding:4px 8px; border-radius:6px;">📊 הרצות: ${count}/6</span>`;
+        const actionButtons = !isApproved ? `<button class="btn btn-primary" onclick="approveUser('${u.id}')">אשר משתמש</button>` : `<button class="btn btn-ghost" onclick="revokeUser('${u.id}')">הסר הרשאה</button> ${isRestricted ? `<button class="btn btn-primary" style="margin-right:8px;" onclick="removeRestriction('${u.id}')">שחרר חסימה</button>` : ''}`;
 
-        const restrictBadge = isRestricted
-            ? `<span style="color:var(--red); font-size:0.8rem; background:rgba(255,69,58,0.1); padding:4px 8px; border-radius:6px; border:1px solid rgba(255,69,58,0.3)">🚫 מוגבל זמנית</span>`
-            : `<span style="color:var(--text-secondary); font-size:0.8rem; border:1px solid var(--glass-border); padding:4px 8px; border-radius:6px;">📊 הרצות: ${count}/6</span>`;
-
-        const actionButtons = !isApproved 
-            ? `<button class="btn btn-primary" onclick="approveUser('${u.id}')">אשר משתמש</button>` 
-            : `<button class="btn btn-ghost" onclick="revokeUser('${u.id}')">הסר הרשאה</button>
-               ${isRestricted ? `<button class="btn btn-primary" style="margin-right:8px;" onclick="removeRestriction('${u.id}')">שחרר חסימה</button>` : ''}`;
-
-        return `
-        <div class="user-row">
-            <div class="user-info">
-                <span class="user-name">👤 ${u.email}</span>
-                <div style="display:flex; gap:10px; align-items:center; margin-top:6px;">
-                    ${statusBadge}
-                    ${restrictBadge}
-                </div>
-            </div>
-            <div>${actionButtons}</div>
-        </div>`; 
+        return `<div class="user-row"><div class="user-info"><span class="user-name">👤 ${u.email}</span><div style="display:flex; gap:10px; align-items:center; margin-top:6px;">${statusBadge}${restrictBadge}</div></div><div>${actionButtons}</div></div>`; 
     }).join('');
   });
 }
@@ -900,7 +851,7 @@ window.loadMarketWeather = async function() {
   try {
       const response = await fetch(`${NETLIFY_API_URL}?action=market`);
       const rawText = await response.text();
-      let data; try { data = JSON.parse(rawText); } catch(e) { if(debugEl) { debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 השרת החזיר שגיאה (לא JSON) - אנא ודא מפתחות API.</strong>\n\n${rawText}`; } if(trackerEl) trackerEl.innerHTML = "שגיאת שרת."; return; }
+      let data; try { data = JSON.parse(rawText); } catch(e) { if(debugEl) { debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 השרת החזיר שגיאה (לא JSON).</strong>\n\n${rawText}`; } if(trackerEl) trackerEl.innerHTML = "שגיאת שרת."; return; }
       if (data.success && data.marketData) renderMarketWeather(data.marketData);
       else { if(debugEl) { debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 שגיאת שרת לוגית:</strong>\n\n${data.message || JSON.stringify(data)}`; } }
   } catch (e) {
@@ -921,7 +872,7 @@ function renderMarketWeather(data) {
   if (indexes.length === 0) tickerHtml = "<div class='ticker-item' style='color:var(--red)'>המתן... לא הצלחנו למשוך נתונים.</div>";
   else {
       indexes.forEach(idx => {
-          const name = idx.symbol, isUp = idx.changesPercentage >= 0, price = (typeof idx.price === 'number') ? (idx.price >= 1000 ? idx.price.toLocaleString(undefined, {maximumFractionDigits: 0}) : idx.price.toFixed(2)) : 0; 
+          const name = idx.symbol, isUp = typeof idx.changesPercentage === 'number' && idx.changesPercentage >= 0, price = (typeof idx.price === 'number') ? (idx.price >= 1000 ? idx.price.toLocaleString(undefined, {maximumFractionDigits: 0}) : idx.price.toFixed(2)) : 0; 
           const chg = (typeof idx.changesPercentage === 'number') ? `${isUp ? '+' : ''}${idx.changesPercentage.toFixed(2)}%` : '0%'; 
           const colorUp = isUp;
           tickerHtml += `<div class="ticker-item"><span class="ticker-name">${name}</span> <span class="ticker-price">${price}</span> <span class="ticker-change ${colorUp?'up':'down'}">${chg}</span></div>`;
@@ -1039,8 +990,6 @@ window.analyzeStock = async function() {
               }
           }
       } catch(e) { console.warn("Failed live update, falling back to full analysis", e); }
-  } else if (cachedData && cachedData.isDataComplete === false) {
-      console.log("Cache exists but data is incomplete. Triggering full AI analysis to get better data.");
   }
 
   if (user && user.role !== 'admin') {
@@ -1093,8 +1042,6 @@ window.analyzeStock = async function() {
                 });
             } catch(e) { console.warn("Failed to save setup", e); }
         }
-    } else {
-        console.warn(`⚠️ נתונים חלקיים עבור ${ticker}. לא נשמר ב-Cache.`);
     }
 
     if (user && user.role !== 'admin') {
@@ -1212,17 +1159,25 @@ function renderChart(historyData, months, fullDataObj) {
     }
 
     if (fullDataObj && fullDataObj.analysis) {
-        const tPrice = Number(fullDataObj.analysis.target_price);
-        if (tPrice && !isNaN(tPrice)) {
-            candleSeries.createPriceLine({
-                price: tPrice, color: '#30d158', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid, axisLabelVisible: true, title: '🎯 יעד AI',
-            });
+        // המרה בטוחה של מספרים כדי שהגרף לא יקרוס לעולם מסטרינגים
+        const tPriceStr = fullDataObj.analysis.target_price;
+        const sLossStr = fullDataObj.analysis.stop_loss;
+        
+        if (tPriceStr) {
+            const tPrice = Number(String(tPriceStr).replace(/[^0-9.]/g, ''));
+            if (!isNaN(tPrice) && tPrice > 0) {
+                candleSeries.createPriceLine({
+                    price: tPrice, color: '#30d158', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid, axisLabelVisible: true, title: '🎯 יעד AI'
+                });
+            }
         }
-        const sLoss = Number(fullDataObj.analysis.stop_loss);
-        if (sLoss && !isNaN(sLoss)) {
-            candleSeries.createPriceLine({
-                price: sLoss, color: '#ff453a', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid, axisLabelVisible: true, title: '🛑 סטופ AI',
-            });
+        if (sLossStr) {
+            const sLoss = Number(String(sLossStr).replace(/[^0-9.]/g, ''));
+            if (!isNaN(sLoss) && sLoss > 0) {
+                candleSeries.createPriceLine({
+                    price: sLoss, color: '#ff453a', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid, axisLabelVisible: true, title: '🛑 סטופ AI'
+                });
+            }
         }
     }
 
@@ -1280,8 +1235,8 @@ function renderResults(data, analysis, historyData, newsData) {
       else { btnWatch.textContent = '📌'; btnWatch.classList.remove('active'); }
   }
   
-  renderChart(historyData, 999, data); 
-  document.querySelectorAll('.chart-btn').forEach((b,i) => b.classList.toggle('active', i===3));
+  renderChart(historyData, 6, data); // מציג 6 חודשים כברירת מחדל לגרף נקי וברור
+  document.querySelectorAll('.chart-btn').forEach((b,i) => b.classList.toggle('active', i===1));
 
   const rangeLow = typeof data.fiftyTwoWeekLow === 'number' ? data.fiftyTwoWeekLow : 0;
   const rangeHigh = typeof data.fiftyTwoWeekHigh === 'number' ? data.fiftyTwoWeekHigh : 100;
@@ -1289,9 +1244,10 @@ function renderResults(data, analysis, historyData, newsData) {
   
   const earningsText = data.latestEarnings && typeof data.latestEarnings.surprisePercent === 'number' ? 
     (data.latestEarnings.surprisePercent > 0 ? `+${data.latestEarnings.surprisePercent.toFixed(1)}% (הכה תחזיות)` : `${data.latestEarnings.surprisePercent.toFixed(1)}% (פספס)`) : 'לא זמין';
-  const earningsGood = data.latestEarnings && data.latestEarnings.surprisePercent > 0;
-  const earningsBad = data.latestEarnings && data.latestEarnings.surprisePercent < 0;
+  const earningsGood = data.latestEarnings && typeof data.latestEarnings.surprisePercent === 'number' && data.latestEarnings.surprisePercent > 0;
+  const earningsBad = data.latestEarnings && typeof data.latestEarnings.surprisePercent === 'number' && data.latestEarnings.surprisePercent < 0;
   
+  // 💡 שימוש ב-safeNum מגן עלינו מקריסות .toFixed() לחלוטין!
   const fundRows = [ 
       { label: 'שווי שוק', val: formatNumberShort(data.marketCap), tag: 'M.CAP', isTag: false }, 
       { label: 'טווח 52 שבועות', val: `<span style="font-size:0.75rem; color:var(--text-secondary); margin-right:8px">$${safeNum(rangeLow, 2)}</span> <div class="range-bar-wrap"><div class="range-indicator" style="left:${currentPos}%"></div></div> <span style="font-size:0.75rem; color:var(--text-secondary); margin-left:8px">$${safeNum(rangeHigh, 2)}</span>`, isHtml: true }, 
@@ -1376,7 +1332,7 @@ function renderResults(data, analysis, historyData, newsData) {
       }
   }
 
-  renderScores(safeAnalysis.scores || { growth: 50, value: 50, momentum: 50, quality: 50, overall: 50 });
+  renderScores(safeAnalysis.scores);
   safeText('ai-score-desc', safeAnalysis.news_analysis || "ניתוח מבוסס על הנתונים הפונדמנטליים האחרונים.");
 
   const finalOverallScore = typeof safeAnalysis.scores?.overall === 'number' ? safeAnalysis.scores.overall : 50;
@@ -1387,7 +1343,7 @@ function renderResults(data, analysis, historyData, newsData) {
   
   safeHTML('verdict-rating-pill', `<div class="verdict-rating ${ratingCls}">${ratingLabel}</div>`);
 
-  // חישוב אפסייד מוגן שמונע קריסה
+  // 💡 חישוב בטוח לאפסייד מוגן מתקריות סטרינג / נתונים חסרים מ-Gemini
   let upside = 0;
   const tPriceStr = safeAnalysis.price_target;
   if (tPriceStr && p > 0) {
@@ -1397,9 +1353,9 @@ function renderResults(data, analysis, historyData, newsData) {
       }
   }
   
-  const entryPrice = safeAnalysis.entry_price ? `$${safeAnalysis.entry_price}` : 'N/A';
+  const entryPrice = safeAnalysis.entry_price ? `$${safeAnalysis.entry_price}` : (safeAnalysis.accumulation_zone || 'N/A');
   const targetPriceShort = safeAnalysis.target_price ? `$${safeAnalysis.target_price}` : 'N/A';
-  const stopLoss = safeAnalysis.stop_loss ? `$${safeAnalysis.stop_loss}` : 'N/A';
+  const stopLoss = safeAnalysis.stop_loss ? `$${safeAnalysis.stop_loss}` : (safeAnalysis.risk_level || 'N/A');
 
   safeHTML('verdict-content', `
     <div style="margin-bottom:22px">
