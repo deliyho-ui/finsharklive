@@ -11,7 +11,7 @@ async function fetchFinnhub(endpoint, params = "") {
     }
 }
 
-// שולף נתונים טכניים ושבועיים
+// שולף נתונים טכניים ושבועיים מ-Yahoo
 async function fetchYahooData(ticker, range = "2y", interval = "1wk") {
     try {
         const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=${interval}&range=${range}`;
@@ -173,19 +173,10 @@ function detectAllPatterns(chartPoints) {
     return [...new Set(patterns)].join(" | ");
 }
 
+// 💡 תיקון מרכזי: פונקציית סניטציה שמחזירה null אמיתי ולא 'N/A' או 0
 function sanitizeValue(val) {
-    if (val === null || val === undefined || isNaN(val) || val === '') return "N/A";
-    return val;
-}
-
-function formatNumberShort(num) { 
-    if(!num) return "N/A"; 
-    let absNum = Math.abs(num);
-    let sign = num < 0 ? "-" : "";
-    if (absNum >= 1e12) return sign + (absNum / 1e12).toFixed(2) + "T"; 
-    if (absNum >= 1e9) return sign + (absNum / 1e9).toFixed(2) + "B"; 
-    if (absNum >= 1e6) return sign + (absNum / 1e6).toFixed(2) + "M"; 
-    return num.toLocaleString(); 
+    if (val === null || val === undefined || isNaN(val) || val === '' || val === 0) return null;
+    return Number(val);
 }
 
 module.exports = async function(req, res) {
@@ -202,26 +193,14 @@ module.exports = async function(req, res) {
         
         if (!apiKey || !finnhubKey) return res.status(500).json({ success: false, message: "Missing API keys." });
 
+        // --- מסלול מהיר לריענון מחיר וגרף ---
         if (action === 'live_data' && ticker) {
-            // הוספנו פה משיכה של הפונדמנטלס גם ל-live_data כדי שהפרונטאנד לא יאפס אותם!
-            const [quote, chartPoints, profile, metricsData] = await Promise.all([
+            const [quote, chartPoints] = await Promise.all([
                 fetchFinnhub('quote', `symbol=${ticker}`),
-                fetchYahooData(ticker, '2y', '1wk'),
-                fetchFinnhub('stock/profile2', `symbol=${ticker}`),
-                fetchFinnhub('stock/metric', `symbol=${ticker}&metric=all`)
+                fetchYahooData(ticker, '2y', '1wk')
             ]);
             
             const lastChartPoint = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1] : {};
-            const m = metricsData?.metric || {};
-            
-            const fundamentals = {
-                marketCap: profile?.marketCapitalization || m?.marketCapitalization || null,
-                peRatio: m?.peBasicExclExtraTTM || m?.peExclExtraAnnual || null,
-                roe: m?.roeTTM || null, 
-                netMargin: m?.netProfitMarginTTM || null,
-                revenueGrowth: m?.revenueGrowthTTMYoy || null, 
-                debtToEquity: m?.totalDebtToEquityAnnual || null
-            };
             
             return res.status(200).json({
                 success: true, 
@@ -230,14 +209,14 @@ module.exports = async function(req, res) {
                 changePercentage: Number(quote?.dp || 0),
                 ma50: lastChartPoint.ma50 || null, 
                 ma200: lastChartPoint.ma200 || null,
-                // תיקון ווליום למקרה ש-finnhub מחזיר 0
                 volume: Number(quote?.v || lastChartPoint.volume || 0), 
                 pattern: detectAllPatterns(chartPoints), 
-                ...fundamentals,
+                rsi: calculateRSI(chartPoints.map(p=>p.close)),
                 chartData: chartPoints
             });
         }
 
+        // --- דאשבורד השוק במסך הראשי ---
         if (action === 'market' || (!ticker && action !== 'analyze')) {
             const [spy, qqq, dia, iwm, xlk, xlv, xlf, xle, xly, xli, newsData, topGainers, topLosers] = await Promise.all([
                 fetchFinnhub('quote', 'symbol=SPY'), fetchFinnhub('quote', 'symbol=QQQ'), fetchFinnhub('quote', 'symbol=DIA'), fetchFinnhub('quote', 'symbol=IWM'), 
@@ -271,6 +250,7 @@ module.exports = async function(req, res) {
             });
         }
 
+        // --- מסלול ניתוח AI מלא ---
         const today = new Date().toISOString().split('T')[0];
         const lastMonth = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
@@ -291,14 +271,31 @@ module.exports = async function(req, res) {
 
         const m = metricsData?.metric || {};
         
-        // תיקון קריטי: הסרת העטיפה של Number() שחייבה ערכים להיות 0, כעת נתון חסר נשאר null
+        let latestEarnings = null;
+        if (Array.isArray(earningsData) && earningsData.length > 0) latestEarnings = earningsData[0];
+
+        // 💡 בנייה מדויקת של פונדמנטלס תוך שימוש ב-sanitizeValue כדי להימנע מ-0.00 היכן שחסר
         const fundamentals = {
-            marketCap: profile?.marketCapitalization || m?.marketCapitalization || null,
-            peRatio: m?.peBasicExclExtraTTM || m?.peExclExtraAnnual || null,
-            roe: m?.roeTTM || null, 
-            netMargin: m?.netProfitMarginTTM || null,
-            revenueGrowth: m?.revenueGrowthTTMYoy || null, 
-            debtToEquity: m?.totalDebtToEquityAnnual || null
+            marketCap: sanitizeValue(profile?.marketCapitalization || m?.marketCapitalization),
+            fiftyTwoWeekHigh: sanitizeValue(m?.['52WeekHigh']),
+            fiftyTwoWeekLow: sanitizeValue(m?.['52WeekLow']),
+            peRatio: sanitizeValue(m?.peBasicExclExtraTTM || m?.peExclExtraAnnual),
+            pbRatio: sanitizeValue(m?.pbAnnual || m?.pbQuarterly),
+            psRatio: sanitizeValue(m?.psTTM || m?.psAnnual), 
+            eps: sanitizeValue(m?.epsTTM || m?.epsExclExtraItemsAnnual),
+            epsGrowth5Y: sanitizeValue(m?.epsGrowth5Y), 
+            roe: sanitizeValue(m?.roeTTM),
+            roa: sanitizeValue(m?.roaTTM), 
+            roic: sanitizeValue(m?.roicTTM), 
+            debtToEquity: sanitizeValue(m?.totalDebtToEquityAnnual || m?.totalDebtToEquityQuarterly),
+            dividendYield: sanitizeValue(m?.dividendYieldIndicatedAnnual),
+            revenueGrowth: sanitizeValue(m?.revenueGrowthTTMYoy || m?.revenueGrowth5Y),
+            grossMargin: sanitizeValue(m?.grossMarginTTM || m?.grossMarginAnnual), 
+            operatingMargin: sanitizeValue(m?.operatingMarginTTM || m?.operatingMarginAnnual), 
+            netMargin: sanitizeValue(m?.netProfitMarginTTM || m?.netMarginTTM),
+            currentRatio: sanitizeValue(m?.currentRatioQuarterly || m?.currentRatioAnnual),
+            quickRatio: sanitizeValue(m?.quickRatioQuarterly || m?.quickRatioAnnual), 
+            beta: sanitizeValue(m?.beta)
         };
 
         const insiders = Array.isArray(insiderData?.data) ? insiderData.data : [];
@@ -311,12 +308,13 @@ module.exports = async function(req, res) {
         const levelsPrompt = keyLevels.map(l => `${l.type}: $${l.price.toFixed(2)}`).join(', ');
         const patternsDetected = detectAllPatterns(chartPoints);
 
+        // 💡 בדיקת שלמות הנתונים - קריטי כדי שהפרונטאנד יידע אם לשמור את המניה או לא
         const isETF = profile?.finnhubIndustry === "" || (!fundamentals.marketCap && !fundamentals.peRatio);
+        const isDataComplete = isETF || (fundamentals.marketCap !== null && fundamentals.peRatio !== null && fundamentals.revenueGrowth !== null);
 
-        // הנחיות מעודכנות וחזקות יותר ל-AI לגבי נתונים חסרים
         const dataInstruction = isETF 
             ? "שים לב: נכס זה מזוהה כקרן סל (ETF) או מדד סקטוריאלי. התעלם לחלוטין מחוסר בנתוני פונדמנטלס (כמו מכפילים, רווחיות או שווי שוק). אל תוריד על כך ציון ואל תציין שחסר מידע. התבסס 100% על הניתוח הטכני, רמות המחיר, התבניות, והמאקרו."
-            : "שים לב חשוב מאוד: זוהי חברה ציבורית. אם חלק מהנתונים הפונדמנטליים (P/E, ROE, שולי רווח) מופיעים כ-'N/A', משמעות הדבר היא שספק הנתונים (ה-API) נכשל בהבאתם. *אסור לך* להניח שהחברה מפסידה או שהנתון שלה שואף לאפס. במצב כזה, ציין ב'summary' שחסרים נתוני יסוד עקב שגיאת חיבור, והתבסס רק על הטכני והמומנטום בניתוח.";
+            : "שים לב חשוב מאוד: זוהי חברה ציבורית. אם חלק מהנתונים הפונדמנטליים (P/E, ROE, שולי רווח) מופיעים כ-'N/A', משמעות הדבר היא שספק הנתונים (ה-API) נכשל בהבאתם או שאינם זמינים כרגע. *אסור לך* להניח שהחברה מפסידה או שהנתון שלה שואף לאפס. במצב כזה, ציין ב'summary' שחסרים נתוני יסוד ולכן הניתוח מתבסס רק על המידע הקיים והטכני.";
 
         const prompt = `אתה "הכריש" - אנליסט בכיר בקרן גידור. עליך לספק ניתוח מניות מקצועי ואובייקטיבי.
         
@@ -325,19 +323,19 @@ module.exports = async function(req, res) {
         משקלות הניתוח:
         1. איכות עסקית ופונדמנטלס (50%): (בחברה רגילה בלבד).
         2. מבנה מחיר וטכני (40%): תבניות בגרף, רמות תמיכה/התנגדות, ממוצעים ומומנטום.
-        3. מאקרו, סנטימנט וכסף חכם (10%): VIX, אג"ח, חדשות, ופעילות בעלי עניין (Insider - מקבל משקל משני בלבד בניתוח).
+        3. מאקרו, סנטימנט וכסף חכם (10%): VIX, אג"ח, חדשות, ופעילות בעלי עניין.
 
         נתונים לעיבוד:
         - מניה/נכס: ${ticker} (${profile?.name || ticker}). מחיר נוכחי: $${quote?.c || 0}.
         - רמות מחיר היסטוריות: ${levelsPrompt}.
         - תבניות שזוהו ב-JS: ${patternsDetected}.
         - נתוני מאקרו: VIX (פחד): ${vix}, תשואת אג"ח 10 שנים: ${tnx}%.
-        - פעילות בעלי עניין (Insider): סנטימנט ${insiderSentiment} (נטו שינוי: ${formatNumberShort(netInsiderShares)} מניות).
+        - פעילות בעלי עניין: סנטימנט ${insiderSentiment} (נטו שינוי: ${netInsiderShares} מניות).
         - טכני: ממוצע 50: $${lastPoint.ma50}, ממוצע 200: $${lastPoint.ma200}. RSI: ${calculateRSI(chartPoints.map(p=>p.close)).toFixed(1)}.
-        - פונדמנטלס: P/E: ${sanitizeValue(fundamentals.peRatio)}, ROE: ${sanitizeValue(fundamentals.roe)}${fundamentals.roe ? '%' : ''}, שולי רווח: ${sanitizeValue(fundamentals.netMargin)}${fundamentals.netMargin ? '%' : ''}, צמיחה YoY: ${sanitizeValue(fundamentals.revenueGrowth)}${fundamentals.revenueGrowth ? '%' : ''}.
+        - פונדמנטלס: P/E: ${fundamentals.peRatio !== null ? fundamentals.peRatio : 'N/A'}, ROE: ${fundamentals.roe !== null ? fundamentals.roe + '%' : 'N/A'}, שולי רווח: ${fundamentals.netMargin !== null ? fundamentals.netMargin + '%' : 'N/A'}, צמיחה YoY: ${fundamentals.revenueGrowth !== null ? fundamentals.revenueGrowth + '%' : 'N/A'}.
         
         דרישות פלט חובה:
-        - שווי הוגן (Intrinsic Value): ציין מספר דולרי ספציפי (או "לא רלוונטי ל-ETF").
+        - שווי הוגן (Intrinsic Value): ציין מחיר בדולרים או "לא רלוונטי".
         - אזור איסוף: הגדר טווח מחירים מבוסס תמיכות.
 
         ספק פסיקה ב-JSON בלבד בעברית:
@@ -345,11 +343,11 @@ module.exports = async function(req, res) {
           "identity": "תיאור עסקי קצר",
           "technical": "ניתוח טכני מעמיק המשלב את התבניות שזוהו ואת הרמות",
           "news_analysis": "ניתוח פונדמנטלי, מאקרו, וסנטימנט כסף חכם",
-          "summary": "השורה התחתונה - הוסף כאן הערה אם חסר מידע קריטי לחברה.",
+          "summary": "השורה התחתונה מחיבור הנתונים",
           "pros": ["חוזקה 1", "חוזקה 2"], "cons": ["סיכון 1", "סיכון 2"],
           "price_target": "יעד ל-12 חודשים (מספר)",
           "intrinsic_value": "מחיר בדולרים + הסבר קצר",
-          "accumulation_zone": "טווח מחירים",
+          "accumulation_zone": "טווח מחירים לאיסוף",
           "risk_level": "נמוך / בינוני / גבוה",
           "rating": "קנייה חזקה / קנייה / החזקה / מכירה",
           "scores": { "growth": 80, "momentum": 75, "value": 60, "quality": 90, "overall": 82 }
@@ -365,18 +363,30 @@ module.exports = async function(req, res) {
             try {
                 let text = aiData.candidates[0].content.parts[0].text;
                 aiVerdict = JSON.parse(text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1));
-            } catch (e) { aiVerdict = { summary: "שגיאת עיבוד.", scores: { overall: 50 }, rating: "החזקה" }; }
+            } catch (e) { aiVerdict = { summary: "שגיאת עיבוד בניתוח ה-AI.", scores: { overall: 50 }, rating: "החזקה" }; }
         }
 
         return res.status(200).json({
-            success: true, ticker, name: profile?.name || ticker, industry: profile?.finnhubIndustry || "N/A", sector: profile?.finnhubIndustry || "N/A",
-            price: Number(quote?.c || 0), changePercentage: Number(quote?.dp || 0),
-            ma50: lastPoint.ma50, ma200: lastPoint.ma200, volume: Number(quote?.v || lastPoint.volume || 0),
-            pattern: patternsDetected, rsi: calculateRSI(chartPoints.map(p=>p.close)), ...fundamentals,
+            success: true, 
+            isDataComplete, // עובר לפרונטאנד כדי שידע אם לשמור למטמון
+            ticker, 
+            name: profile?.name || ticker, 
+            industry: profile?.finnhubIndustry || "N/A", 
+            sector: profile?.finnhubIndustry || "N/A",
+            price: Number(quote?.c || 0), 
+            changePercentage: Number(quote?.dp || 0),
+            ma50: lastPoint.ma50, 
+            ma200: lastPoint.ma200, 
+            volume: Number(quote?.v || lastPoint.volume || 0),
+            pattern: patternsDetected, 
+            rsi: calculateRSI(chartPoints.map(p=>p.close)), 
+            ...fundamentals,
+            latestEarnings,
             tickerNews: (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 5),
             insiderTransactions: insiders.slice(0, 6),
             insiderSentiment: insiderSentiment,
-            analysis: aiVerdict, chartData: chartPoints
+            analysis: aiVerdict, 
+            chartData: chartPoints
         });
     } catch (error) { return res.status(500).json({ success: false, message: error.message }); }
 };
