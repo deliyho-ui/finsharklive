@@ -11,7 +11,7 @@ async function fetchFinnhub(endpoint, params = "") {
     }
 }
 
-// שולף שנתיים של נתונים שבועיים 
+// שולף נתונים טכניים ושבועיים
 async function fetchYahooData(ticker, range = "2y", interval = "1wk") {
     try {
         const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=${interval}&range=${range}`;
@@ -49,6 +49,30 @@ async function fetchYahooData(ticker, range = "2y", interval = "1wk") {
     } catch (e) { 
         return []; 
     }
+}
+
+// פונקציה לחישוב מדד ה-RSI
+function calculateRSI(prices, period = 14) {
+    if (prices.length <= period) return 50; 
+    let gains = 0, losses = 0;
+    for (let i = 1; i <= period; i++) {
+        let change = prices[i] - prices[i - 1];
+        if (change > 0) gains += change;
+        else losses -= change;
+    }
+    let avgGain = gains / period;
+    let avgLoss = losses / period;
+
+    for (let i = period + 1; i < prices.length; i++) {
+        let change = prices[i] - prices[i - 1];
+        let gain = change > 0 ? change : 0;
+        let loss = change < 0 ? -change : 0;
+        avgGain = (avgGain * (period - 1) + gain) / period;
+        avgLoss = (avgLoss * (period - 1) + loss) / period;
+    }
+    if (avgLoss === 0) return 100;
+    let rs = avgGain / avgLoss;
+    return 100 - (100 / (1 + rs));
 }
 
 function sanitizeValue(val) {
@@ -164,6 +188,9 @@ module.exports = async function(req, res) {
             
             const lastChartPoint = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1] : {};
             const currentVolume = Number(quote?.v || 0);
+            
+            const closes = chartPoints.map(p => p.close);
+            const rsiVal = calculateRSI(closes);
 
             return res.status(200).json({
                 success: true,
@@ -175,6 +202,7 @@ module.exports = async function(req, res) {
                 volume: currentVolume,
                 trend: Number(quote?.c) > (lastChartPoint.ma50 || 0) ? "שורית (מעל ממוצע 50)" : "דובית (מתחת לממוצע 50)",
                 pattern: detectPattern(chartPoints),
+                rsi: rsiVal,
                 chartData: chartPoints
             });
         }
@@ -272,8 +300,11 @@ module.exports = async function(req, res) {
         const calcMa200 = lastChartPoint.ma200 ? Number(lastChartPoint.ma200) : Number(m['200DayMovingAverage'] || 0);
         const currentVolume = Number(quote?.v || m['10DayAverageTradingVolume'] || 0);
 
+        const closes = chartPoints.map(p => p.close);
+        const rsiVal = calculateRSI(closes);
+
         const technicals = {
-            ma50: calcMa50, ma200: calcMa200, volume: currentVolume,
+            ma50: calcMa50, ma200: calcMa200, volume: currentVolume, rsi: rsiVal,
             trend: Number(quote?.c) > calcMa50 ? "שורית (מעל ממוצע 50)" : "דובית (מתחת לממוצע 50)"
         };
 
@@ -291,12 +322,14 @@ module.exports = async function(req, res) {
             newsPromptText = `כותרות מרכזיות מהתקופה האחרונה:\n${topNews}`;
         }
 
+        // שיפור הפרומפט: הוספת RSI ומומנטום
         const prompt = `אתה "הכריש" - מודל בינה מלאכותית (AI) פיננסי מתקדם, עצמאי ואובייקטיבי לחלוטין. המטרה שלך היא לספק ניתוח עומק מקיף וריאלי למניית ${ticker} (${profile?.name || ticker}), ללא תלות עיוורת באנליסטים אנושיים. 
         הדרישה הקריטית שלי אליך: פרט לעומק על כל סעיף. כתוב לפחות 2-3 משפטים עשירים ואנליטיים על הפונדמנטלס ועל המצב הטכני. אל תזרוק סתם סיסמאות קצרות.
         
         נתוני אמת מהשוק לעיבוד עמוק:
         - מחיר, מגמה, ותבנית: מחיר נוכחי: $${quote?.c || 0}. ממוצע 50: $${technicals.ma50}, ממוצע 200: $${technicals.ma200}. (מגמה: ${technicals.trend}). תבנית בגרף שזוהתה: ${detectedPattern}.
-        - נפח מסחר (Volume): נפח מסחר נוכחי הינו ${currentVolume}. התייחס למחזורי המסחר ומשמעותם.
+        - מומנטום קנייה/מכירה (RSI): מדד העוצמה היחסית (RSI 14 שבועות) עומד על ${technicals.rsi.toFixed(1)}. (הערה: מעל 70 = קניית יתר שיכולה לאותת על תיקון, מתחת 30 = מכירת יתר ופוטנציאל לתיקון כלפי מעלה). התייחס לזה בניתוח הטכני!
+        - נפח מסחר (Volume): נפח מסחר נוכחי הינו ${currentVolume}. 
         - תמחור (Valuation): מכפיל רווח (P/E): ${sanitizeValue(fundamentals.peRatio)}, מכפיל הון (P/B): ${sanitizeValue(fundamentals.pbRatio)}, מכפיל מכירות (P/S): ${sanitizeValue(fundamentals.psRatio)}.
         - רווחיות ויעילות (Profitability): שולי רווח גולמי: ${sanitizeValue(fundamentals.grossMargin)}%, רווח נקי: ${sanitizeValue(fundamentals.netMargin)}%. תשואה להון (ROE): ${sanitizeValue(fundamentals.roe)}%, תשואה להון מושקע (ROIC): ${sanitizeValue(fundamentals.roic)}%.
         - צמיחה ודוחות: ${earningsPromptText}. צמיחת הכנסות (YoY): ${sanitizeValue(fundamentals.revenueGrowth)}%, צמיחת רווח למניה (5Y): ${sanitizeValue(fundamentals.epsGrowth5Y)}%.
@@ -307,14 +340,13 @@ module.exports = async function(req, res) {
         
         הנחיות קריטיות לניתוח שווי (Valuation), סט-אפים, וציון מסכם:
         1. עצמאות המודל: אתה לא עובד אצל האנליסטים! יעד המחיר הממוצע הוא רק רפרנס. חשב מחיר יעד ריאלי ל-12 חודשים קדימה (price_target).
-        2. ציון הוליסטי (overall score): עליך לקבוע ציון מסכם אחד (מ-0 עד 100) שמתבסס באופן מוחלט על *כל* הנתונים יחד. הציון הזה קובע את ההמלצה (מעל 60 = קנייה, מתחת 40 = מכירה).
-        3. רמות מסחר לסווינג (Swing): ציין רמות תמיכה והתנגדות בטקסט הניתוח הטכני. בנוסף ספק מספרים מדויקים עבור כניסה (entry_price), עצירת הפסד (stop_loss), ויעד רווח קרוב (target_price).
-        * יעד הרווח הקרוב חייב לשקף מהלך סווינג של לפחות 5%-15% ולא סקלפינג קצר.
+        2. ציון הוליסטי (overall score): עליך לקבוע ציון מסכם אחד (מ-0 עד 100) שמתבסס באופן מוחלט על *כל* הנתונים יחד (פונדמנטלי, טכני, מומנטום). ציון קובע המלצה (מעל 60 = קנייה, מתחת 40 = מכירה).
+        3. רמות מסחר לסווינג (Swing): ציין רמות תמיכה והתנגדות בטקסט הניתוח הטכני, בהתחשב בתבנית, בממוצעים וב-RSI. ספק מספרים מדויקים עבור כניסה, עצירת הפסד ויעד רווח.
         
         ספק את הניתוח בפורמט JSON חוקי בלבד בעברית (חובה להשתמש במבנה הבא בדיוק):
         {
           "identity": "פרופיל החברה ומעמדה התחרותי בשוק.",
-          "technical": "ניתוח טכני מעמיק המשלב את הממוצעים, מחזורי המסחר, התבנית שזוהתה ורמות תמיכה/התנגדות.",
+          "technical": "ניתוח טכני מעמיק המשלב את הממוצעים, מחזורי המסחר, מדד ה-RSI, התבנית שזוהתה ורמות תמיכה/התנגדות.",
           "news_analysis": "ניתוח פונדמנטלי המשלב את תוצאות הדוח, החדשות, הצמיחה והתמחור.",
           "summary": "השורה התחתונה מחיבור הנתונים שמצדיקה את הציון המסכם.",
           "pros": ["חוזקה 1", "חוזקה 2", "חוזקה 3"],
@@ -389,13 +421,13 @@ module.exports = async function(req, res) {
             }
         }
 
-        // אובייקט חסכוני ונקי לחלוטין לחזית!
+        // החזרת ה-JSON הנקי, הפעם כולל את ה-RSI בפנים
         return res.status(200).json({
             success: true,
             ticker, name: profile?.name || ticker, industry: profile?.finnhubIndustry || "N/A", sector: profile?.finnhubIndustry || "N/A",
             price: Number(quote?.c || 0), changePercentage: Number(quote?.dp || 0),
             
-            ma50: technicals.ma50, ma200: technicals.ma200, volume: technicals.volume, trend: technicals.trend, pattern: detectedPattern,
+            ma50: technicals.ma50, ma200: technicals.ma200, volume: technicals.volume, trend: technicals.trend, pattern: detectedPattern, rsi: technicals.rsi,
             ...fundamentals,
             
             latestEarnings: latestEarnings,
