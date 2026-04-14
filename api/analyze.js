@@ -1,6 +1,6 @@
 async function fetchFinnhub(endpoint, params = "") {
     const token = process.env.FINNHUB_API_KEY;
-    if (!token) return null; // הגנה למקרה שחסר מפתח
+    if (!token) return null;
 
     const url = `https://finnhub.io/api/v1/${endpoint}?${params}&token=${token}`;
     try {
@@ -11,7 +11,7 @@ async function fetchFinnhub(endpoint, params = "") {
     }
 }
 
-// שולף שנתיים של נתונים שבועיים – אידיאלי למציאת תבניות וממוצעים
+// שולף שנתיים של נתונים שבועיים 
 async function fetchYahooData(ticker, range = "2y", interval = "1wk") {
     try {
         const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=${interval}&range=${range}`;
@@ -51,9 +51,6 @@ async function fetchYahooData(ticker, range = "2y", interval = "1wk") {
     }
 }
 
-// ==========================================
-// 🚀 פונקציות עזר 
-// ==========================================
 function sanitizeValue(val) {
     if (val === 0 || val === null || val === undefined || isNaN(val)) return "N/A";
     return val;
@@ -157,7 +154,7 @@ module.exports = async function(req, res) {
         }
 
         // ==========================================
-        // מסלול מיוחד: שליפת נתוני אמת קלים בלבד (ללא ה-AI) למנגנון ה-Cache ההיברידי
+        // 1. מסלול מהיר - Live Data למנגנון המטמון
         // ==========================================
         if (action === 'live_data' && ticker) {
             const [quote, chartPoints] = await Promise.all([
@@ -183,7 +180,7 @@ module.exports = async function(req, res) {
         }
 
         // ==========================================
-        // דף הבית - מזג האוויר של השוק
+        // 2. דף הבית - מזג האוויר של השוק
         // ==========================================
         if (action === 'market' || (!ticker && action !== 'analyze')) {
             const [spy, qqq, dia, iwm, xlk, xlv, xlf, xle, xly, xli, newsData] = await Promise.all([
@@ -227,7 +224,7 @@ module.exports = async function(req, res) {
         }
 
         // ==========================================
-        // פסיקת הכריש המלאה (ניתוח AI)
+        // 3. ניתוח מלא על ידי ה-AI
         // ==========================================
         const today = new Date().toISOString().split('T')[0];
         const lastMonth = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -392,7 +389,7 @@ module.exports = async function(req, res) {
             }
         }
 
-        // שליחת המידע הנקי לחזית (ללא כפילויות)
+        // אובייקט חסכוני ונקי לחלוטין לחזית!
         return res.status(200).json({
             success: true,
             ticker, name: profile?.name || ticker, industry: profile?.finnhubIndustry || "N/A", sector: profile?.finnhubIndustry || "N/A",
