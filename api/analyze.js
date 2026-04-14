@@ -206,16 +206,13 @@ module.exports = async function(req, res) {
         if (!apiKey || !finnhubKey) return res.status(500).json({ success: false, message: "Missing API keys." });
 
         if (action === 'live_data' && ticker) {
-            // הוספנו משיכה של פונדמנטלס לבקשת הלייב כדי להשלים מידע שחסר בקאש
-            const [quote, chartPoints, metricsData, profile] = await Promise.all([
+            // חזרנו למשיכה רזה ומהירה בלבד - מחיר וגרף
+            const [quote, chartPoints] = await Promise.all([
                 fetchFinnhub('quote', `symbol=${ticker}`),
-                fetchYahooData(ticker, '2y', '1wk'),
-                fetchFinnhub('stock/metric', `symbol=${ticker}&metric=all`),
-                fetchFinnhub('stock/profile2', `symbol=${ticker}`)
+                fetchYahooData(ticker, '2y', '1wk')
             ]);
             
             const lastChartPoint = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1] : {};
-            const m = metricsData?.metric || {};
             
             return res.status(200).json({
                 success: true, 
@@ -226,13 +223,7 @@ module.exports = async function(req, res) {
                 ma200: lastChartPoint.ma200 || 0,
                 volume: Number(quote?.v || 0), 
                 pattern: detectAllPatterns(chartPoints), 
-                chartData: chartPoints,
-                marketCap: Number(profile?.marketCapitalization || m.marketCapitalization || 0),
-                peRatio: Number(m.peBasicExclExtraTTM || m.peExclExtraAnnual || 0),
-                roe: Number(m.roeTTM || 0), 
-                netMargin: Number(m.netProfitMarginTTM || 0),
-                revenueGrowth: Number(m.revenueGrowthTTMYoy || 0), 
-                debtToEquity: Number(m.totalDebtToEquityAnnual || 0)
+                chartData: chartPoints
             });
         }
 
