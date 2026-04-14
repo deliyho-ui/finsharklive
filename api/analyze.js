@@ -206,7 +206,7 @@ module.exports = async function(req, res) {
         if (!apiKey || !finnhubKey) return res.status(500).json({ success: false, message: "Missing API keys." });
 
         if (action === 'live_data' && ticker) {
-            // חזרנו למשיכה רזה ומהירה בלבד - מחיר וגרף
+            // משיכה רזה ומהירה בלבד - מחיר וגרף. חוסך משאבים כי הפונדמנטלס נלקחים מהקאש.
             const [quote, chartPoints] = await Promise.all([
                 fetchFinnhub('quote', `symbol=${ticker}`),
                 fetchYahooData(ticker, '2y', '1wk')
