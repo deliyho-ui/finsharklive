@@ -866,12 +866,11 @@ window.analyzeStock = async function() {
   animateLoadingSteps(['בודק זיכרון מטמון בענן (Cache)...']);
 
   let cachedData = null;
-  let shouldBypassCache = false;
   try {
       const cacheDoc = await getDoc(doc(db, 'ai_cache', ticker));
       if (cacheDoc.exists()) {
           const cacheObj = cacheDoc.data();
-          // שומרים ל-7 ימים (604,800,000 מילי-שניות)
+          // שומרים ל-7 ימים
           if (cacheObj.lastUpdated && (Date.now() - cacheObj.lastUpdated) < 604800000) {
               cachedData = cacheObj.data;
           }
@@ -883,18 +882,17 @@ window.analyzeStock = async function() {
       try {
           const liveRes = await fetch(`${NETLIFY_API_URL}?action=live_data&ticker=${ticker}`);
           const liveData = await liveRes.json();
+          
           if (liveData.success) {
-              // חישוב סטיית מחיר: האם המחיר היום שונה ביותר מ-5% מהמחיר שבו ה-AI ניתח?
+              // בדיקת סטיית מחיר מול המקור (מעל 5% מפעיל ניתוח חדש)
               const originalPrice = cachedData.price || liveData.price;
               const currentPrice = liveData.price;
               const priceDiffPct = Math.abs(currentPrice - originalPrice) / originalPrice;
               
               if (priceDiffPct > 0.05) {
-                  // סטייה של מעל 5%! מבטלים את ה-Cache ונותנים ל-AI לנתח שוב את המצב החדש
-                  shouldBypassCache = true;
                   console.log(`Price changed by ${(priceDiffPct*100).toFixed(1)}%. Bypassing 7-day cache.`);
+                  // אנחנו לא מחזירים את המטמון, נותנים לקוד להמשיך לניתוח ה-AI למטה
               } else {
-                  // המחיר יציב. מעדכנים את נתוני הלייב בלבד ומציגים!
                   cachedData.price = liveData.price;
                   cachedData.changePercentage = liveData.changePercentage;
                   cachedData.chartData = liveData.chartData;
@@ -911,7 +909,7 @@ window.analyzeStock = async function() {
                   
                   hideLoading(); 
                   renderResults(cachedData, cachedData.analysis, cachedData.chartData, cachedData.tickerNews || []);
-                  return; 
+                  return; // סיום תהליך, לא יבזבז קרדיט AI
               }
           }
       } catch(e) { console.warn("Failed live update, falling back to full analysis", e); }
