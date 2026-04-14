@@ -109,7 +109,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .cell-change { font-size: 1.05rem; font-weight: 800; direction: ltr; text-align: left;}
 .cell-change.up { color: var(--green); } .cell-change.down { color: var(--red); }
 
-/* Movers Grid - רשת מניות עולות ויורדות */
 .market-movers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; margin-bottom: 20px; }
 @media(max-width: 768px) { .market-movers-grid { grid-template-columns: 1fr; } }
 
@@ -382,7 +381,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
       </div>
     </div>
 
-    <!-- Movers Grid (התוספת של ה-Top Gainers ו-Top Losers) -->
+    <!-- Movers Grid -->
     <div class="market-movers-grid">
       <div class="card">
           <div class="card-title" style="color:var(--green)">🚀 המובילות של היום (Top Gainers)</div>
@@ -688,7 +687,6 @@ window.loadCommunityData = async function() {
             setups.slice(0, 10).forEach((item, index) => {
                 const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index+1}`;
                 
-                // שימוש בשדות ה-Value החדשים
                 const entryStr = item.accumulationZone ? `איסוף: ${item.accumulationZone}` : '';
                 const riskStr = item.riskLevel ? `סיכון: ${item.riskLevel}` : '';
                 const valStr = item.intrinsicValue ? `שווי: ${item.intrinsicValue}` : '';
@@ -924,7 +922,7 @@ window.analyzeStock = async function() {
   } catch(e) { console.warn("Cache read error", e); }
 
   if (cachedData) {
-      animateLoadingSteps(['נמצא ניתוח בענן!', 'מוודא שאין תנודת מחיר קיצונית...']);
+      animateLoadingSteps(['נמצא ניתוח בענן!', 'מוודא שאין תנודת מחיר קיצונית או מידע חסר...']);
       try {
           const liveRes = await fetch(`${NETLIFY_API_URL}?action=live_data&ticker=${ticker}`);
           const liveData = await liveRes.json();
@@ -934,18 +932,30 @@ window.analyzeStock = async function() {
               const currentPrice = liveData.price;
               const priceDiffPct = Math.abs(currentPrice - originalPrice) / originalPrice;
               
-              if (priceDiffPct > 0.05) {
-                  console.log(`Price changed by ${(priceDiffPct*100).toFixed(1)}%. Bypassing cache.`);
+              // הגנת הכריש לנתונים חסרים (כדי שלא נציג מידע חלקי שהתקבל במקרה של שגיאת API בעבר)
+              const isETF = cachedData.industry === "N/A" || (!cachedData.marketCap && !cachedData.peRatio);
+              let missingCoreData = 0;
+              if (!cachedData.marketCap) missingCoreData++;
+              if (!cachedData.peRatio) missingCoreData++;
+              if (!cachedData.revenueGrowth) missingCoreData++;
+              if (!cachedData.netMargin) missingCoreData++;
+
+              const isCacheCorrupted = !isETF && missingCoreData >= 3;
+              
+              if (priceDiffPct > 0.05 || isCacheCorrupted) {
+                  console.log(`Bypassing cache. Price diff: ${(priceDiffPct*100).toFixed(1)}%. Corrupted Data: ${isCacheCorrupted}`);
+                  // אנחנו לא עוצרים כאן (אין return) - הקוד ימשיך מטה ויבצע ניתוח חדש מהשרת
               } else {
+                  // הכל תקין! מעדכנים נתונים טכניים ומחיר בלבד על גבי ה-Cache
                   cachedData.price = liveData.price;
                   cachedData.changePercentage = liveData.changePercentage;
                   cachedData.chartData = liveData.chartData;
                   cachedData.ma50 = liveData.ma50;
                   cachedData.ma200 = liveData.ma200;
                   cachedData.volume = liveData.volume;
-                  cachedData.trend = liveData.trend;
-                  cachedData.pattern = liveData.pattern;
-                  cachedData.rsi = liveData.rsi; 
+                  
+                  if (liveData.pattern) cachedData.pattern = liveData.pattern;
+                  if (liveData.rsi) cachedData.rsi = liveData.rsi; 
                   
                   State.currentData = cachedData; 
                   State.aiAnalysis = cachedData.analysis; 
@@ -953,7 +963,7 @@ window.analyzeStock = async function() {
                   
                   hideLoading(); 
                   renderResults(cachedData, cachedData.analysis, cachedData.chartData, cachedData.tickerNews || []);
-                  return;
+                  return; // סיום, השתמשנו בהצלחה בקאש!
               }
           }
       } catch(e) { console.warn("Failed live update, falling back to full analysis", e); }
