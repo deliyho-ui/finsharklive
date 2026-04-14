@@ -119,12 +119,18 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .news-headline { font-size: 0.85rem; font-weight: 600; line-height: 1.5; margin-bottom: 10px; flex-grow:1;}
 
 .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(10,132,255,0.12); border: 1px solid rgba(10,132,255,0.25); border-radius: 980px; padding: 5px 14px; font-size: 0.75rem; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 12px; }
-.quick-symbols { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 40px; }
+.quick-symbols { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 25px; }
 .quick-chip { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 9px; padding: 7px 16px; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); cursor: pointer; transition: var(--transition); letter-spacing: 0.04em; direction: ltr; }
 .quick-chip:hover { background: var(--blue-dim); border-color: rgba(10,132,255,0.35); color: var(--blue); transform: translateY(-2px); }
-.search-box { display: flex; gap: 12px; margin-bottom: 8px; }
+.search-box { display: flex; gap: 12px; margin-bottom: 12px; }
 .search-input { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); border-radius: 18px; padding: 20px 26px; color: var(--text); font-size: 1.15rem; font-weight: 700; text-transform: uppercase; outline: none; direction: ltr; }
 .search-btn { padding: 20px 36px; font-size: 1rem; border-radius: 18px; }
+
+/* מתג בחירת טווח זמן */
+.timeframe-toggle { display: flex; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 14px; padding: 5px; width: fit-content; margin-bottom: 25px; }
+.tf-btn { background: transparent; border: none; color: var(--text-secondary); padding: 10px 20px; border-radius: 10px; font-family: 'Heebo', sans-serif; font-weight: 700; cursor: pointer; transition: var(--transition); font-size: 0.85rem; display:flex; align-items:center; gap:8px;}
+.tf-btn.active { background: var(--blue-dim); color: var(--blue); }
+
 .kbd-hint { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; opacity: 0.5; }
 .kbd-item { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--text-secondary); }
 .kbd { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 5px; padding: 2px 7px; font-size: 0.65rem; font-family: monospace; direction: ltr; }
@@ -259,6 +265,8 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   .search-box { flex-direction: column; gap: 10px; }
   .search-input { padding: 16px 20px; font-size: 1rem; border-radius: 14px; }
   .search-btn { padding: 16px; border-radius: 14px; width: 100%; font-size: 1rem; }
+  .timeframe-toggle { flex-direction: row; width: 100%; }
+  .tf-btn { flex: 1; text-align: center; justify-content: center; }
   .quick-symbols { gap: 6px; }
   
   .stock-header { padding: 20px; flex-direction: column; align-items: flex-start; gap: 12px; }
@@ -305,18 +313,18 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   <div class="modal" style="position:relative">
     <button class="modal-close" onclick="closeUpdatesModal()">✕</button>
     <span style="font-size:3rem;display:block;margin-bottom:10px">🚀</span>
-    <h2 style="margin-bottom: 5px;">הכריש השתדרג לגרסה 3.0!</h2>
-    <p style="color:var(--text-secondary); margin-bottom: 24px; font-size: 0.9rem;">אלגוריתם ה-AI שודרג למשקיעי ערך (Value) וטווח ארוך.</p>
+    <h2 style="margin-bottom: 5px;">הכריש השתדרג לגרסה 4.0!</h2>
+    <p style="color:var(--text-secondary); margin-bottom: 24px; font-size: 0.9rem;">אלגוריתם ה-AI שודרג ותומך כעת ב-2 מצבי ניתוח!</p>
     
     <ul style="text-align: right; margin-bottom: 30px; line-height: 1.8; color: var(--text); list-style: none; padding: 0;">
         <li style="margin-bottom: 12px; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; border: 1px solid var(--glass-border);">
-            📈 <b>דאשבורד שוק מורחב:</b><br><span style="font-size:0.85rem; color:var(--text-secondary);">נוספו מניות מזנקות וצונחות בזמן אמת במסך הראשי.</span>
+            ⏱️ <b>ניתוח כפול (Short / Long):</b><br><span style="font-size:0.85rem; color:var(--text-secondary);">בחרו בין ניתוח סווינג יומי קצר טווח, לבין השקעת ערך ארוכת טווח!</span>
         </li>
         <li style="margin-bottom: 12px; background: rgba(10,132,255,0.08); padding: 12px; border-radius: 12px; border: 1px solid rgba(10,132,255,0.2);">
-            🧠 <b>מוח פונדמנטלי חדש:</b><br><span style="font-size:0.85rem; color:var(--text-secondary);">ה-AI מנתח מאקרו (VIX, אג"ח), פעילות בעלי עניין והשוואת מתחרים.</span>
+            📉 <b>קווים טכניים חכמים:</b><br><span style="font-size:0.85rem; color:var(--text-secondary);">רמות תמיכה, התנגדות, יעדים וסטופ-לוס של ה-AI מצוירים כעת אוטומטית על הגרף.</span>
         </li>
         <li style="background: rgba(48,209,88,0.08); padding: 12px; border-radius: 12px; border: 1px solid rgba(48,209,88,0.2);">
-            🎯 <b>הערכות שווי (Valuation):</b><br><span style="font-size:0.85rem; color:var(--text-secondary);">במקום טריידים קצרים, תקבלו הערכת שווי הוגן, אזורי איסוף ורמות סיכון!</span>
+            🧠 <b>הגנת נתונים אמינה:</b><br><span style="font-size:0.85rem; color:var(--text-secondary);">המערכת עברה מקצה שיפורים ויודעת כעת לסנן נתונים חסרים לניתוח מדויק יותר.</span>
         </li>
     </ul>
     <button class="btn btn-primary" style="width:100%; padding:15px; border-radius:14px; font-size: 1rem;" onclick="closeUpdatesModal()">מעולה, בוא נתחיל! 🦈</button>
@@ -435,7 +443,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   </div>
 
   <div id="section-shark" class="section">
-    <div class="hero-badge">✦ AI-Powered Fundamental & News Analysis</div>
+    <div class="hero-badge">✦ AI-Powered Fundamental & Technical Analysis</div>
     <h1>🦈 כריש הניתוח</h1>
     <p style="color:var(--text-secondary); margin-bottom:30px;">הזן סימול מניה (למשל AAPL, TSLA) לקבלת ניתוח AI מבוסס נתוני זמן אמת וחדשות טריות.</p>
     
@@ -445,6 +453,12 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
       <div class="quick-chip" onclick="quickSearch('MSFT')">MSFT</div>
       <div class="quick-chip" onclick="quickSearch('TSLA')">TSLA</div>
       <div class="quick-chip" onclick="quickSearch('META')">META</div>
+    </div>
+
+    <!-- 💡 מתג בחירת טווח זמן -->
+    <div class="timeframe-toggle">
+        <button class="tf-btn active" id="tf-long" onclick="setTimeframe('long')">📅 טווח ארוך (גרף שבועי, ממוצע 200)</button>
+        <button class="tf-btn" id="tf-short" onclick="setTimeframe('short')">⚡ טווח קצר (גרף יומי, ממוצע 50)</button>
     </div>
 
     <div class="search-box">
@@ -464,6 +478,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
         <div>
           <div class="stock-ticker-label" id="res-ticker"></div>
           <div class="stock-full-name" id="res-name"></div>
+          <div style="margin-top:8px;"><span class="tag tag-neutral" id="res-timeframe-tag"></span></div>
         </div>
         <div class="header-actions">
           <button class="icon-btn tooltip-wrap" data-tip="הצבע לתיק חוכמת ההמונים" id="btn-vote-crowd" onclick="voteForCrowd()">👥</button>
@@ -484,7 +499,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
             <div class="chart-controls">
               <button class="chart-btn" onclick="setChartPeriod(3,this)">3M</button>
               <button class="chart-btn" onclick="setChartPeriod(6,this)">6M</button>
-              <button class="chart-btn active" onclick="setChartPeriod(24,this)">2Y</button>
+              <button class="chart-btn active" onclick="setChartPeriod(999,this)">ALL</button>
             </div>
           </div>
           <div class="chart-container" id="stockChart"></div>
@@ -499,6 +514,15 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
           <div class="card-title">📈 נתונים טכניים ופרופיל</div>
           <div class="ma-display" id="ma-display"></div>
           <div id="technical-content"></div>
+        </div>
+
+        <!-- התיבה של בעלי עניין הוחזרה! -->
+        <div class="card full-width">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+            <div class="card-title" style="margin-bottom:0;">💼 תנועות כסף חכם (בעלי עניין)</div>
+            <div id="insider-badge"></div>
+          </div>
+          <div id="insider-content"></div>
         </div>
 
         <div class="card full-width">
@@ -551,7 +575,8 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, onSnapshot, upd
 const firebaseConfig = { apiKey: "AIzaSyBU77J3Nu8xh0_a1GLM9jcnWJmhZq8QHH4", authDomain: "finshark-b9f2f.firebaseapp.com", projectId: "finshark-b9f2f", storageBucket: "finshark-b9f2f.firebasestorage.app", messagingSenderId: "1096467959013", appId: "1:1096467959013:web:737d0d49c475032657d80c", measurementId: "G-SDHLCKEW0K" };
 const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
-const State = { currentUser: null, currentTab: 'market', watchlist: [], currentData: null }; window.State = State; let authMode = 'login';
+// 💡 נוסף State.timeframe
+const State = { currentUser: null, currentTab: 'market', watchlist: [], currentData: null, timeframe: 'long' }; window.State = State; let authMode = 'login';
 let NETLIFY_API_URL = "/api/analyze";
 if (['blob:', 'file:', 'data:'].includes(window.location.protocol) || window.location.hostname === "localhost") {
   NETLIFY_API_URL = "http://localhost:8888/api/analyze"; 
@@ -564,6 +589,13 @@ window.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('finshark_update_v4', 'true');
     }
 });
+
+// 💡 פונקציה להחלפת טווח הזמן
+window.setTimeframe = function(tf) {
+    State.timeframe = tf;
+    document.getElementById('tf-long').classList.toggle('active', tf === 'long');
+    document.getElementById('tf-short').classList.toggle('active', tf === 'short');
+};
 
 window.closeUpdatesModal = function() { document.getElementById('modal-updates').classList.remove('active'); }
 window.openLogin = function() { document.getElementById('auth-error').style.display = 'none'; document.getElementById('modal-login').classList.add('active'); };
@@ -909,9 +941,10 @@ window.analyzeStock = async function() {
   showLoading(); 
   animateLoadingSteps(['בודק זיכרון מטמון בענן (Cache)...']);
 
+  const cacheKey = `${ticker}_${State.timeframe}`;
   let cachedData = null;
   try {
-      const cacheDoc = await getDoc(doc(db, 'ai_cache', ticker));
+      const cacheDoc = await getDoc(doc(db, 'ai_cache', cacheKey));
       if (cacheDoc.exists()) {
           const cacheObj = cacheDoc.data();
           if (cacheObj.lastUpdated && (Date.now() - cacheObj.lastUpdated) < 604800000) {
@@ -923,7 +956,7 @@ window.analyzeStock = async function() {
   if (cachedData && cachedData.isDataComplete !== false) {
       animateLoadingSteps(['נמצא ניתוח שלם בענן!', 'מוודא שאין תנודת מחיר קיצונית ומעדכן...']);
       try {
-          const liveRes = await fetch(`${NETLIFY_API_URL}?action=live_data&ticker=${ticker}`);
+          const liveRes = await fetch(`${NETLIFY_API_URL}?action=live_data&ticker=${ticker}&timeframe=${State.timeframe}`);
           const liveData = await liveRes.json();
           
           if (liveData.success) {
@@ -974,7 +1007,7 @@ window.analyzeStock = async function() {
   animateLoadingSteps(['יוצר קשר עם שרת FinShark...','מושך נתוני אמת מהבורסה...','מעביר נתונים למוח ה-AI...','מגבש הערכת שווי וסיכון...']);
 
   try {
-    const response = await fetch(`${NETLIFY_API_URL}?action=analyze&ticker=${ticker}`);
+    const response = await fetch(`${NETLIFY_API_URL}?action=analyze&ticker=${ticker}&timeframe=${State.timeframe}`);
     const rawText = await response.text();
     let data; try { data = JSON.parse(rawText); } catch(e) { hideLoading(); document.getElementById('results').style.display = 'block'; debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 השרת לא מחזיר JSON! הנה מה שחזר:</strong>\n\n${rawText}`; return; }
     if (!response.ok || !data.success) { hideLoading(); document.getElementById('results').style.display = 'block'; debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 שגיאה מפורשת מהשרת:</strong>\n\n${data.message || JSON.stringify(data)}`; return; }
@@ -983,10 +1016,9 @@ window.analyzeStock = async function() {
     State.aiAnalysis = data.analysis; 
     window.currentChartData = data.chartData; 
     
-    // שמירה ל-Cache אם הנתונים תקינים
     if (data.isDataComplete) {
         try {
-            await setDoc(doc(db, 'ai_cache', ticker), { ticker: ticker, data: data, lastUpdated: Date.now() });
+            await setDoc(doc(db, 'ai_cache', cacheKey), { ticker: ticker, timeframe: State.timeframe, data: data, lastUpdated: Date.now() });
         } catch(e) { console.warn("Failed to save cache", e); }
 
         if (data.analysis && data.analysis.scores && data.analysis.scores.overall >= 70 && user && user.status === 'approved') {
@@ -1000,18 +1032,15 @@ window.analyzeStock = async function() {
                     accumulationZone: data.analysis.accumulation_zone || '', 
                     riskLevel: data.analysis.risk_level || '', 
                     expectation: data.analysis.summary || '', 
-                    
-                    // שמירת הסט-אפ החדש למסך הקהילה (לפי הנתונים מהשרת)
                     entryPrice: data.analysis.entry_price || '',
                     stopLoss: data.analysis.stop_loss || '',
                     targetPrice: data.analysis.target_price || '',
-
                     lastUpdated: Date.now()
                 });
             } catch(e) { console.warn("Failed to save setup", e); }
         }
     } else {
-        console.warn(`⚠️ הנתונים שהתקבלו עבור ${ticker} חלקיים (חסר פונדמנטלס בשרת). הניתוח יוצג אך לא יישמר ב-Cache כדי למנוע זיהום של המערכת.`);
+        console.warn(`⚠️ הנתונים שהתקבלו חלקיים. לא נשמר ל-Cache.`);
     }
 
     if (user && user.role !== 'admin') {
@@ -1027,7 +1056,7 @@ window.analyzeStock = async function() {
     hideLoading(); 
     document.getElementById('results').style.display = 'block';
     debugEl.style.display = 'block'; 
-    debugEl.innerHTML = `<strong>🚨 תקלת רשת מוחלטת בעת פנייה לשרת 🚨</strong><br><br>השגיאה: ${error.message}<br><br><em>טיפ: ודא ששרת ה-Backend פועל בכתובת <code>${NETLIFY_API_URL}</code>.</em>`;
+    debugEl.innerHTML = `<strong>🚨 תקלת רשת מוחלטת 🚨</strong><br><br>השגיאה: ${error.message}`;
   }
 };
 
@@ -1050,7 +1079,6 @@ window.setChartPeriod = function(months, btn) {
     renderChart(window.currentChartData, months, State.currentData); 
 };
 
-// 💡 שדרוג הויזואליות של הגרף - הוספת קווים של ה-AI והתמיכות!
 function renderChart(historyData, months, fullDataObj) {
     const container = document.getElementById('stockChart');
     if(!container) return;
@@ -1058,7 +1086,7 @@ function renderChart(historyData, months, fullDataObj) {
     let cutoffDate = new Date();
     cutoffDate.setMonth(cutoffDate.getMonth() - months);
     
-    const filteredData = historyData.filter(d => new Date(d.date) >= cutoffDate);
+    const filteredData = historyData.filter(d => new Date(d.date) >= cutoffDate || months === 999);
     if(filteredData.length === 0) return;
 
     const candles = filteredData.map(d => ({ time: d.date, open: d.open, high: d.high, low: d.low, close: d.close }));
@@ -1105,22 +1133,21 @@ function renderChart(historyData, months, fullDataObj) {
     candleSeries.setData(candles);
 
     if (ma50Line.length > 0) {
-        ma50Series = tvChart.addLineSeries({ color: '#0a84ff', lineWidth: 1.5, title: 'MA 50 (W)' });
+        ma50Series = tvChart.addLineSeries({ color: '#0a84ff', lineWidth: 1.5, title: State.timeframe === 'short' ? 'MA 50 (D)' : 'MA 50 (W)' });
         ma50Series.setData(ma50Line);
     }
     if (ma200Line.length > 0) {
-        ma200Series = tvChart.addLineSeries({ color: '#bf5af2', lineWidth: 1.5, title: 'MA 200 (W)' });
+        ma200Series = tvChart.addLineSeries({ color: '#bf5af2', lineWidth: 1.5, title: State.timeframe === 'short' ? 'MA 200 (D)' : 'MA 200 (W)' });
         ma200Series.setData(ma200Line);
     }
 
-    // ציור קווי תמיכה והתנגדות מהשרת
     if (fullDataObj && fullDataObj.keyLevels && fullDataObj.keyLevels.length > 0) {
         fullDataObj.keyLevels.forEach(level => {
             const isRes = level.type.includes('התנגדות');
             candleSeries.createPriceLine({
                 price: level.price,
-                color: isRes ? 'rgba(255, 69, 58, 0.4)' : 'rgba(48, 209, 88, 0.4)',
-                lineWidth: 2,
+                color: isRes ? 'rgba(255, 69, 58, 0.3)' : 'rgba(48, 209, 88, 0.3)',
+                lineWidth: 1,
                 lineStyle: LightweightCharts.LineStyle.Dashed,
                 axisLabelVisible: true,
                 title: level.type,
@@ -1128,12 +1155,11 @@ function renderChart(historyData, months, fullDataObj) {
         });
     }
 
-    // ציור יעדים והגנות של ה-AI
     if (fullDataObj && fullDataObj.analysis) {
         if (fullDataObj.analysis.target_price) {
             candleSeries.createPriceLine({
                 price: Number(fullDataObj.analysis.target_price),
-                color: 'rgba(48, 209, 88, 0.9)',
+                color: '#30d158',
                 lineWidth: 2,
                 lineStyle: LightweightCharts.LineStyle.Solid,
                 axisLabelVisible: true,
@@ -1143,7 +1169,7 @@ function renderChart(historyData, months, fullDataObj) {
         if (fullDataObj.analysis.stop_loss) {
             candleSeries.createPriceLine({
                 price: Number(fullDataObj.analysis.stop_loss),
-                color: 'rgba(255, 69, 58, 0.9)',
+                color: '#ff453a',
                 lineWidth: 2,
                 lineStyle: LightweightCharts.LineStyle.Solid,
                 axisLabelVisible: true,
@@ -1194,6 +1220,9 @@ function renderResults(data, analysis, historyData, newsData) {
   document.getElementById('res-name').textContent = data.name; 
   document.getElementById('res-price').textContent = `$${data.price.toFixed(2)}`;
   
+  // תווית סוג הניתוח (קצר/ארוך)
+  document.getElementById('res-timeframe-tag').textContent = State.timeframe === 'short' ? 'ניתוח סווינג יומי' : 'ניתוח ערך שבועי';
+  
   const chEl = document.getElementById('res-change'); 
   chEl.textContent = `${isUp ? '+' : ''}${data.changePercentage.toFixed(2)}%  (${isUp ? '▲' : '▼'} היום)`; 
   chEl.className = `stock-change ${isUp ? 'up' : 'down'}`;
@@ -1202,8 +1231,8 @@ function renderResults(data, analysis, historyData, newsData) {
   if(State.watchlist.includes(data.ticker)) { btnWatch.textContent = '✓'; btnWatch.classList.add('active'); } 
   else { btnWatch.textContent = '📌'; btnWatch.classList.remove('active'); }
   
-  // ציור הגרף (כולל רמות התמיכה והתנגדות והיעדים החדשים שהוספנו)
-  renderChart(historyData, 24, data); 
+  // ציור הגרף עם הנתונים החדשים
+  renderChart(historyData, 999, data); 
   document.querySelectorAll('.chart-btn').forEach((b,i) => b.classList.toggle('active', i===2));
 
   const peNum = data.peRatio;
@@ -1260,46 +1289,52 @@ function renderResults(data, analysis, historyData, newsData) {
   document.getElementById('technical-content').innerHTML = `
     <div class="data-row"><span class="data-label">סקטור ותעשייה</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;text-align:left;">${data.sector} • ${data.industry}</span></div></div>
     <div class="data-row"><span class="data-label">מגמה טכנית</span><div class="data-value-wrap"><span class="data-value">${a50&&a200?'Bull 🐂':!a50&&!a200?'Bear 🐻':'Mixed ⚖️'}</span><span class="tag ${a50&&a200?'tag-good':!a50&&!a200?'tag-bad':'tag-neutral'}">${a50&&a200?'חיובי':!a50&&!a200?'שלילי':'מעורב'}</span></div></div>
-    <div class="data-row"><span class="data-label">RSI (14 שבועות)</span><div class="data-value-wrap"><span class="data-value">${rsiVal.toFixed(1)}</span><span class="tag ${rsiClass}">${rsiTag}</span></div></div>
+    <div class="data-row"><span class="data-label">RSI (14)</span><div class="data-value-wrap"><span class="data-value">${rsiVal.toFixed(1)}</span><span class="tag ${rsiClass}">${rsiTag}</span></div></div>
     <div class="data-row"><span class="data-label">נפח מסחר ממוצע</span><div class="data-value-wrap"><span class="data-value">${formatNumberShort(data.volume)}</span></div></div>
     <div class="data-row"><span class="data-label">תבנית ורמות (AI)</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;max-width:200px;white-space:normal;text-align:left;line-height:1.4;color:var(--gold);font-weight:800;">${patternText}</span></div></div>
-    <div class="data-row"><span class="data-label">קריאה טכנית מורחבת</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;max-width:200px;white-space:normal;text-align:left;line-height:1.5">${analysis.technical || "אין מספיק נתונים"}</span></div></div>`;
+    <div class="data-row"><span class="data-label">קריאה טכנית מורחבת</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;max-width:200px;white-space:normal;text-align:left;line-height:1.5">${(analysis && analysis.technical) ? analysis.technical : "אין מספיק נתונים"}</span></div></div>`;
 
   const insiders = data.insiderTransactions || [];
   const badgeEl = document.getElementById('insider-badge');
   const contentEl = document.getElementById('insider-content');
   
-  if (data.insiderSentiment === 'חיובי (קניות)') badgeEl.innerHTML = '<span class="tag tag-good">סנטימנט חיובי</span>';
-  else if (data.insiderSentiment === 'שלילי (מכירות)') badgeEl.innerHTML = '<span class="tag tag-bad">סנטימנט שלילי</span>';
-  else badgeEl.innerHTML = '<span class="tag tag-neutral">ניטרלי</span>';
-
-  if (insiders.length === 0) {
-      contentEl.innerHTML = '<p style="color:var(--text-secondary); font-size:0.85rem;">לא זוהו עסקאות בעלי עניין בחודשים האחרונים.</p>';
-  } else {
-      contentEl.style.cssText = 'display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:12px;';
-      contentEl.innerHTML = insiders.map(t => {
-          const isBuy = t.change > 0;
-          const changeFmt = Math.abs(t.change).toLocaleString();
-          const priceFmt = t.transactionPrice ? `$${t.transactionPrice.toFixed(2)}` : 'N/A';
-          const name = (t.name || 'Unknown').split(' ').slice(0,2).join(' ');
-          return `
-          <div style="background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); padding:14px; border-radius:12px; display:flex; flex-direction:column; gap:6px;">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <span style="font-weight:700; font-size:0.9rem; color:var(--text);">${name}</span>
-                  <span class="tag ${isBuy ? 'tag-good' : 'tag-bad'}" style="font-size:0.65rem;">${isBuy ? 'קנייה' : 'מכירה'}</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
-                  <span style="font-size:0.85rem; font-weight:700; direction:ltr; color:${isBuy ? 'var(--green)' : 'var(--red)'}">${isBuy ? '+' : '-'}${changeFmt} מניות</span>
-                  <span style="font-size:0.8rem; color:var(--text-secondary); direction:ltr;">${priceFmt}</span>
-              </div>
-          </div>`;
-      }).join('');
+  if (badgeEl) {
+      if (data.insiderSentiment === 'חיובי (קניות)') badgeEl.innerHTML = '<span class="tag tag-good">סנטימנט חיובי</span>';
+      else if (data.insiderSentiment === 'שלילי (מכירות)') badgeEl.innerHTML = '<span class="tag tag-bad">סנטימנט שלילי</span>';
+      else badgeEl.innerHTML = '<span class="tag tag-neutral">ניטרלי</span>';
   }
 
-  renderScores(analysis.scores || { growth: 50, value: 50, momentum: 50, quality: 50, overall: 50 });
-  document.getElementById('ai-score-desc').textContent = analysis.news_analysis || "ניתוח מבוסס על הנתונים הפונדמנטליים האחרונים.";
+  if (contentEl) {
+      if (insiders.length === 0) {
+          contentEl.innerHTML = '<p style="color:var(--text-secondary); font-size:0.85rem;">לא זוהו עסקאות בעלי עניין בחודשים האחרונים.</p>';
+      } else {
+          contentEl.style.cssText = 'display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:12px;';
+          contentEl.innerHTML = insiders.map(t => {
+              const isBuy = t.change > 0;
+              const changeFmt = Math.abs(t.change).toLocaleString();
+              const priceFmt = t.transactionPrice ? `$${t.transactionPrice.toFixed(2)}` : 'N/A';
+              const name = (t.name || 'Unknown').split(' ').slice(0,2).join(' ');
+              return `
+              <div style="background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); padding:14px; border-radius:12px; display:flex; flex-direction:column; gap:6px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <span style="font-weight:700; font-size:0.9rem; color:var(--text);">${name}</span>
+                      <span class="tag ${isBuy ? 'tag-good' : 'tag-bad'}" style="font-size:0.65rem;">${isBuy ? 'קנייה' : 'מכירה'}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+                      <span style="font-size:0.85rem; font-weight:700; direction:ltr; color:${isBuy ? 'var(--green)' : 'var(--red)'}">${isBuy ? '+' : '-'}${changeFmt} מניות</span>
+                      <span style="font-size:0.8rem; color:var(--text-secondary); direction:ltr;">${priceFmt}</span>
+                  </div>
+              </div>`;
+          }).join('');
+      }
+  }
 
-  const finalOverallScore = analysis.scores?.overall || 50;
+  const safeAnalysis = analysis || {};
+
+  renderScores(safeAnalysis.scores || { growth: 50, value: 50, momentum: 50, quality: 50, overall: 50 });
+  document.getElementById('ai-score-desc').textContent = safeAnalysis.news_analysis || "ניתוח מבוסס על הנתונים הפונדמנטליים האחרונים.";
+
+  const finalOverallScore = safeAnalysis.scores?.overall || 50;
   let ratingLabel = 'החזקה —', ratingCls = 'hold';
   if (finalOverallScore >= 80) { ratingLabel = 'קנייה חזקה 🔥'; ratingCls = 'buy'; }
   else if (finalOverallScore >= 60) { ratingLabel = 'קנייה ✓'; ratingCls = 'buy'; }
@@ -1307,24 +1342,25 @@ function renderResults(data, analysis, historyData, newsData) {
   
   document.getElementById('verdict-rating-pill').innerHTML = `<div class="verdict-rating ${ratingCls}">${ratingLabel}</div>`;
 
-  const upside = analysis.price_target && data.price ? (((analysis.price_target / data.price) - 1) * 100).toFixed(1) : 0;
+  const upside = safeAnalysis.price_target && data.price ? (((safeAnalysis.price_target / data.price) - 1) * 100).toFixed(1) : 0;
   
-  const entryPrice = analysis.entry_price ? `$${analysis.entry_price}` : 'N/A';
-  const targetPriceShort = analysis.target_price ? `$${analysis.target_price}` : 'N/A';
-  const stopLoss = analysis.stop_loss ? `$${analysis.stop_loss}` : 'N/A';
+  const entryPrice = safeAnalysis.entry_price ? `$${safeAnalysis.entry_price}` : 'N/A';
+  const targetPriceShort = safeAnalysis.target_price ? `$${safeAnalysis.target_price}` : 'N/A';
+  const stopLoss = safeAnalysis.stop_loss ? `$${safeAnalysis.stop_loss}` : 'N/A';
 
   document.getElementById('verdict-content').innerHTML = `
     <div style="margin-bottom:22px">
         <div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--blue); margin-bottom:8px;">פרופיל חברה וזהות תחרותית</div>
-        <div style="font-size:0.95rem;line-height:1.6;color:var(--text); font-weight:500; margin-bottom:10px;">${analysis.identity || "מידע חסר"}</div>
+        <div style="font-size:0.95rem;line-height:1.6;color:var(--text); font-weight:500; margin-bottom:10px;">${safeAnalysis.identity || "מידע חסר"}</div>
+        <div style="font-size:0.8rem;line-height:1.6;color:var(--text-secondary);">${data.description ? data.description.substring(0, 200) + '...' : ''}</div>
     </div>
     <div class="verdict-columns">
-        <div class="verdict-col"><div class="verdict-col-title pros">✅ נקודות חוזק</div><div class="verdict-col-content">${(analysis.pros || []).join('\n')}</div></div>
-        <div class="verdict-col"><div class="verdict-col-title cons">⚠️ גורמי סיכון</div><div class="verdict-col-content">${(analysis.cons || []).join('\n')}</div></div>
+        <div class="verdict-col"><div class="verdict-col-title pros">✅ נקודות חוזק</div><div class="verdict-col-content">${(safeAnalysis.pros || []).join('\n')}</div></div>
+        <div class="verdict-col"><div class="verdict-col-title cons">⚠️ גורמי סיכון</div><div class="verdict-col-content">${(safeAnalysis.cons || []).join('\n')}</div></div>
     </div>
     <div class="verdict-summary-box">
         <div class="verdict-summary-label">🎯 שורה תחתונה וצפי</div>
-        <div class="verdict-summary-text">${analysis.summary || "ה-AI לא הצליח לגבש פסיקה."}</div>
+        <div class="verdict-summary-text">${safeAnalysis.summary || "ה-AI לא הצליח לגבש פסיקה."}</div>
     </div>
     
     <div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-secondary); margin-bottom:14px; margin-top:28px;">רמות מסחר טכניות (Swing)</div>
@@ -1345,7 +1381,7 @@ function renderResults(data, analysis, historyData, newsData) {
     
     <div style="background: linear-gradient(135deg, rgba(255,214,10,0.1), rgba(255,214,10,0.02)); border: 1px solid rgba(255,214,10,0.3); padding: 24px; border-radius: 16px; text-align: center; box-shadow: 0 8px 32px rgba(255,214,10,0.06);">
          <div style="font-size: 0.85rem; color: var(--gold); font-weight: 800; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em;">🎯 יעד מחיר ריאלי ל-12 חודשים</div>
-         <div style="font-size: 2.8rem; font-weight: 900; color: #fff; direction:ltr; line-height: 1; margin-bottom: 4px;">$${analysis.price_target || "N/A"}</div>
+         <div style="font-size: 2.8rem; font-weight: 900; color: #fff; direction:ltr; line-height: 1; margin-bottom: 4px;">$${safeAnalysis.price_target || "N/A"}</div>
          <div style="font-size: 1.05rem; font-weight: 800; color: ${parseFloat(upside) >= 0 ? 'var(--green)' : 'var(--red)'}; margin-top: 10px; direction:ltr;">${parseFloat(upside) >= 0 ? '▲ פוטנציאל אפסייד:' : '▼ דאונסייד:'} ${parseFloat(upside) >= 0 ? '+' : ''}${upside}%</div>
     </div>`;
 
