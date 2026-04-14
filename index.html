@@ -932,7 +932,6 @@ window.analyzeStock = async function() {
               const currentPrice = liveData.price;
               const priceDiffPct = Math.abs(currentPrice - originalPrice) / originalPrice;
               
-              // הגנת הכריש לנתונים חסרים (כדי שלא נציג מידע חלקי שהתקבל במקרה של שגיאת API בעבר)
               const isETF = cachedData.industry === "N/A" || (!cachedData.marketCap && !cachedData.peRatio);
               let missingCoreData = 0;
               if (!cachedData.marketCap) missingCoreData++;
@@ -993,25 +992,40 @@ window.analyzeStock = async function() {
     State.aiAnalysis = data.analysis; 
     window.currentChartData = data.chartData; 
     
-    try {
-        await setDoc(doc(db, 'ai_cache', ticker), { ticker: ticker, data: data, lastUpdated: Date.now() });
-    } catch(e) { console.warn("Failed to save cache", e); }
+    // בדיקת שלמות נתונים לפני שמירה ל-Cache ולסט-אפים!
+    const isETF = data.industry === "N/A" || (!data.marketCap && !data.peRatio);
+    let missingCoreData = 0;
+    if (!data.marketCap) missingCoreData++;
+    if (!data.peRatio) missingCoreData++;
+    if (!data.revenueGrowth) missingCoreData++;
+    if (!data.netMargin) missingCoreData++;
+    
+    const isDataCorrupted = !isETF && missingCoreData >= 3;
 
-    // שמירת הסט-אפים החדשים עם מדדי ה-Value
-    if (data.analysis && data.analysis.scores && data.analysis.scores.overall >= 70 && user && user.status === 'approved') {
+    if (!isDataCorrupted) {
+        // הנתונים תקינים! שומרים ל-Cache
         try {
-            await setDoc(doc(db, 'ai_setups', ticker), {
-                ticker: ticker, 
-                score: data.analysis.scores.overall, 
-                pattern: data.pattern || 'ללא תבנית', 
-                rating: data.analysis.rating || 'קנייה', 
-                intrinsicValue: data.analysis.intrinsic_value || '', 
-                accumulationZone: data.analysis.accumulation_zone || '', 
-                riskLevel: data.analysis.risk_level || '', 
-                expectation: data.analysis.summary || '', 
-                lastUpdated: Date.now()
-            });
-        } catch(e) { console.warn("Failed to save setup", e); }
+            await setDoc(doc(db, 'ai_cache', ticker), { ticker: ticker, data: data, lastUpdated: Date.now() });
+        } catch(e) { console.warn("Failed to save cache", e); }
+
+        // שמירת הסט-אפים החדשים רק אם הנתונים תקינים והציון מעל 70
+        if (data.analysis && data.analysis.scores && data.analysis.scores.overall >= 70 && user && user.status === 'approved') {
+            try {
+                await setDoc(doc(db, 'ai_setups', ticker), {
+                    ticker: ticker, 
+                    score: data.analysis.scores.overall, 
+                    pattern: data.pattern || 'ללא תבנית', 
+                    rating: data.analysis.rating || 'קנייה', 
+                    intrinsicValue: data.analysis.intrinsic_value || '', 
+                    accumulationZone: data.analysis.accumulation_zone || '', 
+                    riskLevel: data.analysis.risk_level || '', 
+                    expectation: data.analysis.summary || '', 
+                    lastUpdated: Date.now()
+                });
+            } catch(e) { console.warn("Failed to save setup", e); }
+        }
+    } else {
+        console.warn(`⚠️ הנתונים שהתקבלו עבור ${ticker} חלקיים או פגומים. הניתוח יוצג אך לא יישמר ב-Cache כדי למנוע זיהום של מאגר הנתונים.`);
     }
 
     if (user && user.role !== 'admin') {
