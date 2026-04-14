@@ -425,19 +425,19 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
             </div>
         </div>
         <div class="card">
-            <div class="card-title" style="color:var(--gold)">🔥 טופ חברות ערך (המלצות ה-AI)</div>
-            <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:15px;">המניות שקיבלו את ציוני ה-AI הגבוהים ביותר כולל אזורי איסוף</p>
+            <div class="card-title" style="color:var(--gold)">🔥 טופ סט-אפים (המלצות ה-AI)</div>
+            <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:15px;">המניות שקיבלו את ציוני ה-AI הגבוהים ביותר כולל רמות מסחר</p>
             <div id="top-setups-list" style="display:flex; flex-direction:column; gap:10px; min-height: 200px;">
-                 טוען חברות...
+                 טוען סט-אפים...
             </div>
         </div>
     </div>
   </div>
 
   <div id="section-shark" class="section">
-    <div class="hero-badge">✦ AI-Powered Value & Macro Analysis</div>
+    <div class="hero-badge">✦ AI-Powered Fundamental & News Analysis</div>
     <h1>🦈 כריש הניתוח</h1>
-    <p style="color:var(--text-secondary); margin-bottom:30px;">הזן סימול מניה (למשל AAPL, TSLA) לקבלת ניתוח AI מבוסס השקעת ערך וזמן אמת.</p>
+    <p style="color:var(--text-secondary); margin-bottom:30px;">הזן סימול מניה (למשל AAPL, TSLA) לקבלת ניתוח AI מבוסס נתוני זמן אמת וחדשות טריות.</p>
     
     <div class="quick-symbols" id="quick-symbols">
       <div class="quick-chip" onclick="quickSearch('NVDA')">NVDA</div>
@@ -480,7 +480,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
       <div class="results-grid">
         <div class="card chart-card full-width">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-            <div class="chart-label">ביצועים תקופתיים ומחזורי מסחר (Volume)</div>
+            <div class="chart-label">ביצועים תקופתיים, מחזורי מסחר ורמות טכניות</div>
             <div class="chart-controls">
               <button class="chart-btn" onclick="setChartPeriod(3,this)">3M</button>
               <button class="chart-btn" onclick="setChartPeriod(6,this)">6M</button>
@@ -502,14 +502,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
         </div>
 
         <div class="card full-width">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
-            <div class="card-title" style="margin-bottom:0;">💼 תנועות כסף חכם (בעלי עניין)</div>
-            <div id="insider-badge"></div>
-          </div>
-          <div id="insider-content"></div>
-        </div>
-
-        <div class="card full-width">
           <div class="card-title">🤖 ניתוח AI מולטי-פקטור</div>
           <div class="overall-score-container">
             <div class="score-circle" id="ai-score-circle" style="--score: 0;"><span id="ai-score-text">0</span></div>
@@ -525,7 +517,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
           <div class="verdict-header">
             <div class="verdict-icon">🦈</div>
             <div>
-              <div class="verdict-title">פסיקת הכריש (Value Analysis)</div>
+              <div class="verdict-title">פסיקת הכריש</div>
             </div>
             <div id="verdict-rating-pill"></div>
           </div>
@@ -559,7 +551,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, onSnapshot, upd
 const firebaseConfig = { apiKey: "AIzaSyBU77J3Nu8xh0_a1GLM9jcnWJmhZq8QHH4", authDomain: "finshark-b9f2f.firebaseapp.com", projectId: "finshark-b9f2f", storageBucket: "finshark-b9f2f.firebasestorage.app", messagingSenderId: "1096467959013", appId: "1:1096467959013:web:737d0d49c475032657d80c", measurementId: "G-SDHLCKEW0K" };
 const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
-const State = { currentUser: null, currentTab: 'market', watchlist: [] }; window.State = State; let authMode = 'login';
+const State = { currentUser: null, currentTab: 'market', watchlist: [], currentData: null }; window.State = State; let authMode = 'login';
 let NETLIFY_API_URL = "/api/analyze";
 if (['blob:', 'file:', 'data:'].includes(window.location.protocol) || window.location.hostname === "localhost") {
   NETLIFY_API_URL = "http://localhost:8888/api/analyze"; 
@@ -928,7 +920,6 @@ window.analyzeStock = async function() {
       }
   } catch(e) { console.warn("Cache read error", e); }
 
-  // 💡 לוגיקת המטמון תוקנה כאן - נשתמש ב-Cache אך ורק אם המניה סומנה כשלמה!
   if (cachedData && cachedData.isDataComplete !== false) {
       animateLoadingSteps(['נמצא ניתוח שלם בענן!', 'מוודא שאין תנודת מחיר קיצונית ומעדכן...']);
       try {
@@ -942,9 +933,7 @@ window.analyzeStock = async function() {
               
               if (priceDiffPct > 0.05) {
                   console.log(`Bypassing cache. Price diff: ${(priceDiffPct*100).toFixed(1)}%.`);
-                  // מחיר השתנה דרסטית - ממשיכים לניתוח חדש למטה
               } else {
-                  // מעדכנים רק נתונים חיים (כדי לא לאבד את הפונדמנטלס של הקאש)
                   cachedData.price = liveData.price;
                   cachedData.changePercentage = liveData.changePercentage;
                   cachedData.chartData = liveData.chartData;
@@ -954,7 +943,6 @@ window.analyzeStock = async function() {
                   
                   if (liveData.pattern) cachedData.pattern = liveData.pattern;
                   if (liveData.rsi) cachedData.rsi = liveData.rsi; 
-                  // מעדכנים מכפיל רווח עדכני אם הגיע מהלייב
                   if (liveData.peRatio !== null && liveData.peRatio !== undefined) cachedData.peRatio = liveData.peRatio;
                   
                   State.currentData = cachedData; 
@@ -963,7 +951,7 @@ window.analyzeStock = async function() {
                   
                   hideLoading(); 
                   renderResults(cachedData, cachedData.analysis, cachedData.chartData, cachedData.tickerNews || []);
-                  return; // סיום, השתמשנו בהצלחה בקאש!
+                  return;
               }
           }
       } catch(e) { console.warn("Failed live update, falling back to full analysis", e); }
@@ -995,7 +983,7 @@ window.analyzeStock = async function() {
     State.aiAnalysis = data.analysis; 
     window.currentChartData = data.chartData; 
     
-    // 💡 שומרים לקאש ולסט-אפים רק אם הנתונים מוגדרים כשלמים
+    // שמירה ל-Cache אם הנתונים תקינים
     if (data.isDataComplete) {
         try {
             await setDoc(doc(db, 'ai_cache', ticker), { ticker: ticker, data: data, lastUpdated: Date.now() });
@@ -1012,6 +1000,12 @@ window.analyzeStock = async function() {
                     accumulationZone: data.analysis.accumulation_zone || '', 
                     riskLevel: data.analysis.risk_level || '', 
                     expectation: data.analysis.summary || '', 
+                    
+                    // שמירת הסט-אפ החדש למסך הקהילה (לפי הנתונים מהשרת)
+                    entryPrice: data.analysis.entry_price || '',
+                    stopLoss: data.analysis.stop_loss || '',
+                    targetPrice: data.analysis.target_price || '',
+
                     lastUpdated: Date.now()
                 });
             } catch(e) { console.warn("Failed to save setup", e); }
@@ -1052,11 +1046,12 @@ let volumeSeries = null;
 window.setChartPeriod = function(months, btn) { 
     document.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active')); 
     if(btn) btn.classList.add('active'); 
-    if (!window.currentChartData) return; 
-    renderChart(window.currentChartData, months); 
+    if (!window.currentChartData || !State.currentData) return; 
+    renderChart(window.currentChartData, months, State.currentData); 
 };
 
-function renderChart(historyData, months) {
+// 💡 שדרוג הויזואליות של הגרף - הוספת קווים של ה-AI והתמיכות!
+function renderChart(historyData, months, fullDataObj) {
     const container = document.getElementById('stockChart');
     if(!container) return;
 
@@ -1118,6 +1113,45 @@ function renderChart(historyData, months) {
         ma200Series.setData(ma200Line);
     }
 
+    // ציור קווי תמיכה והתנגדות מהשרת
+    if (fullDataObj && fullDataObj.keyLevels && fullDataObj.keyLevels.length > 0) {
+        fullDataObj.keyLevels.forEach(level => {
+            const isRes = level.type.includes('התנגדות');
+            candleSeries.createPriceLine({
+                price: level.price,
+                color: isRes ? 'rgba(255, 69, 58, 0.4)' : 'rgba(48, 209, 88, 0.4)',
+                lineWidth: 2,
+                lineStyle: LightweightCharts.LineStyle.Dashed,
+                axisLabelVisible: true,
+                title: level.type,
+            });
+        });
+    }
+
+    // ציור יעדים והגנות של ה-AI
+    if (fullDataObj && fullDataObj.analysis) {
+        if (fullDataObj.analysis.target_price) {
+            candleSeries.createPriceLine({
+                price: Number(fullDataObj.analysis.target_price),
+                color: 'rgba(48, 209, 88, 0.9)',
+                lineWidth: 2,
+                lineStyle: LightweightCharts.LineStyle.Solid,
+                axisLabelVisible: true,
+                title: '🎯 יעד AI',
+            });
+        }
+        if (fullDataObj.analysis.stop_loss) {
+            candleSeries.createPriceLine({
+                price: Number(fullDataObj.analysis.stop_loss),
+                color: 'rgba(255, 69, 58, 0.9)',
+                lineWidth: 2,
+                lineStyle: LightweightCharts.LineStyle.Solid,
+                axisLabelVisible: true,
+                title: '🛑 סטופ AI',
+            });
+        }
+    }
+
     tvChart.timeScale().fitContent();
 }
 
@@ -1168,10 +1202,10 @@ function renderResults(data, analysis, historyData, newsData) {
   if(State.watchlist.includes(data.ticker)) { btnWatch.textContent = '✓'; btnWatch.classList.add('active'); } 
   else { btnWatch.textContent = '📌'; btnWatch.classList.remove('active'); }
   
-  renderChart(historyData, 24); 
+  // ציור הגרף (כולל רמות התמיכה והתנגדות והיעדים החדשים שהוספנו)
+  renderChart(historyData, 24, data); 
   document.querySelectorAll('.chart-btn').forEach((b,i) => b.classList.toggle('active', i===2));
 
-  // 💡 לוגיקת רינדור הנתונים. אם null - מציג N/A באלגנטיות.
   const peNum = data.peRatio;
   const epsNum = data.eps;
   const rangeLow = data.fiftyTwoWeekLow !== null ? data.fiftyTwoWeekLow : 0;
@@ -1275,10 +1309,9 @@ function renderResults(data, analysis, historyData, newsData) {
 
   const upside = analysis.price_target && data.price ? (((analysis.price_target / data.price) - 1) * 100).toFixed(1) : 0;
   
-  // תמיכה בפורמט הסט-אפים הישן והחדש במקביל
-  const entryPrice = analysis.entry_price ? `$${analysis.entry_price}` : (analysis.accumulation_zone || 'N/A');
-  const stopLoss = analysis.stop_loss ? `$${analysis.stop_loss}` : (analysis.risk_level || 'N/A');
-  const targetPriceShort = analysis.target_price ? `$${analysis.target_price}` : (analysis.intrinsic_value || 'N/A');
+  const entryPrice = analysis.entry_price ? `$${analysis.entry_price}` : 'N/A';
+  const targetPriceShort = analysis.target_price ? `$${analysis.target_price}` : 'N/A';
+  const stopLoss = analysis.stop_loss ? `$${analysis.stop_loss}` : 'N/A';
 
   document.getElementById('verdict-content').innerHTML = `
     <div style="margin-bottom:22px">
@@ -1294,19 +1327,19 @@ function renderResults(data, analysis, historyData, newsData) {
         <div class="verdict-summary-text">${analysis.summary || "ה-AI לא הצליח לגבש פסיקה."}</div>
     </div>
     
-    <div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-secondary); margin-bottom:14px; margin-top:28px;">רמות מסחר טכניות והערכת שווי</div>
+    <div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-secondary); margin-bottom:14px; margin-top:28px;">רמות מסחר טכניות (Swing)</div>
     <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px;">
         <div style="background: rgba(10,132,255,0.1); border: 1px solid rgba(10,132,255,0.2); padding: 16px; border-radius: 12px; text-align: center;">
-            <div style="font-size: 0.7rem; color: var(--blue); font-weight: 800; margin-bottom: 6px;">כניסה / איסוף</div>
-            <div style="font-size: 1.1rem; font-weight: 800; color: var(--text); direction:ltr;">${entryPrice}</div>
+            <div style="font-size: 0.7rem; color: var(--blue); font-weight: 800; margin-bottom: 6px;">מחיר כניסה אידיאלי</div>
+            <div style="font-size: 1.4rem; font-weight: 900; color: var(--text); direction:ltr;">${entryPrice}</div>
         </div>
         <div style="background: rgba(48,209,88,0.1); border: 1px solid rgba(48,209,88,0.2); padding: 16px; border-radius: 12px; text-align: center;">
-            <div style="font-size: 0.7rem; color: var(--green); font-weight: 800; margin-bottom: 6px;">יעד / שווי הוגן</div>
-            <div style="font-size: 1.1rem; font-weight: 800; color: var(--green); direction:ltr;">${targetPriceShort}</div>
+            <div style="font-size: 0.7rem; color: var(--green); font-weight: 800; margin-bottom: 6px;">יעד קרוב (Target)</div>
+            <div style="font-size: 1.4rem; font-weight: 900; color: var(--green); direction:ltr;">${targetPriceShort}</div>
         </div>
         <div style="background: rgba(255,69,58,0.1); border: 1px solid rgba(255,69,58,0.2); padding: 16px; border-radius: 12px; text-align: center;">
-            <div style="font-size: 0.7rem; color: var(--red); font-weight: 800; margin-bottom: 6px;">סטופ לוס / סיכון</div>
-            <div style="font-size: 1.1rem; font-weight: 800; color: var(--red); direction:ltr;">${stopLoss}</div>
+            <div style="font-size: 0.7rem; color: var(--red); font-weight: 800; margin-bottom: 6px;">סטופ לוס קריטי</div>
+            <div style="font-size: 1.4rem; font-weight: 900; color: var(--red); direction:ltr;">${stopLoss}</div>
         </div>
     </div>
     
