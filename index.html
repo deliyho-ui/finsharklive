@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FinShark | כריש פיננסי - AI Market Analysis</title>
-<link rel="icon" href="data:,">
+<link rel="icon" href="data:,\">
 <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
@@ -471,7 +471,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
               <button class="chart-btn active" onclick="setChartPeriod(24,this)">2Y</button>
             </div>
           </div>
-          <!-- מיכל הגרף של TradingView -->
           <div class="chart-container" id="stockChart"></div>
         </div>
 
@@ -550,10 +549,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-window.closeUpdatesModal = function() {
-    document.getElementById('modal-updates').classList.remove('active');
-}
-
+window.closeUpdatesModal = function() { document.getElementById('modal-updates').classList.remove('active'); }
 window.openLogin = function() { document.getElementById('auth-error').style.display = 'none'; document.getElementById('modal-login').classList.add('active'); };
 window.closeLogin = function() { document.getElementById('modal-login').classList.remove('active'); };
 window.switchLoginTab = function(mode) { authMode = mode; document.getElementById('auth-error').style.display = 'none'; document.getElementById('tab-login').classList.toggle('active', mode === 'login'); document.getElementById('tab-register').classList.toggle('active', mode === 'register'); document.getElementById('btn-auth-action').textContent = mode === 'login' ? 'כניסה למערכת ←' : 'שלח בקשה לאישור'; };
@@ -567,12 +563,8 @@ window.handleAuth = async function() {
         const user = userCredential.user; 
         const isAdmin = email === 'admin@finshark.com'; 
         await setDoc(doc(db, 'users', user.uid), { 
-            email: email, 
-            role: isAdmin ? 'admin' : 'user', 
-            status: isAdmin ? 'approved' : 'pending', 
-            watchlist: ['AAPL', 'MSFT'],
-            analysisCount: 0,
-            restrictedUntil: null
+            email: email, role: isAdmin ? 'admin' : 'user', status: isAdmin ? 'approved' : 'pending', 
+            watchlist: ['AAPL', 'MSFT'], analysisCount: 0, restrictedUntil: null
         }); 
     } 
     else { await signInWithEmailAndPassword(auth, email, pass); }
@@ -678,7 +670,6 @@ window.loadCommunityData = async function() {
             let sHtml = '';
             setups.slice(0, 10).forEach((item, index) => {
                 const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index+1}`;
-                
                 const entryStr = item.entryPrice ? `כניסה: $${item.entryPrice}` : '';
                 const stopStr = item.stopLoss ? `סטופ: $${item.stopLoss}` : '';
                 const targetStr = item.targetPrice ? `יעד: $${item.targetPrice}` : '';
@@ -928,7 +919,7 @@ window.analyzeStock = async function() {
       const now = Date.now();
       if (user.restrictedUntil && now < user.restrictedUntil) {
           const remainingMinutes = Math.ceil((user.restrictedUntil - now) / (1000 * 60));
-          warningEl.innerHTML = `🚫 הגעת למגבלת הניתוחים להיום (6).<br>מניות קיימות ניתן לראות בחינם. ניתוח מניות חדשות יפתח מחדש בעוד <b>${remainingMinutes} דקות</b>.`;
+          warningEl.innerHTML = `🚫 הגעת למגבלת הניתוחים להיום (6).<br>מניות שנותחו זמינות בחינם דרך הסט-אפים או החיפוש. <br>ניתוח מניות חדשות יפתח מחדש בעוד <b>${remainingMinutes} דקות</b>.`;
           warningEl.style.display = 'flex';
           hideLoading();
           document.getElementById('ticker-input').value = '';
