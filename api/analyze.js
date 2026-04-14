@@ -106,20 +106,22 @@ function extractKeyLevels(points) {
     for (let i = 2; i < points.length - 2; i++) {
         const p = points[i];
         if (p.high >= points[i-1].high && p.high >= points[i+1].high && p.high >= points[i-2].high && p.high >= points[i+2].high) {
-            levels.push({ price: p.high, type: 'התנגדות היסטורית' });
+            levels.push({ price: p.high, type: 'התנגדות' }); // קוצר השם לתצוגה יפה בגרף
         }
         if (p.low <= points[i-1].low && p.low <= points[i+1].low && p.low <= points[i-2].low && p.low <= points[i+2].low) {
-            levels.push({ price: p.low, type: 'תמיכה היסטורית' });
+            levels.push({ price: p.low, type: 'תמיכה' }); // קוצר השם לתצוגה יפה בגרף
         }
     }
     let filtered = [];
     levels.sort((a, b) => b.price - a.price);
     levels.forEach(l => {
+        // סינון רמות קרובות מדי (4% מרחק)
         if (!filtered.some(f => Math.abs(f.price - l.price) / l.price < 0.04)) {
             filtered.push(l);
         }
     });
-    return filtered.slice(0, 8);
+    // נחזיר את 4 הרמות הרלוונטיות ביותר (כדי לא להעמיס על הגרף ויזואלית)
+    return filtered.slice(0, 4);
 }
 
 function detectAllPatterns(chartPoints) {
@@ -173,7 +175,7 @@ function detectAllPatterns(chartPoints) {
     return [...new Set(patterns)].join(" | ");
 }
 
-// 💡 תיקון מרכזי: פונקציית סניטציה שמחזירה null אמיתי ולא 'N/A' או 0
+// 💡 סניטציה: מחזיר null אמיתי אם אין נתון
 function sanitizeValue(val) {
     if (val === null || val === undefined || isNaN(val) || val === '' || val === 0) return null;
     return Number(val);
@@ -274,7 +276,6 @@ module.exports = async function(req, res) {
         let latestEarnings = null;
         if (Array.isArray(earningsData) && earningsData.length > 0) latestEarnings = earningsData[0];
 
-        // 💡 בנייה מדויקת של פונדמנטלס תוך שימוש ב-sanitizeValue כדי להימנע מ-0.00 היכן שחסר
         const fundamentals = {
             marketCap: sanitizeValue(profile?.marketCapitalization || m?.marketCapitalization),
             fiftyTwoWeekHigh: sanitizeValue(m?.['52WeekHigh']),
@@ -304,11 +305,12 @@ module.exports = async function(req, res) {
         const insiderSentiment = netInsiderShares > 0 ? 'חיובי (קניות)' : netInsiderShares < 0 ? 'שלילי (מכירות)' : 'ניטרלי';
 
         const lastPoint = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1] : {};
+        
+        // 💡 שינוי מפתח: שומרים את רמות התמיכה וההתנגדות כדי להעביר אותן לפרונטאנד לציור
         const keyLevels = extractKeyLevels(chartPoints);
         const levelsPrompt = keyLevels.map(l => `${l.type}: $${l.price.toFixed(2)}`).join(', ');
         const patternsDetected = detectAllPatterns(chartPoints);
 
-        // 💡 בדיקת שלמות הנתונים - קריטי כדי שהפרונטאנד יידע אם לשמור את המניה או לא
         const isETF = profile?.finnhubIndustry === "" || (!fundamentals.marketCap && !fundamentals.peRatio);
         const isDataComplete = isETF || (fundamentals.marketCap !== null && fundamentals.peRatio !== null && fundamentals.revenueGrowth !== null);
 
@@ -337,6 +339,8 @@ module.exports = async function(req, res) {
         דרישות פלט חובה:
         - שווי הוגן (Intrinsic Value): ציין מחיר בדולרים או "לא רלוונטי".
         - אזור איסוף: הגדר טווח מחירים מבוסס תמיכות.
+        - יעד רווח טכני (target_price): ספק יעד ריאלי לפריצה.
+        - עצירת הפסד טכנית (stop_loss): ספק רמה טכנית קריטית ליציאה.
 
         ספק פסיקה ב-JSON בלבד בעברית:
         {
@@ -346,6 +350,8 @@ module.exports = async function(req, res) {
           "summary": "השורה התחתונה מחיבור הנתונים",
           "pros": ["חוזקה 1", "חוזקה 2"], "cons": ["סיכון 1", "סיכון 2"],
           "price_target": "יעד ל-12 חודשים (מספר)",
+          "target_price": "יעד רווח טכני קרוב (מספר טהור בלי דולר)",
+          "stop_loss": "עצירת הפסד קריטית (מספר טהור בלי דולר)",
           "intrinsic_value": "מחיר בדולרים + הסבר קצר",
           "accumulation_zone": "טווח מחירים לאיסוף",
           "risk_level": "נמוך / בינוני / גבוה",
@@ -368,7 +374,7 @@ module.exports = async function(req, res) {
 
         return res.status(200).json({
             success: true, 
-            isDataComplete, // עובר לפרונטאנד כדי שידע אם לשמור למטמון
+            isDataComplete, 
             ticker, 
             name: profile?.name || ticker, 
             industry: profile?.finnhubIndustry || "N/A", 
@@ -380,6 +386,7 @@ module.exports = async function(req, res) {
             volume: Number(quote?.v || lastPoint.volume || 0),
             pattern: patternsDetected, 
             rsi: calculateRSI(chartPoints.map(p=>p.close)), 
+            keyLevels, // 💡 חובה: העברת רמות התמיכה וההתנגדות ל-UI
             ...fundamentals,
             latestEarnings,
             tickerNews: (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 5),
