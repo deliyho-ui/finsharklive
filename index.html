@@ -126,7 +126,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .search-input { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); border-radius: 18px; padding: 20px 26px; color: var(--text); font-size: 1.15rem; font-weight: 700; text-transform: uppercase; outline: none; direction: ltr; }
 .search-btn { padding: 20px 36px; font-size: 1rem; border-radius: 18px; }
 
-/* 💡 מתג בחירת טווח זמן - מעוצב ומודגש */
 .timeframe-toggle { display: flex; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 14px; padding: 5px; width: fit-content; margin-bottom: 25px; }
 .tf-btn { background: transparent; border: none; color: var(--text-secondary); padding: 10px 20px; border-radius: 10px; font-family: 'Heebo', sans-serif; font-weight: 700; cursor: pointer; transition: var(--transition); font-size: 0.85rem; display:flex; align-items:center; gap:8px;}
 .tf-btn.active { background: var(--blue-dim); color: var(--blue); box-shadow: 0 4px 12px rgba(10,132,255,0.15); }
@@ -454,7 +453,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
       <div class="quick-chip" onclick="quickSearch('META')">META</div>
     </div>
 
-    <!-- 💡 מתג בחירת טווח זמן מובנה כאן (ברירת מחדל: טווח ארוך) -->
     <div class="timeframe-toggle">
         <button class="tf-btn active" id="tf-long" onclick="setTimeframe('long')">📅 טווח ארוך (שבועי לשנתיים - ערך)</button>
         <button class="tf-btn" id="tf-short" onclick="setTimeframe('short')">⚡ טווח קצר (יומי לשנה - סווינג)</button>
@@ -499,7 +497,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
               <button class="chart-btn" onclick="setChartPeriod(3,this)">3M</button>
               <button class="chart-btn" onclick="setChartPeriod(6,this)">6M</button>
               <button class="chart-btn" onclick="setChartPeriod(12,this)">1Y</button>
-              <!-- כברירת מחדל נציג את הטווח המלא שנמשך -->
               <button class="chart-btn active" onclick="setChartPeriod(999,this)">ALL</button>
             </div>
           </div>
@@ -575,14 +572,13 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, onSnapshot, upd
 const firebaseConfig = { apiKey: "AIzaSyBU77J3Nu8xh0_a1GLM9jcnWJmhZq8QHH4", authDomain: "finshark-b9f2f.firebaseapp.com", projectId: "finshark-b9f2f", storageBucket: "finshark-b9f2f.firebasestorage.app", messagingSenderId: "1096467959013", appId: "1:1096467959013:web:737d0d49c475032657d80c", measurementId: "G-SDHLCKEW0K" };
 const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
-// 💡 ברירת המחדל היא 'long'
 const State = { currentUser: null, currentTab: 'market', watchlist: [], currentData: null, timeframe: 'long' }; window.State = State; let authMode = 'login';
 let NETLIFY_API_URL = "/api/analyze";
 if (['blob:', 'file:', 'data:'].includes(window.location.protocol) || window.location.hostname === "localhost") {
   NETLIFY_API_URL = "http://localhost:8888/api/analyze"; 
 }
 
-// 💡 חגורות בטיחות שמונעות קריסה
+// 💡 חגורות בטיחות שמונעות קריסה במקרה של אלמנטים חסרים ב-HTML
 function safeHTML(id, html) {
     const el = document.getElementById(id);
     if (el) el.innerHTML = html;
@@ -591,29 +587,54 @@ function safeText(id, text) {
     const el = document.getElementById(id);
     if (el) el.textContent = text;
 }
+// 💡 פונקציה קריטית: עוטפת כל מספר באתר. אם חסר (null/NaN/string) - מחזירה N/A ולא קורסת!
+function safeNum(val, decimals = 1, prefix = '', suffix = '') {
+    if (typeof val !== 'number' || isNaN(val)) return 'N/A';
+    return prefix + val.toFixed(decimals) + suffix;
+}
+function formatNumberShort(num) { 
+    if(typeof num !== 'number' || isNaN(num)) return "N/A"; 
+    let absNum = Math.abs(num);
+    let sign = num < 0 ? "-" : "";
+    if (absNum >= 1e12) return sign + (absNum / 1e12).toFixed(2) + "T"; 
+    if (absNum >= 1e9) return sign + (absNum / 1e9).toFixed(2) + "B"; 
+    if (absNum >= 1e6) return sign + (absNum / 1e6).toFixed(2) + "M"; 
+    return sign + absNum.toLocaleString(); 
+}
 
 window.addEventListener('DOMContentLoaded', () => { 
     loadMarketWeather(); 
-    // הצגת מודל העדכונים של "גרסה 4"
     if(!localStorage.getItem('finshark_update_v4_1')) {
-        document.getElementById('modal-updates').classList.add('active');
+        const updateModal = document.getElementById('modal-updates');
+        if(updateModal) updateModal.classList.add('active');
         localStorage.setItem('finshark_update_v4_1', 'true');
     }
 });
 
-// פונקציית החלפת הטווח
 window.setTimeframe = function(tf) {
     State.timeframe = tf;
-    document.getElementById('tf-long').classList.toggle('active', tf === 'long');
-    document.getElementById('tf-short').classList.toggle('active', tf === 'short');
+    const tfLong = document.getElementById('tf-long');
+    const tfShort = document.getElementById('tf-short');
+    if(tfLong) tfLong.classList.toggle('active', tf === 'long');
+    if(tfShort) tfShort.classList.toggle('active', tf === 'short');
 };
 
-window.closeUpdatesModal = function() { document.getElementById('modal-updates').classList.remove('active'); }
-window.openLogin = function() { document.getElementById('auth-error').style.display = 'none'; document.getElementById('modal-login').classList.add('active'); };
-window.closeLogin = function() { document.getElementById('modal-login').classList.remove('active'); };
-window.switchLoginTab = function(mode) { authMode = mode; document.getElementById('auth-error').style.display = 'none'; document.getElementById('tab-login').classList.toggle('active', mode === 'login'); document.getElementById('tab-register').classList.toggle('active', mode === 'register'); document.getElementById('btn-auth-action').textContent = mode === 'login' ? 'כניסה למערכת ←' : 'שלח בקשה לאישור'; };
+window.closeUpdatesModal = function() { const m = document.getElementById('modal-updates'); if(m) m.classList.remove('active'); }
+window.openLogin = function() { const err = document.getElementById('auth-error'); if(err) err.style.display = 'none'; const m = document.getElementById('modal-login'); if(m) m.classList.add('active'); };
+window.closeLogin = function() { const m = document.getElementById('modal-login'); if(m) m.classList.remove('active'); };
+window.switchLoginTab = function(mode) { 
+    authMode = mode; 
+    const err = document.getElementById('auth-error'); if(err) err.style.display = 'none'; 
+    const tL = document.getElementById('tab-login'); if(tL) tL.classList.toggle('active', mode === 'login'); 
+    const tR = document.getElementById('tab-register'); if(tR) tR.classList.toggle('active', mode === 'register'); 
+    const btn = document.getElementById('btn-auth-action'); if(btn) btn.textContent = mode === 'login' ? 'כניסה למערכת ←' : 'שלח בקשה לאישור'; 
+};
 window.handleAuth = async function() {
-  const email = document.getElementById('auth-email').value.trim().toLowerCase(), pass = document.getElementById('auth-pass').value.trim(), errEl = document.getElementById('auth-error');
+  const emailEl = document.getElementById('auth-email');
+  const passEl = document.getElementById('auth-pass');
+  const errEl = document.getElementById('auth-error');
+  if(!emailEl || !passEl || !errEl) return;
+  const email = emailEl.value.trim().toLowerCase(), pass = passEl.value.trim();
   if (!email || !pass) { errEl.textContent = 'נא להזין אימייל וסיסמה'; errEl.style.display = 'block'; return; }
   const getFirebaseError = (error) => { if(error.code === 'auth/email-already-in-use') return 'האימייל כבר קיים.'; if(error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') return 'אימייל או סיסמה שגויים.'; if(error.code === 'auth/weak-password') return 'סיסמה חלשה מדי.'; return 'שגיאה: ' + error.message; };
   try {
@@ -627,7 +648,7 @@ window.handleAuth = async function() {
         }); 
     } 
     else { await signInWithEmailAndPassword(auth, email, pass); }
-    document.getElementById('auth-email').value = ''; document.getElementById('auth-pass').value = ''; window.closeLogin();
+    emailEl.value = ''; passEl.value = ''; window.closeLogin();
   } catch (error) { errEl.textContent = getFirebaseError(error); errEl.style.display = 'block'; }
 };
 window.logout = async function() { await signOut(auth); State.currentUser = null; State.watchlist = []; window.switchTab('market'); };
@@ -805,7 +826,7 @@ window.approveUser = async function(uid) { await updateDoc(doc(db, 'users', uid)
 window.revokeUser = async function(uid) { await updateDoc(doc(db, 'users', uid), { status: 'pending' }); };
 window.removeRestriction = async function(uid) { await updateDoc(doc(db, 'users', uid), { restrictedUntil: null, analysisCount: 0 }); };
 
-window.addWatchlistItem = async function() { const val = document.getElementById('watch-input').value.trim().toUpperCase(); if (!val || !State.currentUser) return; document.getElementById('watch-input').value = ''; await updateDoc(doc(db, 'users', State.currentUser.uid), { watchlist: arrayUnion(val) }); };
+window.addWatchlistItem = async function() { const inputEl = document.getElementById('watch-input'); if(!inputEl) return; const val = inputEl.value.trim().toUpperCase(); if (!val || !State.currentUser) return; inputEl.value = ''; await updateDoc(doc(db, 'users', State.currentUser.uid), { watchlist: arrayUnion(val) }); };
 window.removeFromWatchlist = async function(ticker) { if(!State.currentUser) return; await updateDoc(doc(db, 'users', State.currentUser.uid), { watchlist: arrayRemove(ticker) }); };
 window.addToWatchlistFromResults = async function() { const ticker = State.currentData?.ticker; if (!ticker || !State.currentUser) return; await updateDoc(doc(db, 'users', State.currentUser.uid), { watchlist: arrayUnion(ticker) }); const btn = document.getElementById('btn-add-watch-results'); if(btn){btn.classList.add('active'); btn.textContent = '✓'; setTimeout(() => { btn.classList.remove('active'); btn.textContent = '📌'; }, 1500);} };
 function renderWatchlist() {
@@ -814,9 +835,9 @@ function renderWatchlist() {
   if (State.watchlist.length === 0) { grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding: 60px 20px; color: var(--text-secondary);"><div style="font-size:3rem; margin-bottom:16px;">📭</div><p>הרשימה ריקה. הוסף סימולי מניות.</p></div>`; return; }
   grid.innerHTML = State.watchlist.map(ticker => `<div class="card" style="padding:20px; position:relative; cursor:pointer;" onclick="window.goToAnalysis('${ticker}')"><button onclick="event.stopPropagation(); window.removeFromWatchlist('${ticker}')" style="position:absolute; top:12px; left:14px; width:24px; height:24px; background:rgba(255,69,58,0.1); border:1px solid rgba(255,69,58,0.2); border-radius:6px; color:var(--red); cursor:pointer; z-index:10;">✕</button><div style="font-size:0.72rem; font-weight:800; color:var(--blue); letter-spacing:0.1em;">${ticker}</div><div style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:14px;">לחץ לניתוח</div></div>`).join('');
 }
-window.goToAnalysis = function(ticker) { document.getElementById('ticker-input').value = ticker; window.switchTab('shark', document.getElementById('nav-shark')); window.analyzeStock(); };
+window.goToAnalysis = function(ticker) { const inputEl = document.getElementById('ticker-input'); if(inputEl) inputEl.value = ticker; window.switchTab('shark', document.getElementById('nav-shark')); window.analyzeStock(); };
 window.quickSearch = function(ticker) { window.goToAnalysis(ticker); };
-window.shareAnalysis = function() { if (!State.currentData) return; const text = `FinShark 🦈 | ${State.currentData.ticker} - $${State.currentData.price.toFixed(2)} | ${State.currentData.changePercentage > 0 ? '+' : ''}${State.currentData.changePercentage}%`; navigator.clipboard?.writeText(text).then(() => alert("הועתק!")); };
+window.shareAnalysis = function() { if (!State.currentData) return; const cp = typeof State.currentData.changePercentage === 'number' ? State.currentData.changePercentage : 0; const p = typeof State.currentData.price === 'number' ? State.currentData.price : 0; const text = `FinShark 🦈 | ${State.currentData.ticker} - $${p.toFixed(2)} | ${cp > 0 ? '+' : ''}${cp.toFixed(2)}%`; navigator.clipboard?.writeText(text).then(() => alert("הועתק!")); };
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeLogin(); const resultsEl = document.getElementById('results'); if(resultsEl) resultsEl.style.display = 'none'; const inputEl = document.getElementById('ticker-input'); if(inputEl) inputEl.value=''; } });
 
 window.switchTab = function(tab, el) {
@@ -863,7 +884,7 @@ function renderApp() {
   const navAdmin = document.getElementById('nav-admin');
   if(navAdmin) navAdmin.style.display = isAdmin ? '' : 'none';
   
-  if (isAdmin && State.currentTab === 'admin') { document.getElementById('section-admin').classList.add('active'); setupAdminDashboard(); }
+  if (isAdmin && State.currentTab === 'admin') { const sec = document.getElementById('section-admin'); if(sec) sec.classList.add('active'); setupAdminDashboard(); }
   else if (State.currentTab === 'pending') { const sec = document.getElementById('section-pending'); if(sec) sec.classList.add('active'); }
   else if (State.currentTab === 'shark') { const sec = document.getElementById('section-shark'); if(sec) sec.classList.add('active'); }
   else if (State.currentTab === 'community') { const sec = document.getElementById('section-community'); if(sec) sec.classList.add('active'); loadCommunityData(); }
@@ -900,16 +921,18 @@ function renderMarketWeather(data) {
   if (indexes.length === 0) tickerHtml = "<div class='ticker-item' style='color:var(--red)'>המתן... לא הצלחנו למשוך נתונים.</div>";
   else {
       indexes.forEach(idx => {
-          const name = idx.symbol, isUp = idx.changesPercentage >= 0, price = idx.price >= 1000 ? idx.price.toLocaleString(undefined, {maximumFractionDigits: 0}) : idx.price.toFixed(2), change = `${isUp ? '+' : ''}${idx.changesPercentage.toFixed(2)}%`, colorUp = isUp;
-          tickerHtml += `<div class="ticker-item"><span class="ticker-name">${name}</span> <span class="ticker-price">${price}</span> <span class="ticker-change ${colorUp?'up':'down'}">${change}</span></div>`;
-          statsHtml += `<div class="stat-card"><div class="stat-label">${name}</div><div class="stat-value">${price}</div><div class="stat-change ${colorUp?'up':'down'}">${change} היום</div></div>`;
+          const name = idx.symbol, isUp = idx.changesPercentage >= 0, price = (typeof idx.price === 'number') ? (idx.price >= 1000 ? idx.price.toLocaleString(undefined, {maximumFractionDigits: 0}) : idx.price.toFixed(2)) : 0; 
+          const chg = (typeof idx.changesPercentage === 'number') ? `${isUp ? '+' : ''}${idx.changesPercentage.toFixed(2)}%` : '0%'; 
+          const colorUp = isUp;
+          tickerHtml += `<div class="ticker-item"><span class="ticker-name">${name}</span> <span class="ticker-price">${price}</span> <span class="ticker-change ${colorUp?'up':'down'}">${chg}</span></div>`;
+          statsHtml += `<div class="stat-card"><div class="stat-label">${name}</div><div class="stat-value">${price}</div><div class="stat-change ${colorUp?'up':'down'}">${chg} היום</div></div>`;
       });
   }
   safeHTML('ticker-track', tickerHtml + tickerHtml);
   safeHTML('market-stats', statsHtml);
 
   if (sectors.length > 0) {
-      const html = sectors.slice(0, 12).map(s => { const chg = parseFloat(s.changesPercentage), isUp = chg > 0, isNeutral = chg === 0, cls = isNeutral ? 'neutral' : (isUp ? 'up' : 'down'); return `<div class="heatmap-cell ${cls}" title="${s.sector}"><div class="cell-name">${mapSectorToHebrew(s.sector)}</div><div class="cell-change ${cls}">${isUp?'+':''}${chg.toFixed(2)}%</div></div>`; }).join('');
+      const html = sectors.slice(0, 12).map(s => { const chg = parseFloat(s.changesPercentage); const isUp = chg > 0; const isNeutral = chg === 0; const cls = isNeutral ? 'neutral' : (isUp ? 'up' : 'down'); return `<div class="heatmap-cell ${cls}" title="${s.sector}"><div class="cell-name">${mapSectorToHebrew(s.sector)}</div><div class="cell-change ${cls}">${!isNaN(chg) ? (isUp?'+':'') + chg.toFixed(2) + '%' : '0%'}</div></div>`; }).join('');
       safeHTML('heatmap-grid', html);
   }
   
@@ -922,7 +945,9 @@ function renderMarketWeather(data) {
       }
       container.innerHTML = items.map(item => {
           const chg = parseFloat(item.changesPercentage);
-          const chgStr = `${chg > 0 ? '+' : ''}${chg.toFixed(2)}%`;
+          const chgStr = !isNaN(chg) ? `${chg > 0 ? '+' : ''}${chg.toFixed(2)}%` : 'N/A';
+          const p = parseFloat(item.price);
+          const priceStr = !isNaN(p) ? `$${p.toFixed(2)}` : 'N/A';
           const colorCls = isGainer ? 'up' : 'down';
           return `
           <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); border-radius:10px; cursor:pointer; transition:var(--transition);" onclick="quickSearch('${item.symbol}')" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--glass-border)'">
@@ -931,7 +956,7 @@ function renderMarketWeather(data) {
                   <span style="font-size:0.7rem; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:90%;">${item.name}</span>
               </div>
               <div style="display:flex; flex-direction:column; gap:2px; text-align:right; direction:ltr; min-width:70px;">
-                  <span style="font-weight:700; font-size:0.95rem;">$${parseFloat(item.price).toFixed(2)}</span>
+                  <span style="font-weight:700; font-size:0.95rem;">${priceStr}</span>
                   <span style="font-size:0.8rem; font-weight:700;" class="${colorCls}">${chgStr}</span>
               </div>
           </div>`;
@@ -1111,11 +1136,11 @@ window.setChartPeriod = function(months, btn) {
 function renderChart(historyData, months, fullDataObj) {
     const container = document.getElementById('stockChart');
     if(!container) return;
+    if(!historyData || !Array.isArray(historyData)) return;
 
     let cutoffDate = new Date();
     cutoffDate.setMonth(cutoffDate.getMonth() - months);
     
-    // סינון לפי החודשים המבוקשים, או הצגת הכל (999)
     const filteredData = historyData.filter(d => new Date(d.date) >= cutoffDate || months === 999);
     if(filteredData.length === 0) return;
 
@@ -1171,22 +1196,21 @@ function renderChart(historyData, months, fullDataObj) {
         ma200Series.setData(ma200Line);
     }
 
-    // הצגת רמות תמיכה והתנגדות בגרף
     if (fullDataObj && fullDataObj.keyLevels && fullDataObj.keyLevels.length > 0) {
         fullDataObj.keyLevels.forEach(level => {
+            if(typeof level.price !== 'number') return;
             const isRes = level.type.includes('התנגדות');
             candleSeries.createPriceLine({
                 price: level.price,
-                color: isRes ? 'rgba(255, 69, 58, 0.5)' : 'rgba(48, 209, 88, 0.5)',
+                color: isRes ? 'rgba(255, 69, 58, 0.4)' : 'rgba(48, 209, 88, 0.4)',
                 lineWidth: 1,
-                lineStyle: LightweightCharts.LineStyle.Dashed,
+                lineStyle: LightweightCharts.LineStyle.Dotted,
                 axisLabelVisible: true,
                 title: level.type,
             });
         });
     }
 
-    // הצגת רמות ה-AI (יעד מחיר וסטופ לוס)
     if (fullDataObj && fullDataObj.analysis) {
         const tPrice = Number(fullDataObj.analysis.target_price);
         if (tPrice && !isNaN(tPrice)) {
@@ -1206,15 +1230,16 @@ function renderChart(historyData, months, fullDataObj) {
 }
 
 function renderScores(scores) {
+  if(!scores) scores = { growth: 50, value: 50, momentum: 50, quality: 50, overall: 50 };
   const items = [ { label: 'צמיחה', key: 'growth', color: '#0a84ff' }, { label: 'ערך (Value)', key: 'value', color: '#30d158' }, { label: 'מומנטום', key: 'momentum', color: '#ffd60a' }, { label: 'איכות עסקית', key: 'quality', color: '#bf5af2' } ];
   const cols = document.createElement('div'); cols.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:10px 32px;';
-  items.forEach(item => { const v = scores[item.key] || 0; cols.innerHTML += `<div class="score-bar-wrap"><span class="score-bar-label">${item.label}</span><div class="score-bar-track"><div class="score-bar-fill" style="width:0%;background:${item.color};border-radius:3px;" data-target="${v}"></div></div><span class="score-bar-val" style="color:${item.color}">${v}</span></div>`; });
+  items.forEach(item => { const v = typeof scores[item.key] === 'number' ? scores[item.key] : 0; cols.innerHTML += `<div class="score-bar-wrap"><span class="score-bar-label">${item.label}</span><div class="score-bar-track"><div class="score-bar-fill" style="width:0%;background:${item.color};border-radius:3px;" data-target="${v}"></div></div><span class="score-bar-val" style="color:${item.color}">${v}</span></div>`; });
   
   safeHTML('ai-scores', ''); 
   const scoreEl = document.getElementById('ai-scores');
   if(scoreEl) scoreEl.appendChild(cols);
   
-  const overall = scores.overall || Math.round(((scores.growth||50) + (scores.value||50) + (scores.momentum||50) + (scores.quality||50)) / 4);
+  const overall = typeof scores.overall === 'number' ? scores.overall : Math.round(((scores.growth||50) + (scores.value||50) + (scores.momentum||50) + (scores.quality||50)) / 4);
   const circle = document.getElementById('ai-score-circle'); 
   if(circle) circle.style.setProperty('--score', overall); 
   safeText('ai-score-text', overall);
@@ -1232,29 +1257,21 @@ function renderScores(scores) {
   requestAnimationFrame(() => { requestAnimationFrame(() => { document.querySelectorAll('.score-bar-fill').forEach(el => { el.style.width = el.dataset.target + '%'; }); }); });
 }
 
-function formatNumberShort(num) { 
-    if(num === null || num === undefined || isNaN(num)) return "N/A"; 
-    let absNum = Math.abs(num);
-    let sign = num < 0 ? "-" : "";
-    if (absNum >= 1e12) return sign + (absNum / 1e12).toFixed(2) + "T"; 
-    if (absNum >= 1e9) return sign + (absNum / 1e9).toFixed(2) + "B"; 
-    if (absNum >= 1e6) return sign + (absNum / 1e6).toFixed(2) + "M"; 
-    return sign + absNum.toLocaleString(); 
-}
-
 function renderResults(data, analysis, historyData, newsData) {
-  const isUp = data.changePercentage >= 0; 
-  safeText('res-ticker', `${data.ticker} · ${data.sector}`); 
-  safeText('res-name', data.name); 
-  safeText('res-price', `$${data.price.toFixed(2)}`);
+  const isUp = typeof data.changePercentage === 'number' && data.changePercentage >= 0; 
+  safeText('res-ticker', `${data.ticker || 'N/A'} · ${data.sector || 'N/A'}`); 
+  safeText('res-name', data.name || 'N/A'); 
   
-  // תווית מותאמת לסוג הניתוח
+  const p = typeof data.price === 'number' ? data.price : 0;
+  safeText('res-price', `$${p.toFixed(2)}`);
+  
   safeText('res-timeframe-tag', State.timeframe === 'short' ? 'ניתוח סווינג יומי (שנה)' : 'ניתוח ערך שבועי (שנתיים)');
   
   const chEl = document.getElementById('res-change'); 
   if (chEl) {
-      chEl.textContent = `${isUp ? '+' : ''}${data.changePercentage.toFixed(2)}%  (${isUp ? '▲' : '▼'} היום)`; 
-      chEl.className = `stock-change ${isUp ? 'up' : 'down'}`;
+      const cp = typeof data.changePercentage === 'number' ? data.changePercentage : 0;
+      chEl.textContent = `${cp >= 0 ? '+' : ''}${cp.toFixed(2)}%  (${cp >= 0 ? '▲' : '▼'} היום)`; 
+      chEl.className = `stock-change ${cp >= 0 ? 'up' : 'down'}`;
   }
   
   const btnWatch = document.getElementById('btn-add-watch-results'); 
@@ -1263,42 +1280,39 @@ function renderResults(data, analysis, historyData, newsData) {
       else { btnWatch.textContent = '📌'; btnWatch.classList.remove('active'); }
   }
   
-  // מצייר את הגרף עם תצוגת "הכל" כברירת מחדל כדי להראות את מלוא הטווח
   renderChart(historyData, 999, data); 
   document.querySelectorAll('.chart-btn').forEach((b,i) => b.classList.toggle('active', i===3));
 
-  const peNum = data.peRatio;
-  const epsNum = data.eps;
-  const rangeLow = data.fiftyTwoWeekLow !== null ? data.fiftyTwoWeekLow : 0;
-  const rangeHigh = data.fiftyTwoWeekHigh !== null ? data.fiftyTwoWeekHigh : 100;
-  const currentPos = Math.max(0, Math.min(100, ((data.price - rangeLow) / (Math.max(rangeHigh - rangeLow, 1))) * 100));
+  const rangeLow = typeof data.fiftyTwoWeekLow === 'number' ? data.fiftyTwoWeekLow : 0;
+  const rangeHigh = typeof data.fiftyTwoWeekHigh === 'number' ? data.fiftyTwoWeekHigh : 100;
+  const currentPos = Math.max(0, Math.min(100, ((p - rangeLow) / (Math.max(rangeHigh - rangeLow, 1))) * 100));
   
-  const earningsText = data.latestEarnings ? 
+  const earningsText = data.latestEarnings && typeof data.latestEarnings.surprisePercent === 'number' ? 
     (data.latestEarnings.surprisePercent > 0 ? `+${data.latestEarnings.surprisePercent.toFixed(1)}% (הכה תחזיות)` : `${data.latestEarnings.surprisePercent.toFixed(1)}% (פספס)`) : 'לא זמין';
   const earningsGood = data.latestEarnings && data.latestEarnings.surprisePercent > 0;
   const earningsBad = data.latestEarnings && data.latestEarnings.surprisePercent < 0;
   
   const fundRows = [ 
       { label: 'שווי שוק', val: formatNumberShort(data.marketCap), tag: 'M.CAP', isTag: false }, 
-      { label: 'טווח 52 שבועות', val: `<span style="font-size:0.75rem; color:var(--text-secondary); margin-right:8px">$${rangeLow.toFixed(2)}</span> <div class="range-bar-wrap"><div class="range-indicator" style="left:${currentPos}%"></div></div> <span style="font-size:0.75rem; color:var(--text-secondary); margin-left:8px">$${rangeHigh.toFixed(2)}</span>`, isHtml: true }, 
+      { label: 'טווח 52 שבועות', val: `<span style="font-size:0.75rem; color:var(--text-secondary); margin-right:8px">$${safeNum(rangeLow, 2)}</span> <div class="range-bar-wrap"><div class="range-indicator" style="left:${currentPos}%"></div></div> <span style="font-size:0.75rem; color:var(--text-secondary); margin-left:8px">$${safeNum(rangeHigh, 2)}</span>`, isHtml: true }, 
       { label: 'דוח רבעוני אחרון', val: earningsText, good: earningsGood, bad: earningsBad, goodLabel: 'הפתעה לטובה', badLabel: 'אכזב', neutralLabel: 'אין נתון' },
-      { label: 'מחיר / רווח (P/E)', val: peNum !== null ? `${peNum.toFixed(1)}x` : 'N/A', good: peNum !== null && peNum > 0 && peNum < 30, bad: peNum !== null && peNum > 45, goodLabel: 'זול', badLabel: 'יקר', neutralLabel: 'סביר' }, 
-      { label: 'מכפיל מכירות (P/S)', val: data.psRatio !== null ? `${data.psRatio.toFixed(2)}x` : 'N/A', good: data.psRatio !== null && data.psRatio > 0 && data.psRatio < 3, bad: data.psRatio !== null && data.psRatio > 10, goodLabel: 'זול', badLabel: 'בועה', neutralLabel: 'ממוצע' },
-      { label: 'מכפיל הון (P/B)', val: data.pbRatio !== null ? `${data.pbRatio.toFixed(2)}x` : 'N/A', good: data.pbRatio !== null && data.pbRatio > 0 && data.pbRatio < 3, bad: data.pbRatio !== null && data.pbRatio > 5, goodLabel: 'תמחור נוח', badLabel: 'יקר', neutralLabel: 'ממוצע' }, 
-      { label: 'רווח למניה (EPS)', val: epsNum !== null ? `$${epsNum.toFixed(2)}` : 'N/A', good: epsNum !== null && epsNum > 2, bad: epsNum !== null && epsNum < 0, goodLabel: 'גבוה', badLabel: 'הפסד', neutralLabel: 'סביר' }, 
-      { label: 'צמיחת רווח (5Y)', val: data.epsGrowth5Y !== null ? `${data.epsGrowth5Y.toFixed(1)}%` : 'N/A', good: data.epsGrowth5Y !== null && data.epsGrowth5Y > 15, bad: data.epsGrowth5Y !== null && data.epsGrowth5Y < 0, goodLabel: 'מזנקת', badLabel: 'שלילית', neutralLabel: 'יציבה' },
-      { label: 'צמיחת הכנסות (YoY)', val: data.revenueGrowth !== null ? `${data.revenueGrowth.toFixed(1)}%` : 'N/A', good: data.revenueGrowth !== null && data.revenueGrowth > 10, bad: data.revenueGrowth !== null && data.revenueGrowth < 0, goodLabel: 'צומחת', badLabel: 'מתכווצת', neutralLabel: 'יציבה' },
-      { label: 'רווח גולמי', val: data.grossMargin !== null ? `${data.grossMargin.toFixed(1)}%` : 'N/A', good: data.grossMargin !== null && data.grossMargin > 40, bad: data.grossMargin !== null && data.grossMargin < 20, goodLabel: 'גבוה', badLabel: 'נמוך', neutralLabel: 'סביר' },
-      { label: 'רווח תפעולי', val: data.operatingMargin !== null ? `${data.operatingMargin.toFixed(1)}%` : 'N/A', good: data.operatingMargin !== null && data.operatingMargin > 15, bad: data.operatingMargin !== null && data.operatingMargin < 5, goodLabel: 'יעיל', badLabel: 'חלש', neutralLabel: 'סביר' },
-      { label: 'שולי רווח נקי', val: data.netMargin !== null ? `${data.netMargin.toFixed(1)}%` : 'N/A', good: data.netMargin !== null && data.netMargin > 15, bad: data.netMargin !== null && data.netMargin < 5, goodLabel: 'רווחיות יתר', badLabel: 'נמוך', neutralLabel: 'סביר' },
-      { label: 'תשואה להון (ROE)', val: data.roe !== null ? `${data.roe.toFixed(1)}%` : 'N/A', good: data.roe !== null && data.roe > 15, bad: data.roe !== null && data.roe < 5, goodLabel: 'רווחיות שיא', badLabel: 'חלש', neutralLabel: 'רגיל' }, 
-      { label: 'תשואה לנכסים (ROA)', val: data.roa !== null ? `${data.roa.toFixed(1)}%` : 'N/A', good: data.roa !== null && data.roa > 10, bad: data.roa !== null && data.roa < 3, goodLabel: 'יעילה', badLabel: 'חלש', neutralLabel: 'סביר' }, 
-      { label: 'החזר השקעה (ROIC)', val: data.roic !== null ? `${data.roic.toFixed(1)}%` : 'N/A', good: data.roic !== null && data.roic > 10, bad: data.roic !== null && data.roic < 4, goodLabel: 'חכמה', badLabel: 'בזבזנית', neutralLabel: 'ממוצע' },
-      { label: 'יחס נזילות (Current)', val: data.currentRatio !== null ? `${data.currentRatio.toFixed(2)}` : 'N/A', good: data.currentRatio !== null && data.currentRatio >= 1.5, bad: data.currentRatio !== null && data.currentRatio < 1, goodLabel: 'בטוח', badLabel: 'מסוכן', neutralLabel: 'סביר' },
-      { label: 'יחס מהיר (Quick)', val: data.quickRatio !== null ? `${data.quickRatio.toFixed(2)}` : 'N/A', good: data.quickRatio !== null && data.quickRatio >= 1, bad: data.quickRatio !== null && data.quickRatio < 0.8, goodLabel: 'נזילה', badLabel: 'לחוצה', neutralLabel: 'סביר' },
-      { label: 'חוב להון', val: data.debtToEquity !== null ? `${data.debtToEquity.toFixed(2)}` : 'N/A', good: data.debtToEquity !== null && data.debtToEquity < 1, bad: data.debtToEquity !== null && data.debtToEquity > 2.5, goodLabel: 'יציב', badLabel: 'מסוכן', neutralLabel: 'סביר' }, 
-      { label: 'תנודתיות (Beta)', val: data.beta !== null ? `${data.beta.toFixed(2)}` : 'N/A', good: data.beta !== null && data.beta > 0 && data.beta < 1.2, bad: data.beta !== null && data.beta > 2, goodLabel: 'יציב', badLabel: 'תנודתי', neutralLabel: 'שוק' },
-      { label: 'תשואת דיבידנד', val: data.dividendYield !== null ? `${data.dividendYield.toFixed(2)}%` : 'N/A', good: data.dividendYield !== null && data.dividendYield > 2, bad: false, goodLabel: 'מניב', badLabel: '', neutralLabel: 'רגיל' } 
+      { label: 'מחיר / רווח (P/E)', val: safeNum(data.peRatio, 1, '', 'x'), good: data.peRatio > 0 && data.peRatio < 30, bad: data.peRatio > 45, goodLabel: 'זול', badLabel: 'יקר', neutralLabel: 'סביר' }, 
+      { label: 'מכפיל מכירות (P/S)', val: safeNum(data.psRatio, 2, '', 'x'), good: data.psRatio > 0 && data.psRatio < 3, bad: data.psRatio > 10, goodLabel: 'זול', badLabel: 'בועה', neutralLabel: 'ממוצע' },
+      { label: 'מכפיל הון (P/B)', val: safeNum(data.pbRatio, 2, '', 'x'), good: data.pbRatio > 0 && data.pbRatio < 3, bad: data.pbRatio > 5, goodLabel: 'תמחור נוח', badLabel: 'יקר', neutralLabel: 'ממוצע' }, 
+      { label: 'רווח למניה (EPS)', val: safeNum(data.eps, 2, '$'), good: data.eps > 2, bad: data.eps < 0, goodLabel: 'גבוה', badLabel: 'הפסד', neutralLabel: 'סביר' }, 
+      { label: 'צמיחת רווח (5Y)', val: safeNum(data.epsGrowth5Y, 1, '', '%'), good: data.epsGrowth5Y > 15, bad: data.epsGrowth5Y < 0, goodLabel: 'מזנקת', badLabel: 'שלילית', neutralLabel: 'יציבה' },
+      { label: 'צמיחת הכנסות (YoY)', val: safeNum(data.revenueGrowth, 1, '', '%'), good: data.revenueGrowth > 10, bad: data.revenueGrowth < 0, goodLabel: 'צומחת', badLabel: 'מתכווצת', neutralLabel: 'יציבה' },
+      { label: 'רווח גולמי', val: safeNum(data.grossMargin, 1, '', '%'), good: data.grossMargin > 40, bad: data.grossMargin < 20, goodLabel: 'גבוה', badLabel: 'נמוך', neutralLabel: 'סביר' },
+      { label: 'רווח תפעולי', val: safeNum(data.operatingMargin, 1, '', '%'), good: data.operatingMargin > 15, bad: data.operatingMargin < 5, goodLabel: 'יעיל', badLabel: 'חלש', neutralLabel: 'סביר' },
+      { label: 'שולי רווח נקי', val: safeNum(data.netMargin, 1, '', '%'), good: data.netMargin > 15, bad: data.netMargin < 5, goodLabel: 'רווחיות יתר', badLabel: 'נמוך', neutralLabel: 'סביר' },
+      { label: 'תשואה להון (ROE)', val: safeNum(data.roe, 1, '', '%'), good: data.roe > 15, bad: data.roe < 5, goodLabel: 'רווחיות שיא', badLabel: 'חלש', neutralLabel: 'רגיל' }, 
+      { label: 'תשואה לנכסים (ROA)', val: safeNum(data.roa, 1, '', '%'), good: data.roa > 10, bad: data.roa < 3, goodLabel: 'יעילה', badLabel: 'חלש', neutralLabel: 'סביר' }, 
+      { label: 'החזר השקעה (ROIC)', val: safeNum(data.roic, 1, '', '%'), good: data.roic > 10, bad: data.roic < 4, goodLabel: 'חכמה', badLabel: 'בזבזנית', neutralLabel: 'ממוצע' },
+      { label: 'יחס נזילות (Current)', val: safeNum(data.currentRatio, 2), good: data.currentRatio >= 1.5, bad: data.currentRatio < 1, goodLabel: 'בטוח', badLabel: 'מסוכן', neutralLabel: 'סביר' },
+      { label: 'יחס מהיר (Quick)', val: safeNum(data.quickRatio, 2), good: data.quickRatio >= 1, bad: data.quickRatio < 0.8, goodLabel: 'נזילה', badLabel: 'לחוצה', neutralLabel: 'סביר' },
+      { label: 'חוב להון', val: safeNum(data.debtToEquity, 2), good: data.debtToEquity < 1, bad: data.debtToEquity > 2.5, goodLabel: 'יציב', badLabel: 'מסוכן', neutralLabel: 'סביר' }, 
+      { label: 'תנודתיות (Beta)', val: safeNum(data.beta, 2), good: data.beta > 0 && data.beta < 1.2, bad: data.beta > 2, goodLabel: 'יציב', badLabel: 'תנודתי', neutralLabel: 'שוק' },
+      { label: 'תשואת דיבידנד', val: safeNum(data.dividendYield, 2, '', '%'), good: data.dividendYield > 2, bad: false, goodLabel: 'מניב', badLabel: '', neutralLabel: 'רגיל' } 
   ];
   
   const fundHtml = fundRows.map(row => { 
@@ -1308,21 +1322,21 @@ function renderResults(data, analysis, historyData, newsData) {
   }).join('');
   safeHTML('fundamentals-content', fundHtml);
 
-  const ma50val = Number(data.ma50) || 0;
-  const ma200val = Number(data.ma200) || 0;
-  const a50 = data.price >= ma50val, a200 = data.price >= ma200val;
+  const ma50val = typeof data.ma50 === 'number' ? data.ma50 : 0;
+  const ma200val = typeof data.ma200 === 'number' ? data.ma200 : 0;
+  const a50 = p >= ma50val, a200 = p >= ma200val;
   
   safeHTML('ma-display', `<div class="ma-box"><div class="ma-label">MA 50</div><div class="ma-value">$${ma50val.toFixed(2)}</div><div class="ma-status ${a50 ? 'above' : 'below'}">${a50 ? '▲ מעל' : '▼ מתחת'}</div></div><div class="ma-box"><div class="ma-label">MA 200</div><div class="ma-value">$${ma200val.toFixed(2)}</div><div class="ma-status ${a200 ? 'above' : 'below'}">${a200 ? '▲ מעל' : '▼ מתחת'}</div></div>`);
   
   const patternText = data.pattern || "לא זוהתה תבנית מובהקת";
-  const rsiVal = Number(data.rsi) || 50;
+  const rsiVal = typeof data.rsi === 'number' ? data.rsi : 50;
   const rsiTag = rsiVal > 70 ? 'קניית יתר (Overbought)' : rsiVal < 30 ? 'מכירת יתר (Oversold)' : 'ניטרלי';
   const rsiClass = rsiVal > 70 ? 'tag-bad' : rsiVal < 30 ? 'tag-good' : 'tag-neutral';
 
   const safeAnalysis = analysis || {};
 
   safeHTML('technical-content', `
-    <div class="data-row"><span class="data-label">סקטור ותעשייה</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;text-align:left;">${data.sector} • ${data.industry}</span></div></div>
+    <div class="data-row"><span class="data-label">סקטור ותעשייה</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;text-align:left;">${data.sector || 'N/A'} • ${data.industry || 'N/A'}</span></div></div>
     <div class="data-row"><span class="data-label">מגמה טכנית</span><div class="data-value-wrap"><span class="data-value">${a50&&a200?'Bull 🐂':!a50&&!a200?'Bear 🐻':'Mixed ⚖️'}</span><span class="tag ${a50&&a200?'tag-good':!a50&&!a200?'tag-bad':'tag-neutral'}">${a50&&a200?'חיובי':!a50&&!a200?'שלילי':'מעורב'}</span></div></div>
     <div class="data-row"><span class="data-label">RSI (14)</span><div class="data-value-wrap"><span class="data-value">${rsiVal.toFixed(1)}</span><span class="tag ${rsiClass}">${rsiTag}</span></div></div>
     <div class="data-row"><span class="data-label">נפח מסחר ממוצע</span><div class="data-value-wrap"><span class="data-value">${formatNumberShort(data.volume)}</span></div></div>
@@ -1343,8 +1357,8 @@ function renderResults(data, analysis, historyData, newsData) {
           contentEl.style.cssText = 'display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:12px;';
           const insHtml = insiders.map(t => {
               const isBuy = t.change > 0;
-              const changeFmt = Math.abs(t.change).toLocaleString();
-              const priceFmt = t.transactionPrice ? `$${t.transactionPrice.toFixed(2)}` : 'N/A';
+              const changeFmt = Math.abs(t.change || 0).toLocaleString();
+              const priceFmt = typeof t.transactionPrice === 'number' ? `$${t.transactionPrice.toFixed(2)}` : 'N/A';
               const name = (t.name || 'Unknown').split(' ').slice(0,2).join(' ');
               return `
               <div style="background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); padding:14px; border-radius:12px; display:flex; flex-direction:column; gap:6px;">
@@ -1365,7 +1379,7 @@ function renderResults(data, analysis, historyData, newsData) {
   renderScores(safeAnalysis.scores || { growth: 50, value: 50, momentum: 50, quality: 50, overall: 50 });
   safeText('ai-score-desc', safeAnalysis.news_analysis || "ניתוח מבוסס על הנתונים הפונדמנטליים האחרונים.");
 
-  const finalOverallScore = safeAnalysis.scores?.overall || 50;
+  const finalOverallScore = typeof safeAnalysis.scores?.overall === 'number' ? safeAnalysis.scores.overall : 50;
   let ratingLabel = 'החזקה —', ratingCls = 'hold';
   if (finalOverallScore >= 80) { ratingLabel = 'קנייה חזקה 🔥'; ratingCls = 'buy'; }
   else if (finalOverallScore >= 60) { ratingLabel = 'קנייה ✓'; ratingCls = 'buy'; }
@@ -1373,6 +1387,16 @@ function renderResults(data, analysis, historyData, newsData) {
   
   safeHTML('verdict-rating-pill', `<div class="verdict-rating ${ratingCls}">${ratingLabel}</div>`);
 
+  // חישוב אפסייד מוגן שמונע קריסה
+  let upside = 0;
+  const tPriceStr = safeAnalysis.price_target;
+  if (tPriceStr && p > 0) {
+      const tPriceNum = Number(String(tPriceStr).replace(/[^0-9.]/g, ''));
+      if (!isNaN(tPriceNum) && tPriceNum > 0) {
+          upside = (((tPriceNum / p) - 1) * 100).toFixed(1);
+      }
+  }
+  
   const entryPrice = safeAnalysis.entry_price ? `$${safeAnalysis.entry_price}` : 'N/A';
   const targetPriceShort = safeAnalysis.target_price ? `$${safeAnalysis.target_price}` : 'N/A';
   const stopLoss = safeAnalysis.stop_loss ? `$${safeAnalysis.stop_loss}` : 'N/A';
@@ -1391,7 +1415,7 @@ function renderResults(data, analysis, historyData, newsData) {
         <div class="verdict-summary-text">${safeAnalysis.summary || "ה-AI לא הצליח לגבש פסיקה."}</div>
     </div>
     
-    <div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-secondary); margin-bottom:14px; margin-top:28px;">רמות מסחר טכניות קריטיות</div>
+    <div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-secondary); margin-bottom:14px; margin-top:28px;">רמות מסחר טכניות לפי הניתוח</div>
     <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px;">
         <div style="background: rgba(10,132,255,0.1); border: 1px solid rgba(10,132,255,0.2); padding: 16px; border-radius: 12px; text-align: center;">
             <div style="font-size: 0.7rem; color: var(--blue); font-weight: 800; margin-bottom: 6px;">מחיר כניסה אידיאלי</div>
@@ -1413,7 +1437,7 @@ function renderResults(data, analysis, historyData, newsData) {
          <div style="font-size: 1.05rem; font-weight: 800; color: ${parseFloat(upside) >= 0 ? 'var(--green)' : 'var(--red)'}; margin-top: 10px; direction:ltr;">${parseFloat(upside) >= 0 ? '▲ פוטנציאל אפסייד:' : '▼ דאונסייד:'} ${parseFloat(upside) >= 0 ? '+' : ''}${upside}%</div>
     </div>`);
 
-  if (newsData && newsData.length > 0) { 
+  if (Array.isArray(newsData) && newsData.length > 0) { 
       const newsHtml = newsData.map(n => { 
           const date = new Date(n.publishedAt || n.date || n.datetime * 1000 || n.publishedDate).toLocaleDateString('he-IL', {day:'numeric', month:'short'}); 
           return `<div class="news-card" onclick="window.open('${n.url}', '_blank')"><div class="news-source">${n.source || n.site || 'חדשות שוק'} • ${date}</div><div class="news-headline" dir="ltr" style="text-align:left;">${n.headline || n.title}</div></div>`; 
