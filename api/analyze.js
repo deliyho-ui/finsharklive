@@ -191,6 +191,16 @@ function sanitizeValue(val) {
     return val;
 }
 
+function formatNumberShort(num) { 
+    if(!num) return "N/A"; 
+    let absNum = Math.abs(num);
+    let sign = num < 0 ? "-" : "";
+    if (absNum >= 1e12) return sign + (absNum / 1e12).toFixed(2) + "T"; 
+    if (absNum >= 1e9) return sign + (absNum / 1e9).toFixed(2) + "B"; 
+    if (absNum >= 1e6) return sign + (absNum / 1e6).toFixed(2) + "M"; 
+    return num.toLocaleString(); 
+}
+
 module.exports = async function(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -286,6 +296,11 @@ module.exports = async function(req, res) {
             revenueGrowth: Number(m.revenueGrowthTTMYoy || 0), debtToEquity: Number(m.totalDebtToEquityAnnual || 0)
         };
 
+        const insiders = Array.isArray(insiderData?.data) ? insiderData.data : [];
+        let netInsiderShares = 0;
+        insiders.slice(0, 15).forEach(t => netInsiderShares += (t.change || 0));
+        const insiderSentiment = netInsiderShares > 0 ? 'חיובי (קניות)' : netInsiderShares < 0 ? 'שלילי (מכירות)' : 'ניטרלי';
+
         const lastPoint = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1] : {};
         const keyLevels = extractKeyLevels(chartPoints);
         const levelsPrompt = keyLevels.map(l => `${l.type}: $${l.price.toFixed(2)}`).join(', ');
@@ -305,13 +320,14 @@ module.exports = async function(req, res) {
         משקלות הניתוח:
         1. איכות עסקית ופונדמנטלס (50%): (בחברה רגילה בלבד).
         2. מבנה מחיר וטכני (40%): תבניות בגרף, רמות תמיכה/התנגדות, ממוצעים ומומנטום.
-        3. מאקרו וסנטימנט (10%): VIX, אג"ח וחדשות.
+        3. מאקרו, סנטימנט וכסף חכם (10%): VIX, אג"ח, חדשות, ופעילות בעלי עניין (Insider - מקבל משקל משני בלבד בניתוח).
 
         נתונים לעיבוד:
         - מניה/נכס: ${ticker} (${profile?.name || ticker}). מחיר נוכחי: $${quote?.c || 0}.
         - רמות מחיר היסטוריות: ${levelsPrompt}.
         - תבניות שזוהו ב-JS: ${patternsDetected}.
         - נתוני מאקרו: VIX (פחד): ${vix}, תשואת אג"ח 10 שנים: ${tnx}%.
+        - פעילות בעלי עניין (Insider): סנטימנט ${insiderSentiment} (נטו שינוי: ${formatNumberShort(netInsiderShares)} מניות).
         - טכני: ממוצע 50: $${lastPoint.ma50}, ממוצע 200: $${lastPoint.ma200}. RSI: ${calculateRSI(chartPoints.map(p=>p.close)).toFixed(1)}.
         - פונדמנטלס: P/E: ${sanitizeValue(fundamentals.peRatio)}, ROE: ${sanitizeValue(fundamentals.roe)}%, שולי רווח: ${sanitizeValue(fundamentals.netMargin)}%, צמיחה YoY: ${sanitizeValue(fundamentals.revenueGrowth)}%.
         
@@ -323,7 +339,7 @@ module.exports = async function(req, res) {
         {
           "identity": "תיאור עסקי קצר",
           "technical": "ניתוח טכני מעמיק המשלב את התבניות שזוהו ואת הרמות",
-          "news_analysis": "ניתוח פונדמנטלי ומאקרו",
+          "news_analysis": "ניתוח פונדמנטלי, מאקרו, וסנטימנט כסף חכם",
           "summary": "השורה התחתונה - הוסף כאן הערה אם חסר מידע קריטי לחברה.",
           "pros": ["חוזקה 1", "חוזקה 2"], "cons": ["סיכון 1", "סיכון 2"],
           "price_target": "יעד ל-12 חודשים (מספר)",
@@ -353,6 +369,8 @@ module.exports = async function(req, res) {
             ma50: lastPoint.ma50, ma200: lastPoint.ma200, volume: Number(quote?.v || 0),
             pattern: patternsDetected, rsi: calculateRSI(chartPoints.map(p=>p.close)), ...fundamentals,
             tickerNews: (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 5),
+            insiderTransactions: insiders.slice(0, 6),
+            insiderSentiment: insiderSentiment,
             analysis: aiVerdict, chartData: chartPoints
         });
     } catch (error) { return res.status(500).json({ success: false, message: error.message }); }
