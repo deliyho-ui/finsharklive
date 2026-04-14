@@ -191,14 +191,6 @@ function sanitizeValue(val) {
     return val;
 }
 
-function formatNumberShort(num) { 
-    if(!num) return "N/A"; 
-    if (num >= 1e12) return (num / 1e12).toFixed(2) + "T"; 
-    if (num >= 1e9) return (num / 1e9).toFixed(2) + "B"; 
-    if (num >= 1e6) return (num / 1e6).toFixed(2) + "M"; 
-    return num.toLocaleString(); 
-}
-
 module.exports = async function(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -214,15 +206,33 @@ module.exports = async function(req, res) {
         if (!apiKey || !finnhubKey) return res.status(500).json({ success: false, message: "Missing API keys." });
 
         if (action === 'live_data' && ticker) {
-            const [quote, chartPoints] = await Promise.all([
+            // הוספנו משיכה של פונדמנטלס לבקשת הלייב כדי להשלים מידע שחסר בקאש
+            const [quote, chartPoints, metricsData, profile] = await Promise.all([
                 fetchFinnhub('quote', `symbol=${ticker}`),
-                fetchYahooData(ticker, '2y', '1wk')
+                fetchYahooData(ticker, '2y', '1wk'),
+                fetchFinnhub('stock/metric', `symbol=${ticker}&metric=all`),
+                fetchFinnhub('stock/profile2', `symbol=${ticker}`)
             ]);
+            
             const lastChartPoint = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1] : {};
+            const m = metricsData?.metric || {};
+            
             return res.status(200).json({
-                success: true, ticker, price: Number(quote?.c || 0), changePercentage: Number(quote?.dp || 0),
-                ma50: lastChartPoint.ma50 || 0, ma200: lastChartPoint.ma200 || 0,
-                volume: Number(quote?.v || 0), pattern: detectAllPatterns(chartPoints), chartData: chartPoints
+                success: true, 
+                ticker, 
+                price: Number(quote?.c || 0), 
+                changePercentage: Number(quote?.dp || 0),
+                ma50: lastChartPoint.ma50 || 0, 
+                ma200: lastChartPoint.ma200 || 0,
+                volume: Number(quote?.v || 0), 
+                pattern: detectAllPatterns(chartPoints), 
+                chartData: chartPoints,
+                marketCap: Number(profile?.marketCapitalization || m.marketCapitalization || 0),
+                peRatio: Number(m.peBasicExclExtraTTM || m.peExclExtraAnnual || 0),
+                roe: Number(m.roeTTM || 0), 
+                netMargin: Number(m.netProfitMarginTTM || 0),
+                revenueGrowth: Number(m.revenueGrowthTTMYoy || 0), 
+                debtToEquity: Number(m.totalDebtToEquityAnnual || 0)
             });
         }
 
@@ -290,37 +300,44 @@ module.exports = async function(req, res) {
         const levelsPrompt = keyLevels.map(l => `${l.type}: $${l.price.toFixed(2)}`).join(', ');
         const patternsDetected = detectAllPatterns(chartPoints);
 
-        const prompt = `אתה "הכריש" - אנליסט בכיר בקרן גידור (Hedge Fund). עליך לספק ניתוח מניות מקצועי, אובייקטיבי וחד.
-        הפעם, אנו משנים את המשקלות לגישה מאוזנת שבה הגרף מקבל משקל משמעותי:
+        // הגדרה דינמית: האם זה ETF או מדד?
+        const isETF = profile?.finnhubIndustry === "" || (!fundamentals.marketCap && !fundamentals.peRatio);
+
+        const dataInstruction = isETF 
+            ? "שים לב: נכס זה מזוהה כקרן סל (ETF) או מדד סקטוריאלי. התעלם לחלוטין מחוסר בנתוני פונדמנטלס (כמו מכפילים, רווחיות או שווי שוק). אל תוריד על כך ציון ואל תציין שחסר מידע. התבסס 100% על הניתוח הטכני, רמות המחיר, התבניות, והמאקרו."
+            : "שים לב: זוהי חברה ציבורית. אם אתה רואה שרוב הנתונים הפונדמנטליים (P/E, ROE, שולי רווח) מופיעים כ-0 או N/A, עליך לציין מפורשות בסעיף ה-'summary' שלתחושתך חסרים נתוני דוחות קריטיים במערכת (ייתכן עקב עדכון שרתים), ולכן הערכת השווי עלולה להיות חסרה. במקביל, המשך לנתח ולתת ציון כמיטב יכולתך על בסיס הטכני והנתונים שכן קיימים.";
+
+        const prompt = `אתה "הכריש" - אנליסט בכיר בקרן גידור. עליך לספק ניתוח מניות מקצועי ואובייקטיבי.
         
-        משקלות הניתוח (Weighting Protocol):
-        1. איכות עסקית ופונדמנטלס (50%): דוחות, רווחיות, מכפילים וצמיחה.
-        2. מבנה מחיר וטכני (40%): תבניות בגרף, רמות תמיכה/התנגדות היסטוריות, ממוצעים ומומנטום.
+        ${dataInstruction}
+        
+        משקלות הניתוח:
+        1. איכות עסקית ופונדמנטלס (50%): (בחברה רגילה בלבד).
+        2. מבנה מחיר וטכני (40%): תבניות בגרף, רמות תמיכה/התנגדות, ממוצעים ומומנטום.
         3. מאקרו וסנטימנט (10%): VIX, אג"ח וחדשות.
 
         נתונים לעיבוד:
-        - מניה: ${ticker} (${profile?.name}). מחיר נוכחי: $${quote?.c || 0}.
-        - רמות מחיר היסטוריות (קווי קרב מהגרף): ${levelsPrompt}.
+        - מניה/נכס: ${ticker} (${profile?.name || ticker}). מחיר נוכחי: $${quote?.c || 0}.
+        - רמות מחיר היסטוריות: ${levelsPrompt}.
         - תבניות שזוהו ב-JS: ${patternsDetected}.
         - נתוני מאקרו: VIX (פחד): ${vix}, תשואת אג"ח 10 שנים: ${tnx}%.
         - טכני: ממוצע 50: $${lastPoint.ma50}, ממוצע 200: $${lastPoint.ma200}. RSI: ${calculateRSI(chartPoints.map(p=>p.close)).toFixed(1)}.
         - פונדמנטלס: P/E: ${sanitizeValue(fundamentals.peRatio)}, ROE: ${sanitizeValue(fundamentals.roe)}%, שולי רווח: ${sanitizeValue(fundamentals.netMargin)}%, צמיחה YoY: ${sanitizeValue(fundamentals.revenueGrowth)}%.
         
         דרישות פלט חובה:
-        - שווי הוגן (Intrinsic Value): חובה לציין מספר דולרי ספציפי שנראה לך ריאלי על פי ניתוח המכפילים והרווחיות.
-        - אזור איסוף: הגדר טווח מחירים מדויק המבוסס על רמות התמיכה ההיסטוריות שסופקו לעיל.
-        - זהות עסקית: אל תוריד ציון ל-ETF בגלל חוסר בנתוני דוחות - התמקד בטכני ובסקטור.
+        - שווי הוגן (Intrinsic Value): ציין מספר דולרי ספציפי (או "לא רלוונטי ל-ETF").
+        - אזור איסוף: הגדר טווח מחירים מבוסס תמיכות.
 
         ספק פסיקה ב-JSON בלבד בעברית:
         {
-          "identity": "תיאור עסקי קצר ומקצועי.",
-          "technical": "ניתוח גרפי מעמיק המשלב את התבניות שזוהו ואת הרמות ההיסטוריות.",
-          "news_analysis": "ניתוח פונדמנטלי וסנטימנט המשלב דוחות ופעילות בעלי עניין.",
-          "summary": "השורה התחתונה של הכריש - למה הציון הוא כזה.",
+          "identity": "תיאור עסקי קצר",
+          "technical": "ניתוח טכני מעמיק המשלב את התבניות שזוהו ואת הרמות",
+          "news_analysis": "ניתוח פונדמנטלי ומאקרו",
+          "summary": "השורה התחתונה - הוסף כאן הערה אם חסר מידע קריטי לחברה.",
           "pros": ["חוזקה 1", "חוזקה 2"], "cons": ["סיכון 1", "סיכון 2"],
-          "price_target": "יעד מחיר ל-12 חודשים (מספר)",
-          "intrinsic_value": "מחיר בדולרים + הסבר קצר (למשל: '$180 - שווי הוגן על פי מכפילים')",
-          "accumulation_zone": "טווח מחירים מדויק לאיסוף (למשל: '$140-$145 סביב רמת תמיכה')",
+          "price_target": "יעד ל-12 חודשים (מספר)",
+          "intrinsic_value": "מחיר בדולרים + הסבר קצר",
+          "accumulation_zone": "טווח מחירים",
           "risk_level": "נמוך / בינוני / גבוה",
           "rating": "קנייה חזקה / קנייה / החזקה / מכירה",
           "scores": { "growth": 80, "momentum": 75, "value": 60, "quality": 90, "overall": 82 }
