@@ -8,7 +8,7 @@ async function fetchFinnhub(endpoint, params = "") {
     } catch (e) { return null; }
 }
 
-async function fetchYahooData(ticker, range = "2y", interval = "1wk", p50 = 10, p200 = 40) {
+async function fetchYahooData(ticker, range = "2y", interval = "1d", p50 = 50, p200 = 200) {
     try {
         const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=${interval}&range=${range}`;
         const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
@@ -82,37 +82,40 @@ function calculateRSI(prices, period = 14) {
     return avgLoss === 0 ? 100 : 100 - (100 / (1 + (avgGain / avgLoss)));
 }
 
+// 💡 אלגוריתם זיהוי תמיכות אמיתיות! (Pivot Points מבוססי חלון סריקה ארוך)
 function extractKeyLevels(points) {
-    if (points.length < 30) return [];
+    if (points.length < 50) return [];
     let levels = [];
-    const currentPrice = points[points.length - 1].close;
+    const window = 15; // חלון בדיקה רחב יותר (3 שבועות של מסחר) כדי לתפוס רק שיאים ענקיים ותחתיות משמעותיות
     
-    for (let i = 3; i < points.length - 3; i++) {
+    for (let i = window; i < points.length - window; i++) {
         const p = points[i];
-        if (p.high >= points[i-1].high && p.high >= points[i+1].high && p.high >= points[i-2].high && p.high >= points[i+2].high) {
-            levels.push({ price: p.high, type: 'התנגדות חזקה' });
+        let isHigh = true, isLow = true;
+        for (let j = 1; j <= window; j++) {
+            if (p.high <= points[i-j].high || p.high <= points[i+j].high) isHigh = false;
+            if (p.low >= points[i-j].low || p.low >= points[i+j].low) isLow = false;
         }
-        if (p.low <= points[i-1].low && p.low <= points[i+1].low && p.low <= points[i-2].low && p.low <= points[i+2].low) {
-            levels.push({ price: p.low, type: 'תמיכה חזקה' });
-        }
+        if (isHigh) levels.push({ price: p.high, type: 'התנגדות מהותית' });
+        if (isLow) levels.push({ price: p.low, type: 'תמיכה היסטורית' });
     }
     
-    let filteredByDistance = levels.filter(l => Math.abs(l.price - currentPrice) / currentPrice <= 0.15);
+    const currentPrice = points[points.length - 1].close;
+    // מציג קודם את התמיכות וההתנגדויות שהכי קרובות ורלוונטיות למחיר של היום
+    levels.sort((a, b) => Math.abs(a.price - currentPrice) - Math.abs(b.price - currentPrice));
     
     let finalLevels = [];
-    filteredByDistance.sort((a, b) => b.price - a.price);
-    filteredByDistance.forEach(l => {
-        if (!finalLevels.some(f => Math.abs(f.price - l.price) / l.price < 0.03)) {
+    for (let l of levels) {
+        // מונע צפיפות של קווים על המסך
+        if (!finalLevels.some(f => Math.abs(f.price - l.price) / l.price < 0.04)) {
             finalLevels.push(l);
         }
-    });
-    
-    return finalLevels.slice(0, 4); 
+        if (finalLevels.length >= 4) break; 
+    }
+    return finalLevels; 
 }
 
-// 💡 השדרוג שחיכית לו! הפונקציה עכשיו מחזירה גם קווים אלכסוניים (Trendlines) של התבניות
 function detectAllPatterns(chartPoints) {
-    if (!chartPoints || chartPoints.length < 50) return { text: "אין מספיק נתונים לזיהוי תבניות", lines: [] };
+    if (!chartPoints || chartPoints.length < 50) return { text: "אין מספיק נתונים", lines: [] };
     const last40 = chartPoints.slice(-40);
     const currentPrice = chartPoints[chartPoints.length - 1].close;
     let patterns = [];
@@ -128,7 +131,6 @@ function detectAllPatterns(chartPoints) {
     let max1 = {val: 0, time: ''}, max2 = {val: 0, time: ''};
     let min1 = {val: 999999, time: ''}, min2 = {val: 999999, time: ''};
 
-    // חיפוש נקודות קיצון על שני חצאי התקופה כדי למתוח קווים
     for(let i=0; i<20; i++) {
         if(last40[i].high > max1.val) { max1.val = last40[i].high; max1.time = last40[i].date; }
         if(last40[i].low < min1.val) { min1.val = last40[i].low; min1.time = last40[i].date; }
@@ -152,7 +154,7 @@ function detectAllPatterns(chartPoints) {
     
     const isRising = h2 > h1 && l2 > l1;
     const isFalling = h2 < h1 && l2 < l1;
-    const converge = (h1 - l1) > (h2 - l2) * 1.2; // המרחק בין השיא לשפל מצטמצם
+    const converge = (h1 - l1) > (h2 - l2) * 1.2; 
 
     if (isRising && converge) {
         patterns.push("יתד עולה (Rising Wedge) 📐⬇️");
@@ -191,21 +193,14 @@ module.exports = async function(req, res) {
         const ticker = (req.query.ticker || req.query.symbol || "").toUpperCase().trim();
         const action = req.query.action;
         
-        const timeframe = req.query.timeframe === 'short' ? 'short' : 'long';
-        const interval = timeframe === 'short' ? '1d' : '1wk';
-        const range = timeframe === 'short' ? '1y' : '2y';
-        const p50 = timeframe === 'short' ? 50 : 10;   
-        const p200 = timeframe === 'short' ? 200 : 40; 
-
         const apiKey = process.env.GEMINI_API_KEY;
         const finnhubKey = process.env.FINNHUB_API_KEY;
-        
         if (!apiKey || !finnhubKey) return res.status(500).json({ success: false, message: "Missing API Keys" });
 
         if (action === 'live_data' && ticker) {
             const [quote, chartPoints, profile, metricsData] = await Promise.all([
                 fetchFinnhub('quote', `symbol=${ticker}`),
-                fetchYahooData(ticker, range, interval, p50, p200),
+                fetchYahooData(ticker, '2y', '1d'),
                 fetchFinnhub('stock/profile2', `symbol=${ticker}`),
                 fetchFinnhub('stock/metric', `symbol=${ticker}&metric=all`)
             ]);
@@ -215,7 +210,7 @@ module.exports = async function(req, res) {
             const patternObj = detectAllPatterns(chartPoints);
             
             return res.status(200).json({
-                success: true, ticker, timeframe, price: Number(quote?.c || 0), changePercentage: Number(quote?.dp || 0),
+                success: true, ticker, price: Number(quote?.c || 0), changePercentage: Number(quote?.dp || 0),
                 ma50: lastChartPoint.ma50 || null, ma200: lastChartPoint.ma200 || null, volume: Number(quote?.v || lastChartPoint.volume || 0), 
                 pattern: patternObj.text, patternLines: patternObj.lines, rsi: calculateRSI(chartPoints.map(p=>p.close)),
                 peRatio: sanitizeValue(m?.peBasicExclExtraTTM || m?.peExclExtraAnnual), chartData: chartPoints
@@ -260,7 +255,7 @@ module.exports = async function(req, res) {
         const [quote, profile, chartPoints, metricsData, tickerNews, insiderData, vix, tnx] = await Promise.all([
             fetchFinnhub('quote', `symbol=${ticker}`),
             fetchFinnhub('stock/profile2', `symbol=${ticker}`),
-            fetchYahooData(ticker, range, interval, p50, p200), 
+            fetchYahooData(ticker, '2y', '1d'), 
             fetchFinnhub('stock/metric', `symbol=${ticker}&metric=all`),
             fetchFinnhub('company-news', `symbol=${ticker}&from=${lastMonth}&to=${today}`),
             fetchFinnhub('insider-transactions', `symbol=${ticker}`),
@@ -295,57 +290,65 @@ module.exports = async function(req, res) {
         const patternsDetected = patternObj.text;
 
         const isETF = profile?.finnhubIndustry === "" || (!fundamentals.marketCap && !fundamentals.peRatio);
-        const isDataComplete = isETF || (fundamentals.marketCap !== null && fundamentals.peRatio !== null && fundamentals.revenueGrowth !== null);
+        const isDataComplete = isETF || (fundamentals.marketCap !== null && fundamentals.revenueGrowth !== null);
 
         const recentNews = (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 3).map(n => n.headline).join(" | ");
+        const currPrice = Number(quote?.c || 0);
 
-        const timeframeContext = timeframe === 'short' 
-            ? "ניתוח לטווח קצר (מבוסס גרף יומי של שנה, מתאים למסחר סווינג)"
-            : "ניתוח לטווח ארוך (מבוסס גרף שבועי של שנתיים, מתאים להשקעות ערך)";
-
-        const prompt = `אתה "הכריש" - אנליסט מניות בכיר. נתח את ${ticker}.
-        סוג ניתוח: ${timeframeContext}.
-        נתונים: P/E: ${fundamentals.peRatio || 'N/A'}, צמיחה: ${fundamentals.revenueGrowth || 'N/A'}%. סנטימנט פנימי: ${insiderSentiment}.
-        תבניות שזוהו בגרף: ${patternsDetected}. רמות חשובות: ${levelsPrompt}.
-        חדשות טריות (חובה לשקלל בניתוח!): ${recentNews || 'אין אירועים מיוחדים'}.
-        חשוב: אם נתון מופיע כ-N/A, אל תסיק שהחברה כושלת! ציין שחסרים נתונים והתבסס על הטכני והחדשות.
-        החזר JSON בלבד בעברית: 
+        // 💡 פקודות מחמירות ל-AI שייצמד למציאות (סטופים הגיוניים ויעדים שמבוססים רק על רמות אמיתיות)
+        const prompt = `אתה "הכריש" - מנתח מניות בכיר וסוחר סווינג.
+        נתח את ${ticker}. המחיר הנוכחי הוא: $${currPrice}.
+        
+        זיהוי טכני שבוצע (קריטי לסווינג):
+        - תבניות בגרף: ${patternsDetected}
+        - רמות תמיכה והתנגדות היסטוריות אמיתיות שזוהו אלגוריתמית: ${levelsPrompt || 'לא זוהו מובהקות'}
+        - ממוצעים: נע 50 ב-$${lastPoint.ma50}, נע 200 ב-$${lastPoint.ma200}.
+        
+        הנחיות חובה לכתיבת מסקנות לסוחרי סווינג (טווח קצר):
+        1. 'stop_loss' (עצירת הפסד): חייב להיות מבוסס על 'תמיכה היסטורית' קיימת (מהרמות שסופקו לך למעלה) או קצת מתחת לממוצע נע מרכזי. *אסור בשום אופן שיהיה רחוק מדי מהמחיר הנוכחי*! חייב להיות הגיוני למחיר של $${currPrice}.
+        2. 'target_price' (יעד מחיר קרוב): חייב להיות מבוסס על 'התנגדות מהותית' קרובה שסופקה לך. 
+        
+        הנחיות חובה למשקיעי ערך (טווח ארוך):
+        1. התייחס לפונדמנטלס: P/E: ${fundamentals.peRatio || 'N/A'}, צמיחה: ${fundamentals.revenueGrowth || 'N/A'}%.
+        2. התחשב בחדשות אחרונות: ${recentNews || 'אין מידע מיוחד'}.
+        
+        החזר JSON בלבד בעברית בפורמט הבא בדיוק: 
         { 
-          "identity": "תיאור עסקי קצר", 
-          "news_sentiment": "השפעת החדשות האחרונות (חיובי/שלילי/פרווה)",
-          "long_term": { "summary": "שורה תחתונה למשקיעי ערך", "price_target": "יעד מחיר ל-12 חודשים (מספר נקי)", "accumulation_zone": "טווח איסוף" },
-          "short_term": { "summary": "שורה תחתונה לסוחרי סווינג", "entry_price": "מחיר כניסה טכני", "target_price": "יעד רווח קרוב", "stop_loss": "סטופ לוס טכני" },
+          "identity": "תיאור עסקי קצר על החברה", 
+          "news_sentiment": "השפעת החדשות (חיובי/שלילי/ניטרלי)",
+          "long_term": { "summary": "מסקנה למשקיעי ערך", "intrinsic_value": "שווי הוגן מוערך (עם $)", "accumulation_zone": "טווח איסוף", "price_target": "יעד מחיר 12 חודשים (מספר נקי)" },
+          "short_term": { "summary": "מסקנה לסוחרי סווינג", "entry_price": "מחיר כניסה טכני", "target_price": "יעד קרוב לפריצה (מספר נקי מבוסס התנגדות)", "stop_loss": "סטופ לוס (מספר נקי הגיוני מתחת למחיר הנוכחי)" },
           "pros": ["חוזקה 1", "חוזקה 2"], "cons": ["סיכון 1", "סיכון 2"], 
-          "scores": {"overall": 80, "growth":80, "value":80, "momentum":80, "quality":80}, "rating": "קנייה" 
+          "scores": {"overall": 80, "growth":80, "value":80, "momentum":80, "quality":80}, "rating": "קנייה חזקה / קנייה / החזקה / מכירה" 
         }`;
 
-        const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.3 } })
+        const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2 } })
         });
 
         let aiVerdict = { 
             news_sentiment: "אין מידע.",
-            long_term: { summary: "שגיאת AI.", price_target: "", accumulation_zone: "" },
+            long_term: { summary: "שגיאת AI.", intrinsic_value: "", accumulation_zone: "", price_target: "" },
             short_term: { summary: "שגיאת AI.", entry_price: "", target_price: "", stop_loss: "" },
             scores: { overall: 50 }, rating: "החזקה" 
         };
         
-        if (aiRes.ok) {
-            const aiData = await aiRes.json();
+        if (aiResponse.ok) {
+            const aiData = await aiResponse.json();
             try {
-                const text = aiData.candidates[0].content.parts[0].text;
+                let text = aiData.candidates[0].content.parts[0].text;
                 aiVerdict = JSON.parse(text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1));
             } catch (e) {}
         }
 
         return res.status(200).json({
-            success: true, isDataComplete, timeframe, ticker, name: profile?.name || ticker, 
-            price: Number(quote?.c || 0), changePercentage: Number(quote?.dp || 0),
-            ma50: lastPoint.ma50, ma200: lastPoint.ma200,
-            volume: Number(quote?.v || 0), sector: profile?.finnhubIndustry || "N/A", industry: profile?.finnhubIndustry || "N/A",
-            ...fundamentals, analysis: aiVerdict, chartData: chartPoints, keyLevels, patternLines: patternObj.lines, pattern: patternsDetected,
-            insiderTransactions: insiders.slice(0, 6), insiderSentiment,
-            tickerNews: (tickerNews || []).slice(0, 5)
+            success: true, isDataComplete, ticker, name: profile?.name || ticker, industry: profile?.finnhubIndustry || "N/A", sector: profile?.finnhubIndustry || "N/A",
+            price: currPrice, changePercentage: Number(quote?.dp || 0),
+            ma50: lastPoint.ma50, ma200: lastPoint.ma200, volume: Number(quote?.v || lastPoint.volume || 0),
+            pattern: patternObj.text, patternLines: patternObj.lines, rsi: calculateRSI(chartPoints.map(p=>p.close)), keyLevels, ...fundamentals,
+            tickerNews: (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 5),
+            insiderTransactions: insiders.slice(0, 6), insiderSentiment: insiderSentiment,
+            analysis: aiVerdict, chartData: chartPoints
         });
-    } catch (e) { return res.status(500).json({ success: false, message: e.message }); }
+    } catch (error) { return res.status(500).json({ success: false, message: error.message }); }
 };
