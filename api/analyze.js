@@ -82,11 +82,11 @@ function calculateRSI(prices, period = 14) {
     return avgLoss === 0 ? 100 : 100 - (100 / (1 + (avgGain / avgLoss)));
 }
 
-// 💡 אלגוריתם זיהוי תמיכות אמיתיות! (Pivot Points מבוססי חלון סריקה ארוך)
+// 💡 התיקון הקריטי לגרף: מחזיר אך ורק את התמיכה הקרובה ביותר ואת ההתנגדות הקרובה ביותר! חוסך "רעש" מיותר
 function extractKeyLevels(points) {
     if (points.length < 50) return [];
     let levels = [];
-    const window = 15; // חלון בדיקה רחב יותר (3 שבועות של מסחר) כדי לתפוס רק שיאים ענקיים ותחתיות משמעותיות
+    const window = 15; 
     
     for (let i = window; i < points.length - window; i++) {
         const p = points[i];
@@ -95,23 +95,21 @@ function extractKeyLevels(points) {
             if (p.high <= points[i-j].high || p.high <= points[i+j].high) isHigh = false;
             if (p.low >= points[i-j].low || p.low >= points[i+j].low) isLow = false;
         }
-        if (isHigh) levels.push({ price: p.high, type: 'התנגדות מהותית' });
-        if (isLow) levels.push({ price: p.low, type: 'תמיכה היסטורית' });
+        if (isHigh) levels.push({ price: p.high, type: 'התנגדות קרובה' });
+        if (isLow) levels.push({ price: p.low, type: 'תמיכה קרובה' });
     }
     
     const currentPrice = points[points.length - 1].close;
-    // מציג קודם את התמיכות וההתנגדויות שהכי קרובות ורלוונטיות למחיר של היום
-    levels.sort((a, b) => Math.abs(a.price - currentPrice) - Math.abs(b.price - currentPrice));
+    
+    // מפריד מעל ומתחת למחיר הנוכחי
+    let above = levels.filter(l => l.price > currentPrice * 1.01 && l.type.includes('התנגדות')).sort((a,b) => a.price - b.price);
+    let below = levels.filter(l => l.price < currentPrice * 0.99 && l.type.includes('תמיכה')).sort((a,b) => b.price - a.price);
     
     let finalLevels = [];
-    for (let l of levels) {
-        // מונע צפיפות של קווים על המסך
-        if (!finalLevels.some(f => Math.abs(f.price - l.price) / l.price < 0.04)) {
-            finalLevels.push(l);
-        }
-        if (finalLevels.length >= 4) break; 
-    }
-    return finalLevels; 
+    if (above.length > 0) finalLevels.push(above[0]); // רק ההתנגדות הכי קרובה מלמעלה
+    if (below.length > 0) finalLevels.push(below[0]); // רק התמיכה הכי קרובה מלמטה
+    
+    return finalLevels; // מקסימום 2 קווים נקיים
 }
 
 function detectAllPatterns(chartPoints) {
@@ -179,7 +177,7 @@ function detectAllPatterns(chartPoints) {
 }
 
 function sanitizeValue(val) {
-    if (val === null || val === undefined || isNaN(val) || val === '' || val === 0) return null;
+    if (val === null || val === undefined || isNaN(val) || val === '') return null;
     return Number(val);
 }
 
@@ -208,12 +206,14 @@ module.exports = async function(req, res) {
             const lastChartPoint = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1] : {};
             const m = metricsData?.metric || {};
             const patternObj = detectAllPatterns(chartPoints);
+            const rawMarketCap = sanitizeValue(profile?.marketCapitalization || m?.marketCapitalization);
             
             return res.status(200).json({
                 success: true, ticker, price: Number(quote?.c || 0), changePercentage: Number(quote?.dp || 0),
                 ma50: lastChartPoint.ma50 || null, ma200: lastChartPoint.ma200 || null, volume: Number(quote?.v || lastChartPoint.volume || 0), 
                 pattern: patternObj.text, patternLines: patternObj.lines, rsi: calculateRSI(chartPoints.map(p=>p.close)),
-                peRatio: sanitizeValue(m?.peBasicExclExtraTTM || m?.peExclExtraAnnual), chartData: chartPoints
+                peRatio: sanitizeValue(m?.peBasicExclExtraTTM || m?.peExclExtraAnnual), chartData: chartPoints,
+                marketCap: rawMarketCap !== null ? rawMarketCap * 1000000 : null
             });
         }
 
@@ -252,20 +252,27 @@ module.exports = async function(req, res) {
         const today = new Date().toISOString().split('T')[0];
         const lastMonth = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-        const [quote, profile, chartPoints, metricsData, tickerNews, insiderData, vix, tnx] = await Promise.all([
+        const [quote, profile, chartPoints, metricsData, recommendations, priceTargets, earningsData, tickerNews, insiderData, peersData, sentimentData, vix, tnx] = await Promise.all([
             fetchFinnhub('quote', `symbol=${ticker}`),
             fetchFinnhub('stock/profile2', `symbol=${ticker}`),
             fetchYahooData(ticker, '2y', '1d'), 
             fetchFinnhub('stock/metric', `symbol=${ticker}&metric=all`),
+            fetchFinnhub('stock/recommendation', `symbol=${ticker}`),
+            fetchFinnhub('stock/price-target', `symbol=${ticker}`),
+            fetchFinnhub('stock/earnings', `symbol=${ticker}`),
             fetchFinnhub('company-news', `symbol=${ticker}&from=${lastMonth}&to=${today}`),
             fetchFinnhub('insider-transactions', `symbol=${ticker}`),
+            fetchFinnhub('stock/peers', `symbol=${ticker}`),
+            fetchFinnhub('news-sentiment', `symbol=${ticker}`),
             fetchYahooQuote('^VIX'), fetchYahooQuote('^TNX')
         ]);
 
         const m = metricsData?.metric || {};
         
+        // 💡 התיקון לשווי השוק: מכפילים במיליון כדי שיוצג בצורה תקינה כטריליונים ב-Front
+        const rawMarketCap = sanitizeValue(profile?.marketCapitalization || m?.marketCapitalization);
         const fundamentals = {
-            marketCap: sanitizeValue(profile?.marketCapitalization || m?.marketCapitalization),
+            marketCap: rawMarketCap !== null ? rawMarketCap * 1000000 : null,
             fiftyTwoWeekHigh: sanitizeValue(m?.['52WeekHigh']), fiftyTwoWeekLow: sanitizeValue(m?.['52WeekLow']),
             peRatio: sanitizeValue(m?.peBasicExclExtraTTM || m?.peExclExtraAnnual), pbRatio: sanitizeValue(m?.pbAnnual || m?.pbQuarterly),
             psRatio: sanitizeValue(m?.psTTM || m?.psAnnual), eps: sanitizeValue(m?.epsTTM || m?.epsExclExtraItemsAnnual),
@@ -295,18 +302,17 @@ module.exports = async function(req, res) {
         const recentNews = (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 3).map(n => n.headline).join(" | ");
         const currPrice = Number(quote?.c || 0);
 
-        // 💡 פקודות מחמירות ל-AI שייצמד למציאות (סטופים הגיוניים ויעדים שמבוססים רק על רמות אמיתיות)
         const prompt = `אתה "הכריש" - מנתח מניות בכיר וסוחר סווינג.
         נתח את ${ticker}. המחיר הנוכחי הוא: $${currPrice}.
         
         זיהוי טכני שבוצע (קריטי לסווינג):
         - תבניות בגרף: ${patternsDetected}
-        - רמות תמיכה והתנגדות היסטוריות אמיתיות שזוהו אלגוריתמית: ${levelsPrompt || 'לא זוהו מובהקות'}
+        - רמות תמיכה והתנגדות היסטוריות אמיתיות שזוהו: ${levelsPrompt || 'לא זוהו מובהקות'}
         - ממוצעים: נע 50 ב-$${lastPoint.ma50}, נע 200 ב-$${lastPoint.ma200}.
         
         הנחיות חובה לכתיבת מסקנות לסוחרי סווינג (טווח קצר):
-        1. 'stop_loss' (עצירת הפסד): חייב להיות מבוסס על 'תמיכה היסטורית' קיימת (מהרמות שסופקו לך למעלה) או קצת מתחת לממוצע נע מרכזי. *אסור בשום אופן שיהיה רחוק מדי מהמחיר הנוכחי*! חייב להיות הגיוני למחיר של $${currPrice}.
-        2. 'target_price' (יעד מחיר קרוב): חייב להיות מבוסס על 'התנגדות מהותית' קרובה שסופקה לך. 
+        1. 'stop_loss' (עצירת הפסד): חייב להיות מבוסס על 'תמיכה קרובה' קיימת מהרמות שסופקו לך למעלה. *אסור בשום אופן להמציא מספר שרחוק מהמחיר הנוכחי*.
+        2. 'target_price' (יעד מחיר קרוב): חייב להיות מבוסס על 'התנגדות קרובה' שסופקה לך מעל המחיר הנוכחי. 
         
         הנחיות חובה למשקיעי ערך (טווח ארוך):
         1. התייחס לפונדמנטלס: P/E: ${fundamentals.peRatio || 'N/A'}, צמיחה: ${fundamentals.revenueGrowth || 'N/A'}%.
@@ -315,6 +321,7 @@ module.exports = async function(req, res) {
         החזר JSON בלבד בעברית בפורמט הבא בדיוק: 
         { 
           "identity": "תיאור עסקי קצר על החברה", 
+          "technical": "תיאור קריאת הגרף והמומנטום מנקודת המבט שלך",
           "news_sentiment": "השפעת החדשות (חיובי/שלילי/ניטרלי)",
           "long_term": { "summary": "מסקנה למשקיעי ערך", "intrinsic_value": "שווי הוגן מוערך (עם $)", "accumulation_zone": "טווח איסוף", "price_target": "יעד מחיר 12 חודשים (מספר נקי)" },
           "short_term": { "summary": "מסקנה לסוחרי סווינג", "entry_price": "מחיר כניסה טכני", "target_price": "יעד קרוב לפריצה (מספר נקי מבוסס התנגדות)", "stop_loss": "סטופ לוס (מספר נקי הגיוני מתחת למחיר הנוכחי)" },
@@ -328,6 +335,7 @@ module.exports = async function(req, res) {
 
         let aiVerdict = { 
             news_sentiment: "אין מידע.",
+            technical: "שגיאת שרת בקריאת הטכני.",
             long_term: { summary: "שגיאת AI.", intrinsic_value: "", accumulation_zone: "", price_target: "" },
             short_term: { summary: "שגיאת AI.", entry_price: "", target_price: "", stop_loss: "" },
             scores: { overall: 50 }, rating: "החזקה" 
