@@ -126,10 +126,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .search-input { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); border-radius: 18px; padding: 20px 26px; color: var(--text); font-size: 1.15rem; font-weight: 700; text-transform: uppercase; outline: none; direction: ltr; }
 .search-btn { padding: 20px 36px; font-size: 1rem; border-radius: 18px; }
 
-.kbd-hint { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; opacity: 0.5; }
-.kbd-item { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--text-secondary); }
-.kbd { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 5px; padding: 2px 7px; font-size: 0.65rem; font-family: monospace; direction: ltr; }
-
 .rate-limit-box { display: none; background: rgba(255,69,58,0.15); border: 1px solid var(--red); color: #fff; padding: 14px 20px; border-radius: var(--radius-sm); margin-bottom: 20px; font-size: 0.95rem; font-weight: 600; text-align: center; align-items: center; justify-content: center; gap: 10px; animation: fadeUp 0.3s forwards; }
 
 .header-actions { display: flex; gap: 8px; align-items: center; }
@@ -229,13 +225,22 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .verdict-col-title.cons { color: var(--red); }
 .verdict-col-content { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.75; white-space: pre-line; }
 
+.verdict-split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 24px; }
+@media(max-width:768px) { .verdict-split { grid-template-columns: 1fr; } }
+.split-card { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 20px; display:flex; flex-direction:column; gap: 12px;}
+.split-header { font-size: 1rem; font-weight: 800; display:flex; align-items:center; gap:8px; margin-bottom: 8px;}
+.split-summary { font-size: 0.9rem; line-height: 1.6; color: var(--text-secondary); margin-bottom: 10px;}
+.split-data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px;}
+.split-data-item { display:flex; flex-direction:column; }
+.split-data-lbl { font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom:2px;}
+.split-data-val { font-size: 1.1rem; font-weight: 800; direction:ltr; text-align:left;}
+
 .tooltip-wrap { position: relative; cursor: help; }
 .tooltip-wrap::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: rgba(20,20,24,0.97); border: 1px solid var(--glass-border); border-radius: 8px; padding: 7px 12px; font-size: 0.73rem; color: var(--text-secondary); white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s; font-weight: 500; direction: rtl; z-index:100; }
 .tooltip-wrap:hover::after { opacity: 1; }
 
 .debug-box { background: rgba(255,69,58,0.1); border: 1px solid var(--red); color: #fff; padding: 15px; border-radius: 10px; margin: 15px 0; font-family: monospace; font-size: 13px; text-align: left; direction: ltr; white-space: pre-wrap; word-break: break-all; }
 
-/* 💡 סגנונות חדשים לתיק הוירטואלי */
 .portfolio-card { background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; transition: var(--transition); }
 .portfolio-card:hover { border-color: var(--blue); }
 .port-sym { font-size: 1.2rem; font-weight: 900; color: var(--text); direction: ltr; }
@@ -243,6 +248,19 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .port-pnl { font-size: 1.1rem; font-weight: 800; direction: ltr; }
 .btn-trade { padding: 8px 24px; font-size: 0.9rem; border-radius: 12px; background: rgba(10,132,255,0.1); color: var(--blue); border: 1px solid rgba(10,132,255,0.3); transition: var(--transition); cursor:pointer;}
 .btn-trade:hover { background: var(--blue); color: #fff; }
+
+/* 💡 סגנונות חדשים ללובי האקדמיה */
+.academy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-top: 20px; }
+.course-card { background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 20px; padding: 28px; transition: var(--transition); display: flex; flex-direction: column; gap: 16px; position: relative; overflow: hidden; }
+.course-card:hover { border-color: rgba(10,132,255,0.3); transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.4); }
+.course-icon-wrap { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; margin-bottom: 8px; }
+.course-num { position: absolute; top: -15px; left: -10px; font-size: 80px; font-weight: 900; color: rgba(255,255,255,0.03); line-height: 1; pointer-events: none; }
+.course-title { font-size: 1.3rem; font-weight: 800; color: #fff; }
+.course-desc { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; flex-grow: 1; }
+.course-actions { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+.course-audio { width: 100%; height: 40px; border-radius: 8px; outline: none; }
+.course-audio::-webkit-media-controls-panel { background-color: rgba(255,255,255,0.1); }
+.course-audio::-webkit-media-controls-current-time-display, .course-audio::-webkit-media-controls-time-remaining-display { color: #f5f5f7; }
 
 @media (max-width: 768px) {
   nav { padding: 12px 16px; flex-wrap: wrap; height: auto; min-height: 68px; gap: 12px; justify-content: space-between; }
@@ -281,6 +299,13 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   .range-bar-wrap { width: 100px; }
   .modal { padding: 32px 20px; width: 92%; }
 }
+
+@media (max-width: 480px) {
+  .market-stats { grid-template-columns: repeat(2, 1fr); }
+  .heatmap-grid { grid-template-columns: repeat(2, 1fr); }
+  .chart-container { height: 250px; }
+  .ticker-item { padding: 0 16px; font-size: 0.75rem; }
+}
 </style>
 </head>
 <body>
@@ -293,6 +318,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   <div class="loading-steps" id="loading-steps"></div>
 </div>
 
+<!-- מודל מסחר וירטואלי -->
 <div class="modal-overlay" id="modal-trade">
   <div class="modal" style="position:relative">
     <button class="modal-close" onclick="document.getElementById('modal-trade').classList.remove('active')">✕</button>
@@ -340,6 +366,8 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
     <button class="nav-tab active" id="nav-market" onclick="switchTab('market',this)">🌐 שוק</button>
     <button class="nav-tab" id="nav-shark" onclick="switchTab('shark',this)">🦈 ניתוח <span class="lock-icon" id="lock-shark">🔒</span></button>
     <button class="nav-tab" id="nav-portfolio" onclick="switchTab('portfolio',this)">💼 תיק וירטואלי <span class="lock-icon" id="lock-port">🔒</span></button>
+    <!-- 💡 לשונית האקדמיה החדשה -->
+    <button class="nav-tab" id="nav-academy" onclick="switchTab('academy',this)">🎓 אקדמיה <span class="lock-icon" id="lock-acad">🔒</span></button>
     <button class="nav-tab" id="nav-community" onclick="switchTab('community',this)">👥 קהילה <span class="lock-icon" id="lock-comm">🔒</span></button>
     <button class="nav-tab" id="nav-watch" onclick="switchTab('watchlist',this)">📌 מעקב <span class="lock-icon" id="lock-watch">🔒</span></button>
     <button class="nav-tab" id="nav-admin" onclick="switchTab('admin',this)" style="display:none; color:var(--gold)">⚙️ ניהול</button>
@@ -562,6 +590,96 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
     </div>
     <div class="watchlist-grid" id="watchlist-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px;"></div>
   </div>
+
+  <!-- 💡 אזור לובי האקדמיה -->
+  <div id="section-academy" class="section">
+    <div class="hero-badge" style="background: rgba(191,90,242,0.15); color: var(--purple); border-color: rgba(191,90,242,0.3);">✦ FinShark Masterclass</div>
+    <div class="section-title">🎓 אקדמיית הכריש</div>
+    <div class="section-subtitle">הפכו מסוחרים מתחילים למשקיעי-על. למדו לקרוא את השוק, לנהל סיכונים ולהשתמש בבינה המלאכותית שלנו כדי לייצר רווחים.</div>
+    
+    <div class="academy-grid">
+        <!-- קורס 1 -->
+        <div class="course-card">
+            <div class="course-num">1</div>
+            <div class="course-icon-wrap" style="background: rgba(10,132,255,0.15); color: var(--blue);">🌊</div>
+            <div class="course-title">מבוא לים הפתוח</div>
+            <div class="course-desc">הסוד שמאחורי שווי השוק, קריאת נרות יפניים, מחזורי מסחר וההבדל הקריטי בין מסחר סווינג להשקעת ערך ארוכת טווח.</div>
+            <div class="course-actions">
+                <button class="btn btn-ghost" style="width: 100%; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;" onclick="window.open('academy.html?course=1', '_blank')"><span>צפה במצגת הקורס</span> <span>🖥️</span></button>
+                <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; font-weight: 600;">האזן לפודקאסט הסיכום (NotebookLM):</span>
+                <audio controls class="course-audio">
+                    <source src="איך_שווי_שוק_וווליום_חושפים_לווייתנים.m4a" type="audio/mp4">
+                    הדפדפן אינו תומך בנגן שמע.
+                </audio>
+            </div>
+        </div>
+
+        <!-- קורס 2 -->
+        <div class="course-card">
+            <div class="course-num">2</div>
+            <div class="course-icon-wrap" style="background: rgba(48,209,88,0.15); color: var(--green);">📊</div>
+            <div class="course-title">לקרוא את המספרים (פונדמנטלס)</div>
+            <div class="course-desc">איך מזהים מניה יקרה? מכפילי רווח, דוחות רבעוניים, שולי רווח נקי, ואיך מעקב אחרי "הכסף החכם" של בעלי עניין יציל אתכם.</div>
+            <div class="course-actions">
+                <button class="btn btn-ghost" style="width: 100%; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;" onclick="window.open('academy.html?course=2', '_blank')"><span>צפה במצגת הקורס</span> <span>🖥️</span></button>
+                <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; font-weight: 600;">האזן לפודקאסט הסיכום (NotebookLM):</span>
+                <audio controls class="course-audio">
+                    <source src="למה_מניות_מתרסקות_למרות_רווחי_ענק.m4a" type="audio/mp4">
+                    הדפדפן אינו תומך בנגן שמע.
+                </audio>
+            </div>
+        </div>
+
+        <!-- קורס 3 -->
+        <div class="course-card">
+            <div class="course-num">3</div>
+            <div class="course-icon-wrap" style="background: rgba(191,90,242,0.15); color: var(--purple);">📈</div>
+            <div class="course-title">ניתוח טכני ותזמון</div>
+            <div class="course-desc">הפסיכולוגיה שמאחורי הגרף: רמות תמיכה והתנגדות אמתית, ממוצעים נעים (חיתוכי זהב ומוות), מדד ה-RSI ותבניות גיאומטריות מתקדמות.</div>
+            <div class="course-actions">
+                <button class="btn btn-ghost" style="width: 100%; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;" onclick="window.open('academy.html?course=3', '_blank')"><span>צפה במצגת הקורס</span> <span>🖥️</span></button>
+                <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; font-weight: 600;">האזן לפודקאסט הסיכום (NotebookLM):</span>
+                <audio controls class="course-audio">
+                    <source src="הפסיכולוגיה_האנושית_שמאחורי_הגרפים_בבורסה.m4a" type="audio/mp4">
+                    הדפדפן אינו תומך בנגן שמע.
+                </audio>
+            </div>
+        </div>
+
+        <!-- קורס 4 -->
+        <div class="course-card">
+            <div class="course-num">4</div>
+            <div class="course-icon-wrap" style="background: rgba(255,69,58,0.15); color: var(--red);">🛡️</div>
+            <div class="course-title">ניהול סיכונים פסיכולוגי</div>
+            <div class="course-desc">איך אפשר להרוויח גם אם טועים ב-50% מהעסקאות? יחסי סיכוי-סיכון, סטופ-לוס קשיח, "כלל ה-1%" המפורסם והתמודדות עם פחד (FOMO).</div>
+            <div class="course-actions">
+                <button class="btn btn-ghost" style="width: 100%; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;" onclick="window.open('academy.html?course=4', '_blank')"><span>צפה במצגת הקורס</span> <span>🖥️</span></button>
+                <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; font-weight: 600;">האזן לפודקאסט הסיכום (NotebookLM):</span>
+                <audio controls class="course-audio">
+                    <source src="איך_להרוויח_כשטועים_בחצי_מהזמן.m4a" type="audio/mp4">
+                    הדפדפן אינו תומך בנגן שמע.
+                </audio>
+            </div>
+        </div>
+
+        <!-- קורס 5 -->
+        <div class="course-card">
+            <div class="course-num">5</div>
+            <div class="course-icon-wrap" style="background: rgba(255,214,10,0.15); color: var(--gold);">🦈</div>
+            <div class="course-title">לצוד עם הכריש (מאסטר קלאס)</div>
+            <div class="course-desc">איך לנצל את מערכת ה-AI שלנו למסחר בפועל: הבנת ה-Shark Score, פיצוח הפסיקה הכפולה (Dual Verdict) ואימון מתקדם בתיק הוירטואלי.</div>
+            <div class="course-actions">
+                <button class="btn btn-primary" style="width: 100%; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(10,132,255,0.3);" onclick="window.open('academy.html?course=5', '_blank')"><span>צפה במצגת המסכמת</span> <span>🖥️</span></button>
+                <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; font-weight: 600;">האזן לפודקאסט המסכם (NotebookLM):</span>
+                <audio controls class="course-audio">
+                    <source src="ציון_הכריש_ושיטת_הפסיקה_הכפולה_למסחר.m4a" type="audio/mp4">
+                    הדפדפן אינו תומך בנגן שמע.
+                </audio>
+            </div>
+        </div>
+    </div>
+  </div>
+
 </main>
 
 <script type="module">
@@ -615,7 +733,6 @@ window.updateTradeTotal = function() {
     safeText('trade-total', `$${(qty * p).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`);
 };
 
-// 💡 לוגיקת מסחר בתיק הוירטואלי
 window.executeTrade = async function(type) {
     if (!State.currentData || !State.currentUser) return;
     const errEl = document.getElementById('trade-error');
@@ -676,20 +793,17 @@ window.renderPortfolio = async function() {
     let totalInvested = 0;
     let html = '';
 
-    // משיכת מחירים בלייב לכל הפוזיציות
     for (let t of tickers) {
         const pos = portfolio[t];
         try {
-            const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${t}&token=${firebaseConfig.apiKey.replace('AIzaSyBU77J3Nu8xh0_a1GLM9jcnWJmhZq8QHH4', 'cp9v9p1r01qhk58q4q5gcp9v9p1r01qhk58q4q60')}`); // Fallback
-            // אופציה עדיפה: קריאה לשרת שלנו, אך נשתמש ב-Finnhub ישיר לחסכון בזמן
             const liveRes = await fetch(`${NETLIFY_API_URL}?action=live_data&ticker=${t}`);
             const data = await liveRes.json();
-            const currPrice = data.price || pos.avgPrice; // גיבוי אם אין אינטרנט
+            const currPrice = data.price || pos.avgPrice;
             
             const val = pos.shares * currPrice;
             const invested = pos.shares * pos.avgPrice;
             const pnl = val - invested;
-            const pnlPct = (pnl / invested) * 100;
+            const pnlPct = invested > 0 ? (pnl / invested) * 100 : 0;
             
             totalStockValue += val;
             totalInvested += invested;
@@ -711,7 +825,7 @@ window.renderPortfolio = async function() {
     }
     
     const totalEquity = cash + totalStockValue;
-    const totalPnl = totalEquity - 100000; // מזומן התחלתי קבוע
+    const totalPnl = totalEquity - 100000; 
     const totalPnlPct = (totalPnl / 100000) * 100;
 
     safeText('port-total', `$${totalEquity.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`);
@@ -736,7 +850,6 @@ window.handleAuth = async function() {
         const userCredential = await createUserWithEmailAndPassword(auth, email, pass); 
         const user = userCredential.user; 
         const isAdmin = email === 'admin@finshark.com'; 
-        // 💡 הוספנו balance למשתמשים חדשים!
         await setDoc(doc(db, 'users', user.uid), { 
             email: email, role: isAdmin ? 'admin' : 'user', status: isAdmin ? 'approved' : 'pending', 
             watchlist: ['AAPL', 'MSFT'], analysisCount: 0, restrictedUntil: null, balance: 100000, portfolio: {}
@@ -752,7 +865,6 @@ onAuthStateChanged(auth, async (user) => {
     onSnapshot(doc(db, 'users', user.uid), async (docSnap) => {
       if (docSnap.exists()) {
         const userData = docSnap.data();
-        // עדכון משתמשים קיימים לתיק וירטואלי
         if (userData.balance === undefined) {
             await updateDoc(doc(db, 'users', user.uid), { balance: 100000, portfolio: {} });
         }
@@ -832,7 +944,7 @@ window.loadCommunityData = async function() {
                 const stopStr = item.stopLoss ? `סטופ: $${item.stopLoss}` : '';
                 const targetStr = item.targetPrice ? `יעד: $${item.targetPrice}` : '';
                 const levelsHtml = (entryStr || stopStr || targetStr) ? `<div style="margin-top:10px; display:flex; gap:12px; font-size:0.8rem; font-weight:800; color:var(--text); background:rgba(0,0,0,0.3); padding:8px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.05); width:fit-content; flex-wrap:wrap;"><span style="color:var(--blue); direction:ltr;">${entryStr}</span> <span style="color:var(--red); direction:ltr;">${stopStr}</span> <span style="color:var(--green); direction:ltr;">${targetStr}</span></div>` : '';
-                const expHtml = item.expectation ? `<div style="margin-top:10px; font-size:0.85rem; color:var(--text-secondary); line-height:1.5;"><b>צפי:</b> ${item.expectation.substring(0,60)}...</div>` : '';
+                const expHtml = item.expectation ? `<div style="margin-top:10px; font-size:0.85rem; color:var(--text-secondary); line-height:1.5;"><b>צפי הכריש:</b> ${item.expectation}</div>` : '';
 
                 sHtml += `
                 <div style="background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); padding:20px; border-radius:16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:flex-start; cursor:pointer; transition:var(--transition); flex-wrap:wrap; gap:12px;" onclick="goToAnalysis('${item.ticker}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--glass-border)'">
@@ -898,7 +1010,7 @@ window.switchTab = function(tab, el) {
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
   const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
   
-  if ((tab === 'shark' || tab === 'watchlist' || tab === 'community' || tab === 'portfolio') && !isAdmin) {
+  if ((tab === 'shark' || tab === 'watchlist' || tab === 'community' || tab === 'portfolio' || tab === 'academy') && !isAdmin) {
       if (!isLoggedIn) { window.openLogin(); return; }
       if (!isApproved) { State.currentTab = 'pending'; renderApp(); return; }
   }
@@ -908,13 +1020,13 @@ window.switchTab = function(tab, el) {
 };
 
 function renderApp() {
-  ['section-market', 'section-pending', 'section-shark', 'section-admin', 'section-watchlist', 'section-community', 'section-portfolio'].forEach(s => { const elem = document.getElementById(s); if(elem) elem.classList.remove('active'); });
+  ['section-market', 'section-pending', 'section-shark', 'section-admin', 'section-watchlist', 'section-community', 'section-portfolio', 'section-academy'].forEach(s => { const elem = document.getElementById(s); if(elem) elem.classList.remove('active'); });
   
   const isLoggedIn = State.currentUser !== null;
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
   const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
 
-  if ((State.currentTab === 'shark' || State.currentTab === 'watchlist' || State.currentTab === 'community' || State.currentTab === 'portfolio') && !isAdmin && !isApproved) {
+  if ((State.currentTab === 'shark' || State.currentTab === 'watchlist' || State.currentTab === 'community' || State.currentTab === 'portfolio' || State.currentTab === 'academy') && !isAdmin && !isApproved) {
       State.currentTab = isLoggedIn ? 'pending' : 'market';
   }
   if (State.currentTab === 'pending' && (isApproved || isAdmin)) {
@@ -924,8 +1036,8 @@ function renderApp() {
   const btnLogin = document.getElementById('btn-login'); if(btnLogin) btnLogin.style.display = isLoggedIn ? 'none' : '';
   const btnLogout = document.getElementById('btn-logout'); if(btnLogout) btnLogout.style.display = isLoggedIn ? '' : 'none';
   
-  // 💡 פתיחת מנעולים ב-NAV
-  ['lock-shark', 'lock-watch', 'lock-comm', 'lock-port'].forEach(id => {
+  // 💡 פתיחת מנעולים ב-NAV כולל אקדמיה
+  ['lock-shark', 'lock-watch', 'lock-comm', 'lock-port', 'lock-acad'].forEach(id => {
       const lock = document.getElementById(id);
       if (lock) lock.style.display = (isApproved || isAdmin) ? 'none' : 'inline';
   });
@@ -947,6 +1059,7 @@ function renderApp() {
   else if (State.currentTab === 'community') { const sec = document.getElementById('section-community'); if(sec) sec.classList.add('active'); loadCommunityData(); }
   else if (State.currentTab === 'watchlist') { const sec = document.getElementById('section-watchlist'); if(sec) sec.classList.add('active'); renderWatchlist(); }
   else if (State.currentTab === 'portfolio') { const sec = document.getElementById('section-portfolio'); if(sec) sec.classList.add('active'); renderPortfolio(); }
+  else if (State.currentTab === 'academy') { const sec = document.getElementById('section-academy'); if(sec) sec.classList.add('active'); }
   else { const sec = document.getElementById('section-market'); if(sec) sec.classList.add('active'); }
   
   document.querySelectorAll('.nav-tab').forEach(t => { if(t.getAttribute('onclick')?.includes(`'${State.currentTab}'`)) t.classList.add('active'); else t.classList.remove('active'); });
@@ -1032,145 +1145,57 @@ function renderMarketWeather(data) {
   }
 }
 
+// 💡 עודכן בהתאם לגרסה החלקה והאחרונה של analyzeStock שלך
 window.analyzeStock = async function() {
-  const inputEl = document.getElementById('ticker-input');
-  if(!inputEl) return;
-  const ticker = inputEl.value.trim().toUpperCase(); 
-  if (!ticker) { inputEl.focus(); return; }
+  const ticker = document.getElementById('ticker-input').value.trim().toUpperCase(); 
+  if (!ticker) return;
   
-  const user = State.currentUser;
-  const warningEl = document.getElementById('rate-limit-warning');
-  const debugEl = document.getElementById('debug-analyze'); 
-  const resultsEl = document.getElementById('results');
-  
-  if(warningEl) warningEl.style.display = 'none';
-  if(debugEl) debugEl.style.display = 'none'; 
-  if(resultsEl) resultsEl.style.display = 'none';
+  showLoading();
+  const debugEl = document.getElementById('debug-analyze');
+  debugEl.style.display = 'none';
 
-  showLoading(); 
-  animateLoadingSteps(['בודק זיכרון מטמון בענן (Cache)...']);
-
-  const cacheKey = ticker;
-  let cachedData = null;
-  try {
-      const cacheDoc = await getDoc(doc(db, 'ai_cache', cacheKey));
-      if (cacheDoc.exists()) {
-          const cacheObj = cacheDoc.data();
-          if (cacheObj.lastUpdated && (Date.now() - cacheObj.lastUpdated) < 604800000) {
-              cachedData = cacheObj.data;
-          }
+  const cacheDoc = await getDoc(doc(db, 'ai_cache', ticker));
+  if (cacheDoc.exists()) {
+      const cached = cacheDoc.data().data;
+      if (cached.isDataComplete) {
+          animateLoadingSteps(['נמצא ניתוח שלם בקאש...', 'מעדכן מחיר נוכחי...']);
+          try {
+              const liveRes = await fetch(`${NETLIFY_API_URL}?action=live_data&ticker=${ticker}`);
+              const liveData = await liveRes.json();
+              if (liveData.success) {
+                  cached.price = liveData.price;
+                  cached.changePercentage = liveData.changePercentage;
+                  cached.chartData = liveData.chartData;
+                  hideLoading();
+                  renderResults(cached, cached.analysis, cached.chartData, cached.tickerNews || []);
+                  return;
+              }
+          } catch(e) { console.warn("Live update failed"); }
       }
-  } catch(e) { console.warn("Cache read error", e); }
+  }
 
-  if (cachedData && cachedData.isDataComplete !== false) {
-      animateLoadingSteps(['נמצא ניתוח בענן!', 'מוודא שאין תנודת מחיר קיצונית ומעדכן...']);
-      try {
-          const liveRes = await fetch(`${NETLIFY_API_URL}?action=live_data&ticker=${ticker}`);
-          const liveData = await liveRes.json();
-          
-          if (liveData.success) {
-              const originalPrice = cachedData.price || liveData.price;
-              const currentPrice = liveData.price;
-              const priceDiffPct = Math.abs(currentPrice - originalPrice) / originalPrice;
-              
-              if (priceDiffPct > 0.05) {
-                  console.log(`Bypassing cache. Price diff: ${(priceDiffPct*100).toFixed(1)}%.`);
-              } else {
-                  cachedData.price = liveData.price;
-                  cachedData.changePercentage = liveData.changePercentage;
-                  cachedData.chartData = liveData.chartData;
-                  cachedData.ma50 = liveData.ma50;
-                  cachedData.ma200 = liveData.ma200;
-                  cachedData.volume = liveData.volume;
-                  if (liveData.marketCap) cachedData.marketCap = liveData.marketCap;
-                  
-                  if (liveData.pattern) cachedData.pattern = liveData.pattern;
-                  if (liveData.patternLines) cachedData.patternLines = liveData.patternLines;
-                  if (liveData.rsi) cachedData.rsi = liveData.rsi; 
-                  if (liveData.peRatio !== null && liveData.peRatio !== undefined) cachedData.peRatio = liveData.peRatio;
-                  
-                  State.currentData = cachedData; 
-                  State.aiAnalysis = cachedData.analysis; 
-                  window.currentChartData = cachedData.chartData; 
-                  
-                  hideLoading(); 
-                  renderResults(cachedData, cachedData.analysis, cachedData.chartData, cachedData.tickerNews || []);
-                  return; 
+  animateLoadingSteps(['מבצע ניתוח עומק מקיף...', 'שולף נתוני API בזמן אמת...']);
+  try {
+      const response = await fetch(`${NETLIFY_API_URL}?action=analyze&ticker=${ticker}`);
+      const data = await response.json();
+      
+      if (data.success) {
+          if (data.isDataComplete) {
+              await setDoc(doc(db, 'ai_cache', ticker), { ticker, data, lastUpdated: Date.now() });
+              if (data.analysis && data.analysis.scores && data.analysis.scores.overall >= 70) {
+                  await setDoc(doc(db, 'ai_setups', ticker), {
+                      ticker, score: data.analysis.scores.overall, rating: data.analysis.rating || 'קנייה',
+                      intrinsicValue: data.analysis.long_term?.intrinsic_value || '', lastUpdated: Date.now()
+                  });
               }
           }
-      } catch(e) { console.warn("Failed live update, falling back to full analysis", e); }
-  }
-
-  if (user && user.role !== 'admin') {
-      const now = Date.now();
-      if (user.restrictedUntil && now < user.restrictedUntil) {
-          const remainingMinutes = Math.ceil((user.restrictedUntil - now) / (1000 * 60));
-          if(warningEl){
-              warningEl.innerHTML = `🚫 הגעת למגבלת הניתוחים להיום (6).<br>מניות שנותחו זמינות בחינם דרך הסט-אפים או החיפוש. <br>ניתוח מניות חדשות יפתח מחדש בעוד <b>${remainingMinutes} דקות</b>.`;
-              warningEl.style.display = 'flex';
-          }
           hideLoading();
-          inputEl.value = '';
-          return;
+          renderResults(data, data.analysis, data.chartData, data.tickerNews || []);
       }
-  }
-
-  animateLoadingSteps(['יוצר קשר עם שרת FinShark...','מושך נתוני אמת מהבורסה...','מעביר נתונים למוח ה-AI...','מגבש פסיקת הכריש ורמות מסחר...']);
-
-  try {
-    const response = await fetch(`${NETLIFY_API_URL}?action=analyze&ticker=${ticker}`);
-    const rawText = await response.text();
-    let data; 
-    try { data = JSON.parse(rawText); } catch(e) { 
-        hideLoading(); 
-        if(resultsEl) resultsEl.style.display = 'block'; 
-        if(debugEl) { debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 השרת לא מחזיר JSON!</strong>\n\n${rawText}`; }
-        return; 
-    }
-    
-    if (!response.ok || !data.success) { 
-        hideLoading(); 
-        if(resultsEl) resultsEl.style.display = 'block'; 
-        if(debugEl) { debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 שגיאה מהשרת:</strong>\n\n${data.message || JSON.stringify(data)}`; }
-        return; 
-    }
-    
-    State.currentData = data; 
-    State.aiAnalysis = data.analysis; 
-    window.currentChartData = data.chartData; 
-    
-    if (data.isDataComplete) {
-        try {
-            await setDoc(doc(db, 'ai_cache', cacheKey), { ticker: ticker, data: data, lastUpdated: Date.now() });
-        } catch(e) { console.warn("Failed to save cache", e); }
-
-        if (data.analysis && data.analysis.scores && data.analysis.scores.overall >= 70 && user && user.status === 'approved') {
-            try {
-                const sTerm = data.analysis.short_term || {};
-                const lTerm = data.analysis.long_term || {};
-                await setDoc(doc(db, 'ai_setups', ticker), {
-                    ticker: ticker, score: data.analysis.scores.overall, pattern: data.pattern || 'ללא תבנית', rating: data.analysis.rating || 'קנייה', 
-                    entryPrice: sTerm.entry_price || '', stopLoss: sTerm.stop_loss || '', targetPrice: sTerm.target_price || '', 
-                    expectation: sTerm.summary || lTerm.summary || data.analysis.summary || '', lastUpdated: Date.now()
-                });
-            } catch(e) { console.warn("Failed to save setup", e); }
-        }
-    }
-
-    if (user && user.role !== 'admin') {
-        let newCount = (user.analysisCount || 0) + 1;
-        let newRestricted = user.restrictedUntil || null;
-        if (newCount >= 6) { newRestricted = Date.now() + (3 * 60 * 60 * 1000); newCount = 0; }
-        await updateDoc(doc(db, 'users', user.uid), { analysisCount: newCount, restrictedUntil: newRestricted });
-    }
-
-    hideLoading(); 
-    renderResults(data, data.analysis, data.chartData, data.tickerNews || []);
   } catch (error) { 
-    console.error("Analysis Error:", error); 
-    hideLoading(); 
-    if(resultsEl) resultsEl.style.display = 'block';
-    if(debugEl) { debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 תקלת רשת מוחלטת 🚨</strong><br><br>${error.message}`; }
+      hideLoading();
+      debugEl.style.display = 'block';
+      debugEl.textContent = "שגיאה בחיבור לשרת הניתוח.";
   }
 };
 
@@ -1373,11 +1398,12 @@ function renderResults(data, analysis, historyData, newsData) {
   const earningsGood = data.latestEarnings && typeof data.latestEarnings.surprisePercent === 'number' && data.latestEarnings.surprisePercent > 0;
   const earningsBad = data.latestEarnings && typeof data.latestEarnings.surprisePercent === 'number' && data.latestEarnings.surprisePercent < 0;
   
+  // 💡 התיקון שהוספנו מונע הצגה של 0.00 למניות מפסידות!
   const fundRows = [ 
       { label: 'שווי שוק', val: formatNumberShort(data.marketCap), tag: 'M.CAP', isTag: false }, 
       { label: 'טווח 52 שבועות', val: `<span style="font-size:0.75rem; color:var(--text-secondary); margin-right:8px">$${safeNum(rangeLow, 2)}</span> <div class="range-bar-wrap"><div class="range-indicator" style="left:${currentPos}%"></div></div> <span style="font-size:0.75rem; color:var(--text-secondary); margin-left:8px">$${safeNum(rangeHigh, 2)}</span>`, isHtml: true }, 
       { label: 'דוח רבעוני אחרון', val: earningsText, good: earningsGood, bad: earningsBad, goodLabel: 'הפתעה לטובה', badLabel: 'אכזב', neutralLabel: 'אין נתון' },
-      { label: 'מחיר / רווח (P/E)', val: safeNum(data.peRatio, 1, '', 'x'), good: data.peRatio > 0 && data.peRatio < 30, bad: data.peRatio > 45, goodLabel: 'זול', badLabel: 'יקר', neutralLabel: 'סביר' }, 
+      { label: 'מחיר / רווח (P/E)', val: (data.peRatio !== null) ? `${data.peRatio.toFixed(1)}x` : 'N/A', good: data.peRatio !== null && data.peRatio < 30, bad: data.peRatio !== null && data.peRatio > 45, goodLabel: 'זול', badLabel: 'יקר', neutralLabel: 'סביר' }, 
       { label: 'מכפיל מכירות (P/S)', val: safeNum(data.psRatio, 2, '', 'x'), good: data.psRatio > 0 && data.psRatio < 3, bad: data.psRatio > 10, goodLabel: 'זול', badLabel: 'בועה', neutralLabel: 'ממוצע' },
       { label: 'מכפיל הון (P/B)', val: safeNum(data.pbRatio, 2, '', 'x'), good: data.pbRatio > 0 && data.pbRatio < 3, bad: data.pbRatio > 5, goodLabel: 'תמחור נוח', badLabel: 'יקר', neutralLabel: 'ממוצע' }, 
       { label: 'רווח למניה (EPS)', val: safeNum(data.eps, 2, '$'), good: data.eps > 2, bad: data.eps < 0, goodLabel: 'גבוה', badLabel: 'הפסד', neutralLabel: 'סביר' }, 
