@@ -235,6 +235,15 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 
 .debug-box { background: rgba(255,69,58,0.1); border: 1px solid var(--red); color: #fff; padding: 15px; border-radius: 10px; margin: 15px 0; font-family: monospace; font-size: 13px; text-align: left; direction: ltr; white-space: pre-wrap; word-break: break-all; }
 
+/* 💡 סגנונות חדשים לתיק הוירטואלי */
+.portfolio-card { background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; transition: var(--transition); }
+.portfolio-card:hover { border-color: var(--blue); }
+.port-sym { font-size: 1.2rem; font-weight: 900; color: var(--text); direction: ltr; }
+.port-qty { font-size: 0.8rem; color: var(--text-secondary); }
+.port-pnl { font-size: 1.1rem; font-weight: 800; direction: ltr; }
+.btn-trade { padding: 8px 24px; font-size: 0.9rem; border-radius: 12px; background: rgba(10,132,255,0.1); color: var(--blue); border: 1px solid rgba(10,132,255,0.3); transition: var(--transition); cursor:pointer;}
+.btn-trade:hover { background: var(--blue); color: #fff; }
+
 @media (max-width: 768px) {
   nav { padding: 12px 16px; flex-wrap: wrap; height: auto; min-height: 68px; gap: 12px; justify-content: space-between; }
   .logo { flex: 1; font-size: 1.2rem; }
@@ -243,49 +252,34 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   .nav-center::-webkit-scrollbar { display: none; }
   .nav-tab { padding: 8px 14px; white-space: nowrap; font-size: 0.85rem; }
   .user-greeting { display: none !important; }
-  
   main { padding-top: 130px; padding-left: 14px; padding-right: 14px; }
   .card { padding: 18px; }
   .section-title { font-size: 1.4rem; }
   .results-grid { grid-template-columns: 1fr; }
   .news-grid { grid-template-columns: 1fr; }
   .verdict-columns { grid-template-columns: 1fr; }
-  
   .market-stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .heatmap-grid { grid-template-columns: repeat(2, 1fr); }
-  
   .search-box { flex-direction: column; gap: 10px; }
   .search-input { padding: 16px 20px; font-size: 1rem; border-radius: 14px; }
   .search-btn { padding: 16px; border-radius: 14px; width: 100%; font-size: 1rem; }
   .quick-symbols { gap: 6px; }
-  
   .stock-header { padding: 20px; flex-direction: column; align-items: flex-start; gap: 12px; }
   .stock-full-name { font-size: 1.6rem; }
   .stock-price { font-size: 2.2rem; }
   .stock-price-group { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
-  
   .chart-container { height: 280px; }
   .ma-display { flex-direction: column; gap: 8px; }
   .overall-score-container { flex-direction: column; text-align: center; gap: 16px; }
   .score-text-wrap { text-align: center; }
-  
   .verdict-card { padding: 20px; }
   .verdict-header { flex-direction: column; align-items: flex-start; gap: 10px; }
   .verdict-rating { margin-right: 0; width: 100%; text-align: center; }
-  
   .data-row { padding: 12px 0; }
   .data-label { font-size: 0.8rem; }
   .data-value { font-size: 0.85rem; }
   .range-bar-wrap { width: 100px; }
-  
   .modal { padding: 32px 20px; width: 92%; }
-}
-
-@media (max-width: 480px) {
-  .market-stats { grid-template-columns: repeat(2, 1fr); }
-  .heatmap-grid { grid-template-columns: repeat(2, 1fr); }
-  .chart-container { height: 250px; }
-  .ticker-item { padding: 0 16px; font-size: 0.75rem; }
 }
 </style>
 </head>
@@ -299,25 +293,25 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   <div class="loading-steps" id="loading-steps"></div>
 </div>
 
-<div class="modal-overlay" id="modal-updates">
+<div class="modal-overlay" id="modal-trade">
   <div class="modal" style="position:relative">
-    <button class="modal-close" onclick="closeUpdatesModal()">✕</button>
-    <span style="font-size:3rem;display:block;margin-bottom:10px">🚀</span>
-    <h2 style="margin-bottom: 5px;">הכריש השתדרג לגרסה 5.0!</h2>
-    <p style="color:var(--text-secondary); margin-bottom: 24px; font-size: 0.9rem;">ניתוח מקיף ואסטרטגיות מסחר מדויקות יותר.</p>
+    <button class="modal-close" onclick="document.getElementById('modal-trade').classList.remove('active')">✕</button>
+    <h2>💼 מסחר וירטואלי</h2>
+    <p style="color:var(--text-secondary); margin-bottom:20px;">מחיר נוכחי: <span id="trade-price" style="font-weight:bold; color:var(--text); direction:ltr;">$0.00</span></p>
+    <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:15px; text-align:right;">יתרת מזומן: <span id="trade-cash" style="direction:ltr;"></span></p>
     
-    <ul style="text-align: right; margin-bottom: 30px; line-height: 1.8; color: var(--text); list-style: none; padding: 0;">
-        <li style="margin-bottom: 12px; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; border: 1px solid var(--glass-border);">
-            📈 <b>גרף מקצועי נקי:</b><br><span style="font-size:0.85rem; color:var(--text-secondary);">תמיכות והתנגדויות היסטוריות אמיתיות שורטטו על הגרף לזיהוי מדויק של תנועות המחיר מבלי להעמיס את העין.</span>
-        </li>
-        <li style="margin-bottom: 12px; background: rgba(10,132,255,0.08); padding: 12px; border-radius: 12px; border: 1px solid rgba(10,132,255,0.2);">
-            🧠 <b>ניתוח כפול (Dual Analysis):</b><br><span style="font-size:0.85rem; color:var(--text-secondary);">ה-AI מספק כעת שתי פסיקות באותו מסך – למשקיעי טווח ארוך (ערך) וגם לסוחרי טווח קצר (סווינג יומי).</span>
-        </li>
-        <li style="background: rgba(48,209,88,0.08); padding: 12px; border-radius: 12px; border: 1px solid rgba(48,209,88,0.2);">
-            🎯 <b>יעדים וסטופים מבוססי רמות:</b><br><span style="font-size:0.85rem; color:var(--text-secondary);">הסטופ-לוס ומחירי היעד נגזרים כעת ישירות מהתמיכות וההתנגדויות ההיסטוריות של המניה למסחר בטוח והגיוני יותר.</span>
-        </li>
-    </ul>
-    <button class="btn btn-primary" style="width:100%; padding:15px; border-radius:14px; font-size: 1rem;" onclick="closeUpdatesModal()">מעולה, בוא נתחיל! 🦈</button>
+    <input type="number" class="input-field" id="trade-shares" placeholder="כמות מניות..." min="1" step="1" style="text-align:center; direction:ltr;" oninput="updateTradeTotal()" />
+    <div style="display:flex; justify-content:space-between; margin-bottom:20px; font-weight:800; font-size:1.1rem;">
+        <span>סה"כ לתשלום:</span>
+        <span id="trade-total" style="direction:ltr; color:var(--blue);">$0.00</span>
+    </div>
+    
+    <p style="font-size:0.75rem; color:var(--gold); margin-bottom:10px; font-weight:600;">* הפעולה מתבצעת בתיק הוירטואלי בלבד ואינה כרוכה בכסף אמיתי</p>
+    <div style="display:flex; gap:10px;">
+        <button class="btn btn-primary" style="flex:1; padding:12px;" onclick="executeTrade('buy')">קנה (וירטואלי)</button>
+        <button class="btn btn-danger" style="flex:1; padding:12px;" onclick="executeTrade('sell')">מכור (וירטואלי)</button>
+    </div>
+    <p id="trade-error" style="color:var(--red); font-size:0.85rem; margin-top:15px; display:none;"></p>
   </div>
 </div>
 
@@ -345,6 +339,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   <div class="nav-center" id="nav-center">
     <button class="nav-tab active" id="nav-market" onclick="switchTab('market',this)">🌐 שוק</button>
     <button class="nav-tab" id="nav-shark" onclick="switchTab('shark',this)">🦈 ניתוח <span class="lock-icon" id="lock-shark">🔒</span></button>
+    <button class="nav-tab" id="nav-portfolio" onclick="switchTab('portfolio',this)">💼 תיק וירטואלי <span class="lock-icon" id="lock-port">🔒</span></button>
     <button class="nav-tab" id="nav-community" onclick="switchTab('community',this)">👥 קהילה <span class="lock-icon" id="lock-comm">🔒</span></button>
     <button class="nav-tab" id="nav-watch" onclick="switchTab('watchlist',this)">📌 מעקב <span class="lock-icon" id="lock-watch">🔒</span></button>
     <button class="nav-tab" id="nav-admin" onclick="switchTab('admin',this)" style="display:none; color:var(--gold)">⚙️ ניהול</button>
@@ -393,6 +388,31 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
     <div class="card mt-16">
       <div class="card-title">📰 חדשות שוק אחרונות</div>
       <div class="news-grid" id="market-news-grid"></div>
+    </div>
+  </div>
+
+  <div id="section-portfolio" class="section">
+    <div class="section-title">💼 תיק השקעות וירטואלי</div>
+    <div class="section-subtitle">קנה ומכור מניות וירטואלית על בסיס ניתוחי הכריש. בחן את האסטרטגיה שלך באפס סיכון!</div>
+    
+    <div class="market-stats">
+        <div class="stat-card" style="background:rgba(10,132,255,0.05); border-color:rgba(10,132,255,0.2);">
+            <div class="stat-label">שווי תיק כולל</div>
+            <div class="stat-value" id="port-total" style="color:var(--blue)">$100,000.00</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">מזומן פנוי</div>
+            <div class="stat-value" id="port-cash">$100,000.00</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">רווח / הפסד (P/L)</div>
+            <div class="stat-value" id="port-pnl" style="color:var(--text-secondary)">$0.00</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">📊 פוזיציות פתוחות</div>
+        <div id="portfolio-positions-list">טוען נתונים...</div>
     </div>
   </div>
 
@@ -448,10 +468,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
       <input class="search-input" id="ticker-input" type="text" placeholder="הזן סימול מניה..." onkeydown="if(event.key==='Enter') analyzeStock()" />
       <button class="btn btn-primary search-btn" onclick="analyzeStock()">נתח ←</button>
     </div>
-    <div class="kbd-hint">
-      <div class="kbd-item"><kbd class="kbd">Enter</kbd> <span>ניתוח מהיר</span></div>
-      <div class="kbd-item"><kbd class="kbd">Esc</kbd> <span>נקה תוצאות</span></div>
-    </div>
 
     <div id="rate-limit-warning" class="rate-limit-box"></div>
 
@@ -463,12 +479,11 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
           <div class="stock-full-name" id="res-name"></div>
         </div>
         <div class="header-actions">
+          <button class="btn-trade" onclick="openBuyModal()">🛒 מסחר וירטואלי</button>
           <button class="icon-btn tooltip-wrap" data-tip="הצבע לתיק חוכמת ההמונים" id="btn-vote-crowd" onclick="voteForCrowd()">👥</button>
           <button class="icon-btn tooltip-wrap" data-tip="הוסף לרשימת מעקב" id="btn-add-watch-results" onclick="addToWatchlistFromResults()">📌</button>
-          <button class="icon-btn tooltip-wrap" data-tip="שתף ניתוח" onclick="shareAnalysis()">🔗</button>
-          <button class="icon-btn tooltip-wrap" data-tip="הדפס ניתוח" onclick="window.print()">🖨️</button>
         </div>
-        <div class="stock-price-group">
+        <div class="stock-price-group" style="width:100%; display:flex; justify-content:space-between; align-items:center; margin-top:15px;">
           <span class="stock-price" id="res-price"></span>
           <span class="stock-change" id="res-change"></span>
         </div>
@@ -507,18 +522,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
           <div id="insider-content"></div>
         </div>
 
-        <div class="card full-width">
-          <div class="card-title">🤖 ניתוח AI מולטי-פקטור</div>
-          <div class="overall-score-container">
-            <div class="score-circle" id="ai-score-circle" style="--score: 0;"><span id="ai-score-text">0</span></div>
-            <div class="score-text-wrap">
-              <div class="score-text-title" id="ai-score-title">מנתח איכות עסקית...</div>
-              <div class="score-text-desc" id="ai-score-desc"></div>
-            </div>
-          </div>
-          <div id="ai-scores"></div>
-        </div>
-
         <div class="card verdict-card full-width">
           <div class="verdict-header">
             <div class="verdict-icon">🦈</div>
@@ -528,6 +531,18 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
             <div id="verdict-rating-pill"></div>
           </div>
           <div id="verdict-content"></div>
+        </div>
+
+        <div class="card full-width">
+          <div class="card-title">🤖 איכות החברה (AI Scores)</div>
+          <div class="overall-score-container">
+            <div class="score-circle" id="ai-score-circle" style="--score: 0;"><span id="ai-score-text">0</span></div>
+            <div class="score-text-wrap">
+              <div class="score-text-title" id="ai-score-title">מנתח איכות עסקית...</div>
+              <div class="score-text-desc" id="ai-score-desc"></div>
+            </div>
+          </div>
+          <div id="ai-scores"></div>
         </div>
 
         <div class="card full-width">
@@ -563,7 +578,6 @@ if (['blob:', 'file:', 'data:'].includes(window.location.protocol) || window.loc
   NETLIFY_API_URL = "http://localhost:8888/api/analyze"; 
 }
 
-// 🛡️ פונקציות בטיחות שמונעות את הקריסה לנצח! 🛡️
 function safeHTML(id, html) { const el = document.getElementById(id); if (el) el.innerHTML = html; }
 function safeText(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
 function safeNum(val, decimals = 1, prefix = '', suffix = '') {
@@ -582,49 +596,166 @@ function formatNumberShort(num) {
 
 window.addEventListener('DOMContentLoaded', () => { 
     loadMarketWeather(); 
-    if(!localStorage.getItem('finshark_update_v6_0')) {
-        const updateModal = document.getElementById('modal-updates');
-        if(updateModal) updateModal.classList.add('active');
-        localStorage.setItem('finshark_update_v6_0', 'true');
-    }
 });
 
-window.closeUpdatesModal = function() { const m = document.getElementById('modal-updates'); if(m) m.classList.remove('active'); }
-window.openLogin = function() { const err = document.getElementById('auth-error'); if(err) err.style.display = 'none'; const m = document.getElementById('modal-login'); if(m) m.classList.add('active'); };
-window.closeLogin = function() { const m = document.getElementById('modal-login'); if(m) m.classList.remove('active'); };
-window.switchLoginTab = function(mode) { 
-    authMode = mode; 
-    const err = document.getElementById('auth-error'); if(err) err.style.display = 'none'; 
-    const tL = document.getElementById('tab-login'); if(tL) tL.classList.toggle('active', mode === 'login'); 
-    const tR = document.getElementById('tab-register'); if(tR) tR.classList.toggle('active', mode === 'register'); 
-    const btn = document.getElementById('btn-auth-action'); if(btn) btn.textContent = mode === 'login' ? 'כניסה למערכת ←' : 'שלח בקשה לאישור'; 
+window.openBuyModal = function() {
+    if (!State.currentData || !State.currentUser) return;
+    const p = State.currentData.price;
+    safeText('trade-price', `$${p.toFixed(2)}`);
+    safeText('trade-cash', `$${(State.currentUser.balance || 0).toLocaleString()}`);
+    document.getElementById('trade-shares').value = '';
+    safeText('trade-total', '$0.00');
+    document.getElementById('trade-error').style.display = 'none';
+    document.getElementById('modal-trade').classList.add('active');
 };
+
+window.updateTradeTotal = function() {
+    const qty = parseInt(document.getElementById('trade-shares').value) || 0;
+    const p = State.currentData.price;
+    safeText('trade-total', `$${(qty * p).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`);
+};
+
+// 💡 לוגיקת מסחר בתיק הוירטואלי
+window.executeTrade = async function(type) {
+    if (!State.currentData || !State.currentUser) return;
+    const errEl = document.getElementById('trade-error');
+    const qty = parseInt(document.getElementById('trade-shares').value) || 0;
+    if (qty <= 0) { errEl.textContent = 'הכנס כמות חוקית'; errEl.style.display = 'block'; return; }
+    
+    const ticker = State.currentData.ticker;
+    const price = State.currentData.price;
+    const totalCost = qty * price;
+    
+    let currentBalance = State.currentUser.balance || 100000;
+    let portfolio = State.currentUser.portfolio || {}; 
+    let pos = portfolio[ticker] || { shares: 0, avgPrice: 0 };
+
+    if (type === 'buy') {
+        if (currentBalance < totalCost) { errEl.textContent = 'אין מספיק מזומן בתיק!'; errEl.style.display = 'block'; return; }
+        const totalPaidSoFar = pos.shares * pos.avgPrice;
+        pos.shares += qty;
+        pos.avgPrice = (totalPaidSoFar + totalCost) / pos.shares;
+        currentBalance -= totalCost;
+    } else {
+        if (pos.shares < qty) { errEl.textContent = 'אין לך מספיק מניות למכור!'; errEl.style.display = 'block'; return; }
+        pos.shares -= qty;
+        currentBalance += totalCost;
+        if (pos.shares === 0) pos.avgPrice = 0;
+    }
+
+    if (pos.shares === 0) delete portfolio[ticker]; else portfolio[ticker] = pos;
+
+    try {
+        await updateDoc(doc(db, 'users', State.currentUser.uid), { balance: currentBalance, portfolio: portfolio });
+        document.getElementById('modal-trade').classList.remove('active');
+        alert('הפעולה בוצעה בהצלחה!');
+    } catch (e) {
+        errEl.textContent = 'שגיאת שרת. נסה שוב.'; errEl.style.display = 'block';
+    }
+};
+
+window.renderPortfolio = async function() {
+    if(!State.currentUser) return;
+    const listEl = document.getElementById('portfolio-positions-list');
+    const cash = State.currentUser.balance || 100000;
+    safeText('port-cash', `$${cash.toLocaleString(undefined, {minimumFractionDigits:2})}`);
+    
+    const portfolio = State.currentUser.portfolio || {};
+    const tickers = Object.keys(portfolio);
+    
+    if(tickers.length === 0) {
+        listEl.innerHTML = '<p style="color:var(--text-secondary); text-align:center; padding:30px;">התיק שלך ריק. חפש מניות וקנה אותן לתיק.</p>';
+        safeText('port-total', `$${cash.toLocaleString(undefined, {minimumFractionDigits:2})}`);
+        safeText('port-pnl', `$0.00 (0.00%)`);
+        return;
+    }
+
+    listEl.innerHTML = '<p style="color:var(--blue); text-align:center;">מעדכן מחירים חיים מהבורסה...</p>';
+    
+    let totalStockValue = 0;
+    let totalInvested = 0;
+    let html = '';
+
+    // משיכת מחירים בלייב לכל הפוזיציות
+    for (let t of tickers) {
+        const pos = portfolio[t];
+        try {
+            const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${t}&token=${firebaseConfig.apiKey.replace('AIzaSyBU77J3Nu8xh0_a1GLM9jcnWJmhZq8QHH4', 'cp9v9p1r01qhk58q4q5gcp9v9p1r01qhk58q4q60')}`); // Fallback
+            // אופציה עדיפה: קריאה לשרת שלנו, אך נשתמש ב-Finnhub ישיר לחסכון בזמן
+            const liveRes = await fetch(`${NETLIFY_API_URL}?action=live_data&ticker=${t}`);
+            const data = await liveRes.json();
+            const currPrice = data.price || pos.avgPrice; // גיבוי אם אין אינטרנט
+            
+            const val = pos.shares * currPrice;
+            const invested = pos.shares * pos.avgPrice;
+            const pnl = val - invested;
+            const pnlPct = (pnl / invested) * 100;
+            
+            totalStockValue += val;
+            totalInvested += invested;
+            
+            html += `
+            <div class="portfolio-card" onclick="goToAnalysis('${t}')">
+                <div>
+                    <div class="port-sym">${t}</div>
+                    <div class="port-qty">${pos.shares} מניות • קנייה: $${pos.avgPrice.toFixed(2)}</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:1.1rem; font-weight:800; direction:ltr;">$${currPrice.toFixed(2)}</div>
+                    <div class="port-pnl" style="color:${pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPct.toFixed(2)}%)</div>
+                </div>
+            </div>`;
+        } catch(e) {
+            console.log("Failed to fetch port data for " + t);
+        }
+    }
+    
+    const totalEquity = cash + totalStockValue;
+    const totalPnl = totalEquity - 100000; // מזומן התחלתי קבוע
+    const totalPnlPct = (totalPnl / 100000) * 100;
+
+    safeText('port-total', `$${totalEquity.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`);
+    
+    const pnlEl = document.getElementById('port-pnl');
+    pnlEl.textContent = `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} (${totalPnlPct.toFixed(2)}%)`;
+    pnlEl.style.color = totalPnl >= 0 ? 'var(--green)' : 'var(--red)';
+    
+    listEl.innerHTML = html;
+};
+
+window.openLogin = function() { document.getElementById('auth-error').style.display = 'none'; document.getElementById('modal-login').classList.add('active'); };
+window.closeLogin = function() { document.getElementById('modal-login').classList.remove('active'); };
+window.switchLoginTab = function(mode) { authMode = mode; document.getElementById('auth-error').style.display = 'none'; document.getElementById('tab-login').classList.toggle('active', mode === 'login'); document.getElementById('tab-register').classList.toggle('active', mode === 'register'); document.getElementById('btn-auth-action').textContent = mode === 'login' ? 'כניסה למערכת ←' : 'שלח בקשה לאישור'; };
 window.handleAuth = async function() {
   const emailEl = document.getElementById('auth-email'), passEl = document.getElementById('auth-pass'), errEl = document.getElementById('auth-error');
   if(!emailEl || !passEl || !errEl) return;
   const email = emailEl.value.trim().toLowerCase(), pass = passEl.value.trim();
   if (!email || !pass) { errEl.textContent = 'נא להזין אימייל וסיסמה'; errEl.style.display = 'block'; return; }
-  const getFirebaseError = (error) => { if(error.code === 'auth/email-already-in-use') return 'האימייל כבר קיים.'; if(error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') return 'אימייל או סיסמה שגויים.'; if(error.code === 'auth/weak-password') return 'סיסמה חלשה מדי.'; return 'שגיאה: ' + error.message; };
   try {
     if (authMode === 'register') { 
         const userCredential = await createUserWithEmailAndPassword(auth, email, pass); 
         const user = userCredential.user; 
         const isAdmin = email === 'admin@finshark.com'; 
+        // 💡 הוספנו balance למשתמשים חדשים!
         await setDoc(doc(db, 'users', user.uid), { 
             email: email, role: isAdmin ? 'admin' : 'user', status: isAdmin ? 'approved' : 'pending', 
-            watchlist: ['AAPL', 'MSFT'], analysisCount: 0, restrictedUntil: null
+            watchlist: ['AAPL', 'MSFT'], analysisCount: 0, restrictedUntil: null, balance: 100000, portfolio: {}
         }); 
     } else { await signInWithEmailAndPassword(auth, email, pass); }
     emailEl.value = ''; passEl.value = ''; window.closeLogin();
-  } catch (error) { errEl.textContent = getFirebaseError(error); errEl.style.display = 'block'; }
+  } catch (error) { errEl.textContent = 'שגיאת התחברות.'; errEl.style.display = 'block'; }
 };
 window.logout = async function() { await signOut(auth); State.currentUser = null; State.watchlist = []; window.switchTab('market'); };
 
 onAuthStateChanged(auth, async (user) => {
   if (user) {
-    onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
+    onSnapshot(doc(db, 'users', user.uid), async (docSnap) => {
       if (docSnap.exists()) {
         const userData = docSnap.data();
+        // עדכון משתמשים קיימים לתיק וירטואלי
+        if (userData.balance === undefined) {
+            await updateDoc(doc(db, 'users', user.uid), { balance: 100000, portfolio: {} });
+        }
         State.currentUser = { uid: user.uid, ...userData };
         State.watchlist = userData.watchlist || [];
 
@@ -701,7 +832,7 @@ window.loadCommunityData = async function() {
                 const stopStr = item.stopLoss ? `סטופ: $${item.stopLoss}` : '';
                 const targetStr = item.targetPrice ? `יעד: $${item.targetPrice}` : '';
                 const levelsHtml = (entryStr || stopStr || targetStr) ? `<div style="margin-top:10px; display:flex; gap:12px; font-size:0.8rem; font-weight:800; color:var(--text); background:rgba(0,0,0,0.3); padding:8px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.05); width:fit-content; flex-wrap:wrap;"><span style="color:var(--blue); direction:ltr;">${entryStr}</span> <span style="color:var(--red); direction:ltr;">${stopStr}</span> <span style="color:var(--green); direction:ltr;">${targetStr}</span></div>` : '';
-                const expHtml = item.expectation ? `<div style="margin-top:10px; font-size:0.85rem; color:var(--text-secondary); line-height:1.5;"><b>צפי הכריש:</b> ${item.expectation}</div>` : '';
+                const expHtml = item.expectation ? `<div style="margin-top:10px; font-size:0.85rem; color:var(--text-secondary); line-height:1.5;"><b>צפי:</b> ${item.expectation.substring(0,60)}...</div>` : '';
 
                 sHtml += `
                 <div style="background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); padding:20px; border-radius:16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:flex-start; cursor:pointer; transition:var(--transition); flex-wrap:wrap; gap:12px;" onclick="goToAnalysis('${item.ticker}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--glass-border)'">
@@ -760,14 +891,14 @@ function renderWatchlist() {
 window.goToAnalysis = function(ticker) { const inputEl = document.getElementById('ticker-input'); if(inputEl) inputEl.value = ticker; window.switchTab('shark', document.getElementById('nav-shark')); window.analyzeStock(); };
 window.quickSearch = function(ticker) { window.goToAnalysis(ticker); };
 window.shareAnalysis = function() { if (!State.currentData) return; const cp = typeof State.currentData.changePercentage === 'number' ? State.currentData.changePercentage : 0; const p = typeof State.currentData.price === 'number' ? State.currentData.price : 0; const text = `FinShark 🦈 | ${State.currentData.ticker} - $${p.toFixed(2)} | ${cp > 0 ? '+' : ''}${cp.toFixed(2)}%`; navigator.clipboard?.writeText(text).then(() => alert("הועתק!")); };
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeLogin(); const resultsEl = document.getElementById('results'); if(resultsEl) resultsEl.style.display = 'none'; const inputEl = document.getElementById('ticker-input'); if(inputEl) inputEl.value=''; } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeLogin(); const resultsEl = document.getElementById('results'); if(resultsEl) resultsEl.style.display = 'none'; const inputEl = document.getElementById('ticker-input'); if(inputEl) inputEl.value=''; document.getElementById('modal-trade').classList.remove('active'); } });
 
 window.switchTab = function(tab, el) {
   const isLoggedIn = State.currentUser !== null;
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
   const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
   
-  if ((tab === 'shark' || tab === 'watchlist' || tab === 'community') && !isAdmin) {
+  if ((tab === 'shark' || tab === 'watchlist' || tab === 'community' || tab === 'portfolio') && !isAdmin) {
       if (!isLoggedIn) { window.openLogin(); return; }
       if (!isApproved) { State.currentTab = 'pending'; renderApp(); return; }
   }
@@ -777,13 +908,13 @@ window.switchTab = function(tab, el) {
 };
 
 function renderApp() {
-  ['section-market', 'section-pending', 'section-shark', 'section-admin', 'section-watchlist', 'section-community'].forEach(s => { const elem = document.getElementById(s); if(elem) elem.classList.remove('active'); });
+  ['section-market', 'section-pending', 'section-shark', 'section-admin', 'section-watchlist', 'section-community', 'section-portfolio'].forEach(s => { const elem = document.getElementById(s); if(elem) elem.classList.remove('active'); });
   
   const isLoggedIn = State.currentUser !== null;
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
   const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
 
-  if ((State.currentTab === 'shark' || State.currentTab === 'watchlist' || State.currentTab === 'community') && !isAdmin && !isApproved) {
+  if ((State.currentTab === 'shark' || State.currentTab === 'watchlist' || State.currentTab === 'community' || State.currentTab === 'portfolio') && !isAdmin && !isApproved) {
       State.currentTab = isLoggedIn ? 'pending' : 'market';
   }
   if (State.currentTab === 'pending' && (isApproved || isAdmin)) {
@@ -792,9 +923,13 @@ function renderApp() {
 
   const btnLogin = document.getElementById('btn-login'); if(btnLogin) btnLogin.style.display = isLoggedIn ? 'none' : '';
   const btnLogout = document.getElementById('btn-logout'); if(btnLogout) btnLogout.style.display = isLoggedIn ? '' : 'none';
-  const lockShark = document.getElementById('lock-shark'); if(lockShark) lockShark.style.display = (isApproved || isAdmin) ? 'none' : 'inline';
-  const lockWatch = document.getElementById('lock-watch'); if(lockWatch) lockWatch.style.display = (isApproved || isAdmin) ? 'none' : 'inline';
-  const lockComm = document.getElementById('lock-comm'); if(lockComm) lockComm.style.display = (isApproved || isAdmin) ? 'none' : 'inline';
+  
+  // 💡 פתיחת מנעולים ב-NAV
+  ['lock-shark', 'lock-watch', 'lock-comm', 'lock-port'].forEach(id => {
+      const lock = document.getElementById(id);
+      if (lock) lock.style.display = (isApproved || isAdmin) ? 'none' : 'inline';
+  });
+
   const promoBox = document.getElementById('promo-box'); if(promoBox) promoBox.style.display = isLoggedIn ? 'none' : 'block';
   
   const greeting = document.getElementById('user-greeting');
@@ -811,6 +946,7 @@ function renderApp() {
   else if (State.currentTab === 'shark') { const sec = document.getElementById('section-shark'); if(sec) sec.classList.add('active'); }
   else if (State.currentTab === 'community') { const sec = document.getElementById('section-community'); if(sec) sec.classList.add('active'); loadCommunityData(); }
   else if (State.currentTab === 'watchlist') { const sec = document.getElementById('section-watchlist'); if(sec) sec.classList.add('active'); renderWatchlist(); }
+  else if (State.currentTab === 'portfolio') { const sec = document.getElementById('section-portfolio'); if(sec) sec.classList.add('active'); renderPortfolio(); }
   else { const sec = document.getElementById('section-market'); if(sec) sec.classList.add('active'); }
   
   document.querySelectorAll('.nav-tab').forEach(t => { if(t.getAttribute('onclick')?.includes(`'${State.currentTab}'`)) t.classList.add('active'); else t.classList.remove('active'); });
@@ -946,6 +1082,7 @@ window.analyzeStock = async function() {
                   cachedData.ma50 = liveData.ma50;
                   cachedData.ma200 = liveData.ma200;
                   cachedData.volume = liveData.volume;
+                  if (liveData.marketCap) cachedData.marketCap = liveData.marketCap;
                   
                   if (liveData.pattern) cachedData.pattern = liveData.pattern;
                   if (liveData.patternLines) cachedData.patternLines = liveData.patternLines;
@@ -1119,7 +1256,6 @@ function renderChart(historyData, months, fullDataObj) {
         ma200Series.setData(ma200Line);
     }
 
-    // 💡 ציור תמיכות והתנגדויות "לפי הספר" - רק 2 הכי קרובות ורלוונטיות!
     if (fullDataObj && fullDataObj.keyLevels && fullDataObj.keyLevels.length > 0) {
         fullDataObj.keyLevels.forEach(level => {
             if(typeof level.price !== 'number') return;
@@ -1155,7 +1291,6 @@ function renderChart(historyData, months, fullDataObj) {
         const tPriceStr = sTerm.target_price;
         const sLossStr = sTerm.stop_loss;
         
-        // 💡 הסרתי את החסימה של ה-25%! עכשיו ה-AI קשוח מספיק מהשרת
         if (tPriceStr && currentPrice > 0) {
             const tPrice = Number(String(tPriceStr).replace(/[^0-9.]/g, ''));
             if (!isNaN(tPrice) && tPrice > 0) {
@@ -1280,7 +1415,6 @@ function renderResults(data, analysis, historyData, newsData) {
 
   const safeAnalysis = analysis || {};
 
-  // 💡 הנה ההחזרה של ניתוח הגרף של ה-AI שהיה חסר לך!
   safeHTML('technical-content', `
     <div class="data-row"><span class="data-label">סקטור ותעשייה</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;text-align:left;">${data.sector || 'N/A'} • ${data.industry || 'N/A'}</span></div></div>
     <div class="data-row"><span class="data-label">מגמה טכנית</span><div class="data-value-wrap"><span class="data-value">${a50&&a200?'Bull 🐂':!a50&&!a200?'Bear 🐻':'Mixed ⚖️'}</span><span class="tag ${a50&&a200?'tag-good':!a50&&!a200?'tag-bad':'tag-neutral'}">${a50&&a200?'חיובי':!a50&&!a200?'שלילי':'מעורב'}</span></div></div>
@@ -1361,8 +1495,8 @@ function renderResults(data, analysis, historyData, newsData) {
                     <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:var(--blue)">${lTerm.accumulation_zone || 'N/A'}</span>
                 </div>
                 <div class="split-data-item" style="display:flex; flex-direction:column;">
-                    <span class="split-data-lbl" style="font-size:0.65rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:2px;">התנגדות מהותית</span>
-                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:var(--gold)">$${lTerm.near_resistance || 'N/A'}</span>
+                    <span class="split-data-lbl" style="font-size:0.65rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:2px;">יעד לטווח ארוך</span>
+                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:var(--green)">$${lTerm.price_target || 'N/A'}</span>
                 </div>
             </div>
         </div>
@@ -1393,7 +1527,7 @@ function renderResults(data, analysis, historyData, newsData) {
     </div>
     
     <div style="background: linear-gradient(135deg, rgba(255,214,10,0.1), rgba(255,214,10,0.02)); border: 1px solid rgba(255,214,10,0.3); padding: 24px; border-radius: 16px; text-align: center; box-shadow: 0 8px 32px rgba(255,214,10,0.06); margin-top:20px;">
-         <div style="font-size: 0.85rem; color: var(--gold); font-weight: 800; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em;">🎯 יעד מחיר ריאלי ל-12 חודשים (קונצנזוס משוקלל)</div>
+         <div style="font-size: 0.85rem; color: var(--gold); font-weight: 800; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em;">🎯 יעד ממוצע בוול סטריט (12 חודשים)</div>
          <div style="font-size: 2.8rem; font-weight: 900; color: #fff; direction:ltr; line-height: 1; margin-bottom: 4px;">$${lTerm.price_target || "N/A"}</div>
          <div style="font-size: 1.05rem; font-weight: 800; color: ${parseFloat(upside) >= 0 ? 'var(--green)' : 'var(--red)'}; margin-top: 10px; direction:ltr;">${parseFloat(upside) >= 0 ? '▲ פוטנציאל אפסייד:' : '▼ דאונסייד:'} ${parseFloat(upside) >= 0 ? '+' : ''}${upside}%</div>
     </div>`);
