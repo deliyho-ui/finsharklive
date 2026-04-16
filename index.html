@@ -126,6 +126,8 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .search-input { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); border-radius: 18px; padding: 20px 26px; color: var(--text); font-size: 1.15rem; font-weight: 700; text-transform: uppercase; outline: none; direction: ltr; }
 .search-btn { padding: 20px 36px; font-size: 1rem; border-radius: 18px; }
 
+.rate-limit-box { display: none; background: rgba(255,69,58,0.15); border: 1px solid var(--red); color: #fff; padding: 14px 20px; border-radius: var(--radius-sm); margin-bottom: 20px; font-size: 0.95rem; font-weight: 600; text-align: center; align-items: center; justify-content: center; gap: 10px; animation: fadeUp 0.3s forwards; }
+
 .header-actions { display: flex; gap: 8px; align-items: center; }
 .icon-btn { width: 38px; height: 38px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1rem; transition: var(--transition); color: var(--text-secondary); }
 .icon-btn:hover { background: var(--glass-hover); color: var(--text); transform: scale(1.05); }
@@ -152,7 +154,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .sonar-ring:nth-child(3) { animation-delay: 1.2s; border-color: var(--green); }
 @keyframes sonarPulse { 0% { transform: scale(0.5); opacity: 0.8; border-width: 4px; } 100% { transform: scale(2.5); opacity: 0; border-width: 1px; } }
 @keyframes floatShark { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-10px) rotate(-5deg); } }
-
 .loading-text { font-size: 0.95rem; color: var(--text-secondary); animation: textPulse 1.6s ease-in-out infinite; font-weight: 500; }
 @keyframes textPulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
 .loading-steps { display: flex; flex-direction: column; gap: 6px; }
@@ -474,6 +475,8 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
     <div class="section-title">🌐 מזג האוויר של השוק</div>
     <div class="section-subtitle">נתוני מדדים מרכזיים ועדכוני שוק בזמן אמת</div>
 
+    <div id="debug-market" style="display:none"></div>
+
     <div class="ticker-wrap"><div class="ticker-track" id="ticker-track">ממתין לנתונים מ-Finnhub...</div></div>
     <div class="market-stats" id="market-stats"></div>
     
@@ -552,11 +555,11 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
     <div class="section-subtitle">ניהול משתמשים והרשאות גישה למערכת בענן</div>
     
     <div style="margin-top: 30px; margin-bottom:30px; padding: 20px; background: rgba(255,69,58,0.1); border: 1px solid var(--red); border-radius: 12px;">
-        <h3 style="color: var(--red); margin-bottom: 10px;">מחיקת זיכרון (Cache) ליישור קו</h3>
-        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 15px;">כדי להכריח את הכריש לנתח מניה מחדש ולא למשוך נתונים ישנים מהזיכרון.</p>
+        <h3 style="color: var(--red); margin-bottom: 10px;">מחיקת נתונים ויישור קו ל-AI</h3>
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 15px;">פעולה זו תמחק את המניה מכל המאגרים (Cache, סט-אפים, קהילה) ותכריח ניתוח נקי מחדש.</p>
         <div style="display:flex; gap:10px;">
             <input type="text" id="admin-cache-input" class="input-field" placeholder="הזן סימול (למשל AAPL)" style="margin:0; width: 250px; direction:ltr;">
-            <button class="btn btn-danger" onclick="adminClearCache()">מחק זיכרון לסימול</button>
+            <button class="btn btn-danger" onclick="adminClearCache()">מחק מניה מהמערכת</button>
         </div>
     </div>
 
@@ -565,7 +568,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 
   <div id="section-community" class="section">
     <div class="section-title">👥 קהילה וחוכמת הכריש</div>
-    <div class="section-subtitle">עקבו אחרי תיק המניות הקהילתי ואחרי התיק החכם שה-AI שלנו מרכיב.</div>
+    <div class="section-subtitle">עקבו אחרי התיק הקהילתי ואחרי תיק ה-AI המנוהל (Shark Fund).</div>
     
     <div class="results-grid" style="align-items: start;">
         <div class="card">
@@ -577,12 +580,11 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
         </div>
         <div class="card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                <div class="card-title" style="color:var(--gold); margin:0;">🦈 תיק חוכמת הכריש (AI LIVE)</div>
-                <button class="btn btn-ghost" style="font-size:0.7rem; padding:4px 10px; border-color:var(--gold); color:var(--gold);" onclick="generateSharkPortfolio()">בקש מהכריש לבנות תיק</button>
+                <div class="card-title" style="color:var(--gold); margin:0;">🦈 קרן הכריש (Shark Fund)</div>
             </div>
-            <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:15px;">לחץ על הכפתור כדי לאפשר ל-AI לסרוק את השוק כרגע, ולהרכיב תיק מנצח של 5 מניות מבוסס מומנטום וערך.</p>
-            <div id="shark-portfolio-list" style="display:flex; flex-direction:column; gap:10px; min-height: 200px;">
-                 ממתין להוראה שלך...
+            <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:15px;">תיק השקעות אמיתי ומנוהל שה-AI מרכיב בעצמו בהתבסס על המניות החזקות ביותר בשוק (ציוני סריקה מעל 75).</p>
+            <div id="top-setups-list" style="display:flex; flex-direction:column; gap:10px; min-height: 200px;">
+                 טוען את תיק הכריש...
             </div>
         </div>
     </div>
@@ -605,6 +607,9 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
       <input class="search-input" id="ticker-input" type="text" placeholder="הזן סימול מניה..." onkeydown="if(event.key==='Enter') analyzeStock()" />
       <button class="btn btn-primary search-btn" onclick="analyzeStock()">נתח ←</button>
     </div>
+
+    <div id="rate-limit-warning" class="rate-limit-box" style="display:none; margin-bottom:20px;"></div>
+    <div id="debug-analyze" class="debug-box" style="display:none; margin-bottom:20px;"></div>
 
     <div id="results" class="mt-32" style="display:none">
       <div class="stock-header">
@@ -803,7 +808,7 @@ function formatNumberShort(num) {
 let obCurrentSlide = 0;
 window.closeOnboarding = function() {
     document.getElementById('onboarding-modal').classList.remove('active');
-    localStorage.setItem('finshark_onb_v4', 'true');
+    localStorage.setItem('finshark_onb_v5', 'true');
 };
 window.nextOnboardingSlide = function() {
     if (obCurrentSlide < 4) {
@@ -828,7 +833,7 @@ window.goToAcademyFromModal = function() {
 
 window.addEventListener('DOMContentLoaded', () => { 
     loadMarketWeather(); 
-    if (!localStorage.getItem('finshark_onb_v4')) {
+    if (!localStorage.getItem('finshark_onb_v5')) {
         setTimeout(() => document.getElementById('onboarding-modal').classList.add('active'), 1000);
     } else if (!localStorage.getItem('finshark_academy_update_seen')) {
         setTimeout(() => document.getElementById('modal-update').classList.add('active'), 1500);
@@ -1015,9 +1020,12 @@ onAuthStateChanged(auth, async (user) => {
     onSnapshot(doc(db, 'users', user.uid), async (docSnap) => {
       if (docSnap.exists()) {
         const userData = docSnap.data();
-        if (userData.balance === undefined) await updateDoc(doc(db, 'users', user.uid), { balance: 100000, portfolio: {}, realPortfolio: {} });
+        if (userData.balance === undefined) {
+            await updateDoc(doc(db, 'users', user.uid), { balance: 100000, portfolio: {}, realPortfolio: {} });
+        }
         State.currentUser = { uid: user.uid, ...userData };
         State.watchlist = userData.watchlist || [];
+
         if (State.currentTab === 'pending' && userData.status === 'approved') State.currentTab = 'shark';
         else if (State.currentTab === 'pending' && userData.role === 'admin') State.currentTab = 'admin';
         renderApp();
@@ -1041,42 +1049,19 @@ window.voteForCrowd = async function() {
         if (docSnap.exists()) await updateDoc(docRef, { votes: increment(1), lastUpdated: Date.now() });
         else await setDoc(docRef, { ticker: ticker, votes: 1, lastUpdated: Date.now() });
         if(btn) { btn.textContent = '✓ תודה!'; setTimeout(() => { btn.classList.remove('active'); btn.textContent = '👥'; }, 2000); }
-    } catch(e) { if(btn) { btn.textContent = '❌'; setTimeout(() => { btn.classList.remove('active'); btn.textContent = '👥'; }, 2000); } }
+    } catch(e) {
+        if(btn) { btn.textContent = '❌'; setTimeout(() => { btn.classList.remove('active'); btn.textContent = '👥'; }, 2000); }
+    }
 };
-
-// 💡 בניית תיק חוכמת הכריש באופן עצמאי דרך השרת
-window.generateSharkPortfolio = async function() {
-    const container = document.getElementById('shark-portfolio-list');
-    container.innerHTML = '<div style="text-align:center; color:var(--blue); padding: 20px;">הכריש מנתח את כלל השוק ובונה תיק מנצח... 🦈</div>';
-    try {
-        const res = await fetch(`${NETLIFY_API_URL}?action=shark_portfolio`);
-        const data = await res.json();
-        if(data.success && data.portfolio) {
-            let html = '';
-            data.portfolio.forEach(item => {
-                html += `
-                <div style="background:linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)); border:1px solid var(--glass-border); padding:20px; border-radius:16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:var(--transition); box-shadow: 0 4px 15px rgba(0,0,0,0.2);" onclick="window.goToAnalysis('${item.ticker}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--glass-border)'">
-                    <div style="display:flex; align-items:center; gap:16px; flex:1;">
-                        <div style="width: 56px; height: 56px; min-width: 56px; border-radius: 14px; background: rgba(255,214,10,0.15); color: var(--gold); border: 1px solid rgba(255,214,10,0.3); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 900;">${item.weight}%</div>
-                        <div>
-                            <div style="font-weight:900; font-size:1.3rem; direction:ltr; text-align:left; color:var(--text); letter-spacing: 0.05em;">${item.ticker}</div>
-                            <div style="font-size:0.8rem; font-weight:600; color:var(--blue); margin-top:4px;">${item.role}</div>
-                            <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:4px;">${item.reason}</div>
-                        </div>
-                    </div>
-                </div>`;
-            });
-            container.innerHTML = html;
-        } else {
-            container.innerHTML = '<p style="color:var(--red);">שגיאה. נסה שנית בעוד מספר רגעים.</p>';
-        }
-    } catch(e) { container.innerHTML = '<p style="color:var(--red);">שגיאת תקשורת עם הכריש.</p>'; }
-}
 
 window.loadCommunityData = async function() {
     const commContainer = document.getElementById('community-portfolio-list');
-    if (!commContainer) return;
+    const setupsContainer = document.getElementById('top-setups-list');
+    if (!commContainer || !setupsContainer) return;
+
     commContainer.innerHTML = '<div style="text-align:center; padding: 20px;">מושך נתונים...</div>';
+    setupsContainer.innerHTML = '<div style="text-align:center; padding: 20px;">מושך נתונים...</div>';
+    
     try {
         const commSnap = await getDocs(collection(db, 'community_portfolio'));
         let portfolio = []; let totalVotes = 0;
@@ -1099,7 +1084,38 @@ window.loadCommunityData = async function() {
             });
             html += '</div>'; commContainer.innerHTML = html;
         }
-    } catch(e) { commContainer.innerHTML = 'שגיאה בטעינת הנתונים.'; }
+        
+        const setupsSnap = await getDocs(collection(db, 'ai_setups'));
+        let setups = []; setupsSnap.forEach(d => setups.push(d.data()));
+        setups.sort((a,b) => b.score - a.score);
+        
+        // 💡 התיקון: תיק הכריש החכם
+        const sharkPortfolio = setups.filter(s => s.score >= 75).slice(0, 5);
+        if(sharkPortfolio.length === 0) {
+            setupsContainer.innerHTML = '<p style="color:var(--text-secondary)">הכריש עדיין לא מצא מספיק מניות שראויות לתיק שלו (נדרש ציון 75+).</p>';
+        } else {
+            const allocation = Math.floor(100 / sharkPortfolio.length);
+            let sHtml = '<div style="display:flex; flex-direction:column; gap:14px;">';
+            sharkPortfolio.forEach((item, index) => {
+                sHtml += `
+                <div style="background:linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); border:1px solid var(--glass-border); padding:20px; border-radius:16px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:var(--transition); box-shadow: 0 4px 15px rgba(0,0,0,0.2);" onclick="window.goToAnalysis('${item.ticker}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--glass-border)'">
+                    <div style="display:flex; align-items:center; gap:16px;">
+                        <div style="width: 56px; height: 56px; min-width:56px; border-radius: 14px; background: rgba(255,214,10,0.15); color: var(--gold); border: 1px solid rgba(255,214,10,0.3); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 900;">${allocation}%</div>
+                        <div>
+                            <div style="font-weight:900; font-size:1.4rem; direction:ltr; text-align:left; color:var(--text); letter-spacing: 0.05em;">${item.ticker}</div>
+                            <div style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-top:4px;">ציון איכות (AI): ${item.score}</div>
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom: 4px;">יעד ממוצע</div>
+                        <div style="font-size:1.15rem; font-weight:800; color:var(--green); direction:ltr;">${item.intrinsicValue ? '$'+item.intrinsicValue : 'N/A'}</div>
+                    </div>
+                </div>`;
+            });
+            sHtml += '</div>';
+            setupsContainer.innerHTML = sHtml;
+        }
+    } catch(e) { console.error("Error loading community data", e); commContainer.innerHTML = 'שגיאה בטעינת הנתונים.'; setupsContainer.innerHTML = 'שגיאה בטעינת הנתונים.'; }
 };
 
 function setupAdminDashboard() {
@@ -1109,6 +1125,7 @@ function setupAdminDashboard() {
     if (!listEl) return;
     snapshot.forEach(doc => { if (doc.data().role !== 'admin') users.push({ id: doc.id, ...doc.data() }); });
     if(users.length === 0) { listEl.innerHTML = '<p style="color:var(--text-secondary)">אין משתמשים במערכת כרגע.</p>'; return; }
+    
     listEl.innerHTML = users.map(u => { 
         const isApproved = u.status === 'approved'; 
         const isRestricted = u.restrictedUntil && Date.now() < u.restrictedUntil;
@@ -1124,12 +1141,15 @@ window.approveUser = async function(uid) { await updateDoc(doc(db, 'users', uid)
 window.revokeUser = async function(uid) { await updateDoc(doc(db, 'users', uid), { status: 'pending' }); };
 window.removeRestriction = async function(uid) { await updateDoc(doc(db, 'users', uid), { restrictedUntil: null, analysisCount: 0 }); };
 
+// 💡 התיקון: מחיקה מוחלטת מכל המאגרים למנהל כדי לאפס מניה
 window.adminClearCache = async function() {
     const t = document.getElementById('admin-cache-input').value.trim().toUpperCase();
     if(!t) return;
     try {
         await deleteDoc(doc(db, 'ai_cache', t));
-        alert('הזיכרון נמחק בהצלחה! בניתוח הבא המניה תנותח מחדש לחלוטין.');
+        await deleteDoc(doc(db, 'ai_setups', t));
+        await deleteDoc(doc(db, 'community_portfolio', t));
+        alert('הזיכרון נמחק בהצלחה מכל המאגרים (Cache, Setups, Community). בניתוח הבא המניה תנותח ותתווסף מחדש לחלוטין.');
         document.getElementById('admin-cache-input').value = '';
     } catch(e) { alert('שגיאה במחיקה'); }
 };
@@ -1152,15 +1172,19 @@ window.switchTab = function(tab, el) {
   const isLoggedIn = State.currentUser !== null;
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
   const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
+  
   if ((tab === 'shark' || tab === 'watchlist' || tab === 'community' || tab === 'portfolio' || tab === 'academy') && !isAdmin) {
       if (!isLoggedIn) { window.openLogin(); return; }
       if (!isApproved) { State.currentTab = 'pending'; renderApp(); return; }
   }
-  State.currentTab = tab; renderApp();
+  
+  State.currentTab = tab;
+  renderApp();
 };
 
 function renderApp() {
   ['section-market', 'section-pending', 'section-shark', 'section-admin', 'section-watchlist', 'section-community', 'section-portfolio', 'section-academy'].forEach(s => { const elem = document.getElementById(s); if(elem) elem.classList.remove('active'); });
+  
   const isLoggedIn = State.currentUser !== null;
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
   const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
@@ -1168,22 +1192,28 @@ function renderApp() {
   if ((State.currentTab === 'shark' || State.currentTab === 'watchlist' || State.currentTab === 'community' || State.currentTab === 'portfolio' || State.currentTab === 'academy') && !isAdmin && !isApproved) {
       State.currentTab = isLoggedIn ? 'pending' : 'market';
   }
-  if (State.currentTab === 'pending' && (isApproved || isAdmin)) State.currentTab = isAdmin ? 'admin' : 'shark';
+  if (State.currentTab === 'pending' && (isApproved || isAdmin)) {
+      State.currentTab = isAdmin ? 'admin' : 'shark';
+  }
 
   const btnLogin = document.getElementById('btn-login'); if(btnLogin) btnLogin.style.display = isLoggedIn ? 'none' : '';
   const btnLogout = document.getElementById('btn-logout'); if(btnLogout) btnLogout.style.display = isLoggedIn ? '' : 'none';
+  
   ['lock-shark', 'lock-watch', 'lock-comm', 'lock-port', 'lock-acad'].forEach(id => {
       const lock = document.getElementById(id);
       if (lock) lock.style.display = (isApproved || isAdmin) ? 'none' : 'inline';
   });
 
   const promoBox = document.getElementById('promo-box'); if(promoBox) promoBox.style.display = isLoggedIn ? 'none' : 'block';
+  
   const greeting = document.getElementById('user-greeting');
   if(greeting) {
       if (isLoggedIn) { greeting.textContent = `שלום, ${State.currentUser.email.split('@')[0]}`; greeting.style.display = ''; } 
       else greeting.style.display = 'none';
   }
-  const navAdmin = document.getElementById('nav-admin'); if(navAdmin) navAdmin.style.display = isAdmin ? '' : 'none';
+  
+  const navAdmin = document.getElementById('nav-admin');
+  if(navAdmin) navAdmin.style.display = isAdmin ? '' : 'none';
   
   if (isAdmin && State.currentTab === 'admin') { const sec = document.getElementById('section-admin'); if(sec) sec.classList.add('active'); setupAdminDashboard(); }
   else if (State.currentTab === 'pending') { const sec = document.getElementById('section-pending'); if(sec) sec.classList.add('active'); }
@@ -1217,6 +1247,7 @@ const mapSectorToHebrew = (engName) => { const map = { "Technology": "טכנול
 function renderMarketWeather(data) {
   let { indexes, sectors, news, gainers, losers } = data;
   if (!Array.isArray(indexes)) indexes = []; if (!Array.isArray(sectors)) sectors = []; if (!Array.isArray(news)) news = [];
+  
   let tickerHtml = "", statsHtml = "";
 
   if (indexes.length === 0) tickerHtml = "<div class='ticker-item' style='color:var(--red)'>המתן... לא הצלחנו למשוך נתונים.</div>";
@@ -1224,11 +1255,13 @@ function renderMarketWeather(data) {
       indexes.forEach(idx => {
           const name = idx.symbol, isUp = typeof idx.changesPercentage === 'number' && idx.changesPercentage >= 0, price = (typeof idx.price === 'number') ? (idx.price >= 1000 ? idx.price.toLocaleString(undefined, {maximumFractionDigits: 0}) : idx.price.toFixed(2)) : 0; 
           const chg = (typeof idx.changesPercentage === 'number') ? `${isUp ? '+' : ''}${idx.changesPercentage.toFixed(2)}%` : '0%'; 
-          tickerHtml += `<div class="ticker-item"><span class="ticker-name">${name}</span> <span class="ticker-price">${price}</span> <span class="ticker-change ${isUp?'up':'down'}">${chg}</span></div>`;
-          statsHtml += `<div class="stat-card"><div class="stat-label">${name}</div><div class="stat-value">${price}</div><div class="stat-change ${isUp?'up':'down'}">${chg} היום</div></div>`;
+          const colorUp = isUp;
+          tickerHtml += `<div class="ticker-item"><span class="ticker-name">${name}</span> <span class="ticker-price">${price}</span> <span class="ticker-change ${colorUp?'up':'down'}">${chg}</span></div>`;
+          statsHtml += `<div class="stat-card"><div class="stat-label">${name}</div><div class="stat-value">${price}</div><div class="stat-change ${colorUp?'up':'down'}">${chg} היום</div></div>`;
       });
   }
-  safeHTML('ticker-track', tickerHtml + tickerHtml); safeHTML('market-stats', statsHtml);
+  safeHTML('ticker-track', tickerHtml + tickerHtml);
+  safeHTML('market-stats', statsHtml);
 
   if (sectors.length > 0) {
       const html = sectors.slice(0, 12).map(s => { const chg = parseFloat(s.changesPercentage); const isUp = chg > 0; const isNeutral = chg === 0; const cls = isNeutral ? 'neutral' : (isUp ? 'up' : 'down'); return `<div class="heatmap-cell ${cls}" title="${s.sector}"><div class="cell-name">${mapSectorToHebrew(s.sector)}</div><div class="cell-change ${cls}">${!isNaN(chg) ? (isUp?'+':'') + chg.toFixed(2) + '%' : '0%'}</div></div>`; }).join('');
@@ -1238,17 +1271,31 @@ function renderMarketWeather(data) {
   const renderMovers = (items, containerId, isGainer) => {
       const container = document.getElementById(containerId);
       if(!container) return;
-      if (!items || items.length === 0) { container.innerHTML = '<p style="color:var(--text-secondary); font-size:0.85rem;">אין נתונים זמינים כרגע.</p>'; return; }
+      if (!items || items.length === 0) {
+          container.innerHTML = '<p style="color:var(--text-secondary); font-size:0.85rem;">אין נתונים זמינים כרגע.</p>';
+          return;
+      }
       container.innerHTML = items.map(item => {
-          const chg = parseFloat(item.changesPercentage); const chgStr = !isNaN(chg) ? `${chg > 0 ? '+' : ''}${chg.toFixed(2)}%` : 'N/A';
-          const p = parseFloat(item.price); const priceStr = !isNaN(p) ? `$${p.toFixed(2)}` : 'N/A';
-          return `<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); border-radius:10px; cursor:pointer; transition:var(--transition);" onclick="quickSearch('${item.symbol}')" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--glass-border)'">
-              <div style="display:flex; flex-direction:column; gap:2px; text-align:left; direction:ltr; flex:1; min-width:0;"><span style="font-weight:800; color:var(--text); font-size:0.95rem;">${item.symbol}</span><span style="font-size:0.7rem; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:90%;">${item.name}</span></div>
-              <div style="display:flex; flex-direction:column; gap:2px; text-align:right; direction:ltr; min-width:70px;"><span style="font-weight:700; font-size:0.95rem;">${priceStr}</span><span style="font-size:0.8rem; font-weight:700;" class="${isGainer ? 'up' : 'down'}">${chgStr}</span></div>
+          const chg = parseFloat(item.changesPercentage);
+          const chgStr = !isNaN(chg) ? `${chg > 0 ? '+' : ''}${chg.toFixed(2)}%` : 'N/A';
+          const p = parseFloat(item.price);
+          const priceStr = !isNaN(p) ? `$${p.toFixed(2)}` : 'N/A';
+          const colorCls = isGainer ? 'up' : 'down';
+          return `
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); border-radius:10px; cursor:pointer; transition:var(--transition);" onclick="quickSearch('${item.symbol}')" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--glass-border)'">
+              <div style="display:flex; flex-direction:column; gap:2px; text-align:left; direction:ltr; flex:1; min-width:0;">
+                  <span style="font-weight:800; color:var(--text); font-size:0.95rem;">${item.symbol}</span>
+                  <span style="font-size:0.7rem; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:90%;">${item.name}</span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:2px; text-align:right; direction:ltr; min-width:70px;">
+                  <span style="font-weight:700; font-size:0.95rem;">${priceStr}</span>
+                  <span style="font-size:0.8rem; font-weight:700;" class="${colorCls}">${chgStr}</span>
+              </div>
           </div>`;
       }).join('');
   };
-  renderMovers(gainers, 'top-gainers-list', true); renderMovers(losers, 'top-losers-list', false);
+  renderMovers(gainers, 'top-gainers-list', true);
+  renderMovers(losers, 'top-losers-list', false);
 
   if (news.length > 0) {
       const html = news.map(n => { 
@@ -1262,8 +1309,12 @@ function renderMarketWeather(data) {
 window.analyzeStock = async function() {
   const ticker = document.getElementById('ticker-input').value.trim().toUpperCase(); 
   if (!ticker) return;
+  
   showLoading();
-  const debugEl = document.getElementById('debug-analyze'); debugEl.style.display = 'none';
+  const debugEl = document.getElementById('debug-analyze');
+  const warnEl = document.getElementById('rate-limit-warning');
+  debugEl.style.display = 'none';
+  warnEl.style.display = 'none';
 
   const cacheDoc = await getDoc(doc(db, 'ai_cache', ticker));
   if (cacheDoc.exists()) {
@@ -1274,8 +1325,11 @@ window.analyzeStock = async function() {
               const liveRes = await fetch(`${NETLIFY_API_URL}?action=live_data&ticker=${ticker}`);
               const liveData = await liveRes.json();
               if (liveData.success) {
-                  cached.price = liveData.price; cached.changePercentage = liveData.changePercentage; cached.chartData = liveData.chartData;
-                  hideLoading(); State.currentData = cached; 
+                  cached.price = liveData.price;
+                  cached.changePercentage = liveData.changePercentage;
+                  cached.chartData = liveData.chartData;
+                  hideLoading();
+                  State.currentData = cached; 
                   renderResults(cached, cached.analysis, cached.chartData, cached.tickerNews || []);
                   return;
               }
@@ -1287,17 +1341,32 @@ window.analyzeStock = async function() {
   try {
       const response = await fetch(`${NETLIFY_API_URL}?action=analyze&ticker=${ticker}`);
       const data = await response.json();
-      if (data.success) {
-          State.currentData = data;
-          if (data.isDataComplete) {
-              await setDoc(doc(db, 'ai_cache', ticker), { ticker, data, lastUpdated: Date.now() });
-              if (data.analysis && data.analysis.scores && data.analysis.scores.overall >= 70) {
-                  await setDoc(doc(db, 'ai_setups', ticker), { ticker, score: data.analysis.scores.overall, rating: data.analysis.rating || 'קנייה', intrinsicValue: data.analysis.long_term?.intrinsic_value || '', lastUpdated: Date.now() });
-              }
-          }
-          hideLoading(); renderResults(data, data.analysis, data.chartData, data.tickerNews || []);
+      
+      if (!data.success) {
+          hideLoading();
+          warnEl.style.display = 'flex';
+          warnEl.textContent = data.message || "שגיאה. המניה לא נמצאה או שאין נתונים זמינים.";
+          return;
       }
-  } catch (error) { hideLoading(); debugEl.style.display = 'block'; debugEl.textContent = "שגיאה בחיבור לשרת הניתוח."; }
+      
+      State.currentData = data;
+      if (data.isDataComplete) {
+          await setDoc(doc(db, 'ai_cache', ticker), { ticker, data, lastUpdated: Date.now() });
+          if (data.analysis && data.analysis.scores && data.analysis.scores.overall >= 70) {
+              await setDoc(doc(db, 'ai_setups', ticker), {
+                  ticker, score: data.analysis.scores.overall, rating: data.analysis.rating || 'קנייה',
+                  intrinsicValue: data.analysis.long_term?.intrinsic_value || '', lastUpdated: Date.now()
+              });
+          }
+      }
+      hideLoading();
+      renderResults(data, data.analysis, data.chartData, data.tickerNews || []);
+      
+  } catch (error) { 
+      hideLoading();
+      debugEl.style.display = 'block';
+      debugEl.textContent = "שגיאה בחיבור לשרת הניתוח.";
+  }
 };
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -1306,7 +1375,11 @@ function setLoadingText(t) { safeText('loading-text', t); }
 function hideLoading() { const lo = document.getElementById('loading'); if(lo) lo.classList.remove('active'); }
 async function animateLoadingSteps(steps) { const container = document.getElementById('loading-steps'); if(!container) return; container.innerHTML = ''; for (let i = 0; i < steps.length; i++) { await sleep(400); const prev = container.querySelector('.loading-step:not(.done)'); if (prev) { prev.classList.add('done'); prev.textContent = '✓ ' + prev.textContent; } setLoadingText(steps[i]); const el = document.createElement('div'); el.className = 'loading-step'; el.textContent = steps[i]; container.appendChild(el); if (container.children.length > 5) container.removeChild(container.firstChild); } }
 
-let tvChart = null; let candleSeries = null; let ma50Series = null; let ma200Series = null; let volumeSeries = null; 
+let tvChart = null;
+let candleSeries = null;
+let ma50Series = null;
+let ma200Series = null;
+let volumeSeries = null; 
 
 window.setChartPeriod = function(months, btn) { 
     document.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active')); 
@@ -1315,24 +1388,35 @@ window.setChartPeriod = function(months, btn) {
     renderChart(window.currentChartData, months, State.currentData); 
 };
 
-// 💡 התיקון בגרף: כל התוויות (Labels) וטקסטים מרחפים בתוך הגרף הוסרו לחלוטין.
+// 💡 התיקון הסופי לגרף: מחיקה מוחלטת של יצירת PriceLine, עברנו לשימוש ב-addLineSeries לקווים אופקיים כדי למנוע את הופעת המספרים בציר הימני לחלוטין!
 function renderChart(historyData, months, fullDataObj) {
     window.currentChartData = historyData; 
     const container = document.getElementById('stockChart');
     if(!container) return;
     if(!historyData || !Array.isArray(historyData)) return;
 
-    let cutoffDate = new Date(); cutoffDate.setMonth(cutoffDate.getMonth() - months);
+    let cutoffDate = new Date();
+    cutoffDate.setMonth(cutoffDate.getMonth() - months);
+    
     const filteredData = historyData.filter(d => new Date(d.date) >= cutoffDate || months === 999);
     if(filteredData.length === 0) return;
 
     const candles = filteredData.map(d => ({ time: d.date, open: d.open, high: d.high, low: d.low, close: d.close }));
     const ma50Line = filteredData.filter(d => d.ma50 !== null).map(d => ({ time: d.date, value: d.ma50 }));
     const ma200Line = filteredData.filter(d => d.ma200 !== null).map(d => ({ time: d.date, value: d.ma200 }));
-    const volumes = filteredData.map(d => ({ time: d.date, value: d.volume, color: d.close >= d.open ? 'rgba(48, 209, 88, 0.35)' : 'rgba(255, 69, 58, 0.35)' }));
+    
+    const volumes = filteredData.map(d => ({ 
+        time: d.date, 
+        value: d.volume, 
+        color: d.close >= d.open ? 'rgba(48, 209, 88, 0.35)' : 'rgba(255, 69, 58, 0.35)' 
+    }));
 
     const legendHtml = container.querySelector('.chart-legend-overlay')?.outerHTML || '';
-    if (tvChart) { tvChart.remove(); tvChart = null; }
+
+    if (tvChart) {
+        tvChart.remove();
+        tvChart = null;
+    }
 
     tvChart = LightweightCharts.createChart(container, {
         layout: { background: { type: 'solid', color: 'transparent' }, textColor: '#86868b' },
@@ -1341,51 +1425,97 @@ function renderChart(historyData, months, fullDataObj) {
         timeScale: { borderVisible: false, fixLeftEdge: true, fixRightEdge: true },
         crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
     });
-    if (legendHtml) container.insertAdjacentHTML('beforeend', legendHtml);
+    
+    if (legendHtml) {
+        container.insertAdjacentHTML('beforeend', legendHtml);
+    }
 
     new ResizeObserver(entries => {
         if (entries.length === 0 || entries[0].target !== container) return;
-        tvChart.applyOptions({ height: entries[0].contentRect.height, width: entries[0].contentRect.width });
+        const newRect = entries[0].contentRect;
+        tvChart.applyOptions({ height: newRect.height, width: newRect.width });
     }).observe(container);
 
-    volumeSeries = tvChart.addHistogramSeries({ color: '#26a69a', priceFormat: { type: 'volume' }, priceScaleId: '', scaleMargins: { top: 0.85, bottom: 0 } });
+    volumeSeries = tvChart.addHistogramSeries({
+        color: '#26a69a',
+        priceFormat: { type: 'volume' },
+        priceScaleId: '', 
+        scaleMargins: { top: 0.85, bottom: 0 },
+    });
     volumeSeries.setData(volumes);
 
-    candleSeries = tvChart.addCandlestickSeries({ upColor: '#30d158', downColor: '#ff453a', borderVisible: false, wickUpColor: '#30d158', wickDownColor: '#ff453a' });
+    candleSeries = tvChart.addCandlestickSeries({
+        upColor: '#30d158', downColor: '#ff453a', borderVisible: false,
+        wickUpColor: '#30d158', wickDownColor: '#ff453a'
+    });
     candleSeries.setData(candles);
 
-    if (ma50Line.length > 0) { ma50Series = tvChart.addLineSeries({ color: '#0a84ff', lineWidth: 1.5 }); ma50Series.setData(ma50Line); }
-    if (ma200Line.length > 0) { ma200Series = tvChart.addLineSeries({ color: '#bf5af2', lineWidth: 1.5 }); ma200Series.setData(ma200Line); }
+    if (ma50Line.length > 0) {
+        ma50Series = tvChart.addLineSeries({ color: '#0a84ff', lineWidth: 1.5 });
+        ma50Series.setData(ma50Line);
+    }
+    if (ma200Line.length > 0) {
+        ma200Series = tvChart.addLineSeries({ color: '#bf5af2', lineWidth: 1.5 });
+        ma200Series.setData(ma200Line);
+    }
 
+    // ציור התמיכה וההתנגדות - ללא מספרים בציר הימני (lastValueVisible: false)
     if (fullDataObj && fullDataObj.keyLevels && fullDataObj.keyLevels.length > 0) {
         fullDataObj.keyLevels.forEach(level => {
             if(typeof level.price !== 'number') return;
-            candleSeries.createPriceLine({
-                price: level.price, color: level.type.includes('התנגדות') ? 'rgba(255, 69, 58, 0.4)' : 'rgba(48, 209, 88, 0.4)',
-                lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dotted, axisLabelVisible: false
+            const lineSeries = tvChart.addLineSeries({
+                color: level.type.includes('התנגדות') ? 'rgba(255, 69, 58, 0.4)' : 'rgba(48, 209, 88, 0.4)',
+                lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dotted,
+                lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false
             });
+            const lineData = filteredData.map(d => ({ time: d.date, value: level.price }));
+            lineSeries.setData(lineData);
         });
     }
 
     if (fullDataObj && fullDataObj.patternLines && fullDataObj.patternLines.length > 0) {
         fullDataObj.patternLines.forEach(lineDef => {
-            const trendSeries = tvChart.addLineSeries({ color: lineDef.color, lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false });
-            trendSeries.setData([ { time: lineDef.start.time, value: lineDef.start.value }, { time: lineDef.end.time, value: lineDef.end.value } ]);
+            const trendSeries = tvChart.addLineSeries({
+                color: lineDef.color, lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid,
+                lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false
+            });
+            trendSeries.setData([
+                { time: lineDef.start.time, value: lineDef.start.value },
+                { time: lineDef.end.time, value: lineDef.end.value }
+            ]);
         });
     }
 
+    // ציור היעד והסטופ - ללא מספרים בציר הימני (lastValueVisible: false)
     if (fullDataObj && fullDataObj.analysis && fullDataObj.analysis.short_term) {
         const sTerm = fullDataObj.analysis.short_term;
         const currentPrice = fullDataObj.price;
-        if (sTerm.target_price && currentPrice > 0) {
-            const tPrice = Number(String(sTerm.target_price).replace(/[^0-9.]/g, ''));
-            if (!isNaN(tPrice) && tPrice > 0) candleSeries.createPriceLine({ price: tPrice, color: '#30d158', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid, axisLabelVisible: false });
+        
+        const tPriceStr = sTerm.target_price;
+        const sLossStr = sTerm.stop_loss;
+        
+        if (tPriceStr && currentPrice > 0) {
+            const tPrice = Number(String(tPriceStr).replace(/[^0-9.]/g, ''));
+            if (!isNaN(tPrice) && tPrice > 0) {
+                const lineSeries = tvChart.addLineSeries({
+                    color: '#30d158', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid,
+                    lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false
+                });
+                lineSeries.setData(filteredData.map(d => ({ time: d.date, value: tPrice })));
+            }
         }
-        if (sTerm.stop_loss && currentPrice > 0) {
-            const sLoss = Number(String(sTerm.stop_loss).replace(/[^0-9.]/g, ''));
-            if (!isNaN(sLoss) && sLoss > 0) candleSeries.createPriceLine({ price: sLoss, color: '#ff453a', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid, axisLabelVisible: false });
+        if (sLossStr && currentPrice > 0) {
+            const sLoss = Number(String(sLossStr).replace(/[^0-9.]/g, ''));
+            if (!isNaN(sLoss) && sLoss > 0) {
+                const lineSeries = tvChart.addLineSeries({
+                    color: '#ff453a', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid,
+                    lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false
+                });
+                lineSeries.setData(filteredData.map(d => ({ time: d.date, value: sLoss })));
+            }
         }
     }
+
     tvChart.timeScale().fitContent();
 }
 
@@ -1395,9 +1525,14 @@ function renderScores(scores) {
   const cols = document.createElement('div'); cols.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:10px 32px;';
   items.forEach(item => { const v = typeof scores[item.key] === 'number' ? scores[item.key] : 0; cols.innerHTML += `<div class="score-bar-wrap"><span class="score-bar-label">${item.label}</span><div class="score-bar-track"><div class="score-bar-fill" style="width:0%;background:${item.color};border-radius:3px;" data-target="${v}"></div></div><span class="score-bar-val" style="color:${item.color}">${v}</span></div>`; });
   
-  safeHTML('ai-scores', ''); const scoreEl = document.getElementById('ai-scores'); if(scoreEl) scoreEl.appendChild(cols);
+  safeHTML('ai-scores', ''); 
+  const scoreEl = document.getElementById('ai-scores');
+  if(scoreEl) scoreEl.appendChild(cols);
+  
   const overall = typeof scores.overall === 'number' ? scores.overall : Math.round(((scores.growth||50) + (scores.value||50) + (scores.momentum||50) + (scores.quality||50)) / 4);
-  const circle = document.getElementById('ai-score-circle'); if(circle) circle.style.setProperty('--score', overall); safeText('ai-score-text', overall);
+  const circle = document.getElementById('ai-score-circle'); 
+  if(circle) circle.style.setProperty('--score', overall); 
+  safeText('ai-score-text', overall);
   
   let scoreTitle = "סביר", scoreColor = "var(--gold)"; 
   if (overall >= 80) { scoreTitle = "מצוין (Strong Buy)"; scoreColor = "var(--green)"; } 
@@ -1405,38 +1540,45 @@ function renderScores(scores) {
   else if (overall <= 40) { scoreTitle = "שלילי (Sell)"; scoreColor = "var(--red)"; }
   
   safeText('ai-score-title', `ציון משוקלל: ${scoreTitle}`); 
-  const titleEl = document.getElementById('ai-score-title'); if(titleEl) titleEl.style.color = scoreColor; 
+  const titleEl = document.getElementById('ai-score-title');
+  if(titleEl) titleEl.style.color = scoreColor; 
   if(circle) circle.style.background = `conic-gradient(${scoreColor} calc(var(--score) * 1%), rgba(255,255,255,0.05) 0)`;
+  
   requestAnimationFrame(() => { requestAnimationFrame(() => { document.querySelectorAll('.score-bar-fill').forEach(el => { el.style.width = el.dataset.target + '%'; }); }); });
 }
 
 function renderResults(data, analysis, historyData, newsData) {
   const isUp = typeof data.changePercentage === 'number' && data.changePercentage >= 0; 
-  safeText('res-ticker', `${data.ticker || 'N/A'} · ${data.sector || 'N/A'}`); safeText('res-name', data.name || 'N/A'); 
-  const p = typeof data.price === 'number' ? data.price : 0; safeText('res-price', `$${p.toFixed(2)}`);
+  safeText('res-ticker', `${data.ticker || 'N/A'} · ${data.sector || 'N/A'}`); 
+  safeText('res-name', data.name || 'N/A'); 
+  
+  const p = typeof data.price === 'number' ? data.price : 0;
+  safeText('res-price', `$${p.toFixed(2)}`);
   
   const chEl = document.getElementById('res-change'); 
   if (chEl) {
       const cp = typeof data.changePercentage === 'number' ? data.changePercentage : 0;
-      chEl.textContent = `${cp >= 0 ? '+' : ''}${cp.toFixed(2)}%  (${cp >= 0 ? '▲' : '▼'} היום)`; chEl.className = `stock-change ${cp >= 0 ? 'up' : 'down'}`;
+      chEl.textContent = `${cp >= 0 ? '+' : ''}${cp.toFixed(2)}%  (${cp >= 0 ? '▲' : '▼'} היום)`; 
+      chEl.className = `stock-change ${cp >= 0 ? 'up' : 'down'}`;
   }
+  
   const btnWatch = document.getElementById('btn-add-watch-results'); 
   if (btnWatch) {
-      if(State.watchlist.includes(data.ticker)) { btnWatch.textContent = '✓'; btnWatch.classList.add('active'); } else { btnWatch.textContent = '📌'; btnWatch.classList.remove('active'); }
+      if(State.watchlist.includes(data.ticker)) { btnWatch.textContent = '✓'; btnWatch.classList.add('active'); } 
+      else { btnWatch.textContent = '📌'; btnWatch.classList.remove('active'); }
   }
-  renderChart(historyData, 6, data); document.querySelectorAll('.chart-btn').forEach((b,i) => b.classList.toggle('active', i===1));
+  
+  renderChart(historyData, 6, data); 
+  document.querySelectorAll('.chart-btn').forEach((b,i) => b.classList.toggle('active', i===1));
 
   const rangeLow = typeof data.fiftyTwoWeekLow === 'number' ? data.fiftyTwoWeekLow : 0;
   const rangeHigh = typeof data.fiftyTwoWeekHigh === 'number' ? data.fiftyTwoWeekHigh : 100;
   const currentPos = Math.max(0, Math.min(100, ((p - rangeLow) / (Math.max(rangeHigh - rangeLow, 1))) * 100));
   
-  // 💡 התיקון לדוח הרבעוני: המידע יוצג בבירור בממשק
-  let earningsText = 'לא זמין'; let earningsGood = false; let earningsBad = false;
-  if (data.latestEarnings && typeof data.latestEarnings.surprisePercent === 'number') {
-      const sp = data.latestEarnings.surprisePercent;
-      earningsText = sp > 0 ? `+${sp.toFixed(1)}% (הכה תחזיות)` : `${sp.toFixed(1)}% (אכזב)`;
-      earningsGood = sp > 0; earningsBad = sp < 0;
-  }
+  const earningsText = data.latestEarnings && typeof data.latestEarnings.surprisePercent === 'number' ? 
+    (data.latestEarnings.surprisePercent > 0 ? `+${data.latestEarnings.surprisePercent.toFixed(1)}% (הכה תחזיות)` : `${data.latestEarnings.surprisePercent.toFixed(1)}% (אכזב)`) : 'לא זמין';
+  const earningsGood = data.latestEarnings && typeof data.latestEarnings.surprisePercent === 'number' && data.latestEarnings.surprisePercent > 0;
+  const earningsBad = data.latestEarnings && typeof data.latestEarnings.surprisePercent === 'number' && data.latestEarnings.surprisePercent < 0;
   
   const fundRows = [ 
       { label: 'שווי שוק', val: formatNumberShort(data.marketCap), tag: 'M.CAP', isTag: false }, 
@@ -1561,7 +1703,7 @@ function renderResults(data, analysis, historyData, newsData) {
                 </div>
                 <div class="split-data-item" style="display:flex; flex-direction:column;">
                     <span class="split-data-lbl" style="font-size:0.65rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:2px;">יעד ממוצע 12M</span>
-                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:var(--green)">$${lTerm.price_target || 'N/A'}</span>
+                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:var(--green)">${lTerm.price_target ? '$'+lTerm.price_target : 'N/A'}</span>
                 </div>
             </div>
         </div>
