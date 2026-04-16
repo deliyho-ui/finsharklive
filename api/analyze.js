@@ -327,7 +327,6 @@ module.exports = async function(req, res) {
         const isDataComplete = true; 
         const currPrice = Number(quote.c);
 
-        // --- הכנת נתונים מתקדמים ל-AI (עוצמה יחסית וחדשות) ---
         const sectorETF = getSectorETF(profile?.finnhubIndustry);
         const [spyQuote, sectorQuote] = await Promise.all([
             fetchFinnhub('quote', 'symbol=SPY'),
@@ -342,40 +341,37 @@ module.exports = async function(req, res) {
         }
         const recentNews = (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 3).map(n => n.headline).join(" | ");
 
-        // --- פרומפט הכריש המשודרג ---
-        const prompt = `אתה "FinShark" - אנליסט מניות סווינג בכיר בוול סטריט. הסגנון שלך הוא חד, מקצועי, ישיר ומעט ציני.
-המניה: ${ticker} ($${currPrice}).
-מצב השוק היום: ${marketContext}
-חדשות אחרונות על המניה: ${recentNews || 'אין חדשות מיוחדות'}
+        // --- פרומפט משודרג עם הפרדה נוקשה בגרף ויעדים אופטימיים ---
+        const prompt = `אתה "FinShark" - אנליסט מניות וסוחר סווינג בכיר בוול סטריט.
+        המניה: ${ticker} ($${currPrice}).
+        מצב השוק היום: ${marketContext}
+        חדשות אחרונות: ${recentNews || 'אין חדשות מיוחדות'}
 
-נתונים קריטיים שחובה להצליב:
-- ממוצעים: מניה ב-$${currPrice}, בעוד ש-MA50 הוא $${lastPoint.ma50} ו-MA200 הוא $${lastPoint.ma200}.
-- מומנטום: RSI עומד על ${rsiVal.toFixed(1)}.
-- תבנית בגרף: ${patternObj.text}.
-- תמיכה/התנגדות קרובות: ${levelsPrompt || 'לא זוהו'}.
-- פונדמנטל: מכפיל רווח P/E ${fundamentals.peRatio || 'N/A'}, צמיחת הכנסות ${fundamentals.revenueGrowth || 'N/A'}%.
-- היסטוריית דוחות: ${earningsStreak}
+        נתונים טכניים (חובה לבסס עליהם את ניתוח הגרף):
+        - ממוצעים: מניה ב-$${currPrice}, בעוד ש-MA50 הוא $${lastPoint.ma50} ו-MA200 הוא $${lastPoint.ma200}.
+        - מומנטום: RSI עומד על ${rsiVal.toFixed(1)}.
+        - תבנית בגרף: ${patternObj.text}.
+        - תמיכה/התנגדות קרובות: ${levelsPrompt || 'לא זוהו'}.
+        
+        פונדמנטלס: P/E: ${fundamentals.peRatio || 'N/A'}, צמיחת הכנסות: ${fundamentals.revenueGrowth || 'N/A'}%. ${earningsStreak}
 
-הנחיות טון ושפה (חובה!):
-1. אל תשתמש במילים רובוטיות כמו "חשוב לציין", "לסיכום", "ניתן לראות ש..." או "ניכר כי".
-2. כתוב בגובה העיניים כמו סוחר רחוב מוול סטריט. השתמש במונחים כמו "מומנטום שורטיסטי", "נקודת איסוף", "תמחור מנופח" או "מפגינה עוצמה יחסית".
-3. היה נחרץ! במקום לכתוב "המניה עשויה לעלות", כתוב "המניה יושבת על תמיכת ברזל ויש לה פוטנציאל פריצה".
-4. בצע הצלבה: חובה להתייחס לאיך החדשות של המניה והמצב של השוק/הסקטור משפיעים על הפוזיציה. האם החדשות תומכות בגרף או סותרות אותו?
+        הנחיות קריטיות לדיוק:
+        1. קריאת הגרף (technical): מיועד נטו לניתוח טכני טהור! נתח תבניות, ווליום, פריצות, ממוצעים ותמיכה/התנגדות בדיוק כמו צ'ארטיסט מקצועי. חל איסור מוחלט להזכיר חדשות, פונדמנטלס או דוחות בשדה זה.
+        2. פסיקת הכריש (summary): את החדשות, הדוחות, והמאקרו תשלב אך ורק בשדות ה-summary של הטווח הארוך והקצר.
+        3. יעדי מחיר (price_target): אל תהיה שמרן מדי! אנליסטים מתמחרים צמיחה עתידית. אם החברה בצמיחה או במומנטום חיובי, חשב יעד 12 חודשים המגלם אופטימיות של וול-סטריט (אפסייד משמעותי במידה ויש הצדקה), ולא רק יעד טכני קרוב.
 
-החזר JSON בלבד, בעברית, ללא הערות, לפי המבנה הבא:
-{
-  "internal_logic": "משפט אחד לעצמך באנגלית שאומר האם המניה קנייה או מכירה ולמה בהתבסס על החדשות והגרף (זה משפר את הדיוק שלך).",
-  "identity": "תיאור עסקי קצר ותמציתי של החברה",
-  "technical": "ניתוח הגרף והמומנטום בסגנון סוחר סווינג מקצועי - חובה לשלב התייחסות למצב השוק והחדשות האחרונות שצוינו",
-  "long_term": { "summary": "מסקנה ארוכת טווח", "intrinsic_value": "הערכת שווי הוגן כמספר נקי", "accumulation_zone": "טווח מחירים אידיאלי לאיסוף", "price_target": "יעד מחיר ריאלי ל-12 חודשים כמספר נקי" },
-  "short_term": { "summary": "תוכנית מסחר לסווינג (קצרה ופרקטית)", "entry_price": "${currPrice}", "target_price": "יעד (מספר נקי מבוסס התנגדות)", "stop_loss": "סטופ קשיח מתחת לתמיכה" },
-  "pros": ["נקודת זכות 1", "נקודת זכות 2"], 
-  "cons": ["נקודת תורפה 1", "נקודת תורפה 2"], 
-  "scores": {"overall": 80, "growth":80, "value":80, "momentum":80, "quality":80}, 
-  "rating": "קנייה / החזקה / מכירה" 
-}`;
+        החזר JSON בלבד, בעברית, ללא הערות, לפי המבנה הבא:
+        {
+          "internal_logic": "משפט באנגלית על החלטת הדירוג שלך",
+          "identity": "תיאור עסקי קצר ותמציתי של החברה",
+          "technical": "ניתוח טכני טהור של הגרף בסגנון סוחר סווינג (ללא פונדמנטלס או חדשות!)",
+          "long_term": { "summary": "מסקנת ערך להשקעה ארוכה (כאן המקום לשלב חדשות ופונדמנטלס)", "intrinsic_value": "הערכת שווי הוגן כמספר נקי", "accumulation_zone": "טווח איסוף כמספרים", "price_target": "יעד אנליסטים אופטימי וריאלי ל-12M כמספר נקי" },
+          "short_term": { "summary": "תוכנית מסחר לסווינג", "entry_price": "${currPrice}", "target_price": "יעד רווח טכני", "stop_loss": "סטופ לוס" },
+          "pros": ["נקודת זכות 1", "נקודת זכות 2"], "cons": ["נקודת תורפה 1", "נקודת תורפה 2"], 
+          "scores": {"overall": 80, "growth":80, "value":80, "momentum":80, "quality":80}, 
+          "rating": "קנייה / החזקה / מכירה" 
+        }`;
 
-        // Fallback למקרה של תקלה ב-API (חוסך ניסיונות חוזרים שעולים כסף)
         let aiVerdict = { 
             isError: true,
             identity: "שגיאה בשרת הכריש, לא ניתן לנתח את המניה כרגע.", 
@@ -386,14 +382,13 @@ module.exports = async function(req, res) {
         };
         
         try {
-            // קריאה בודדת ללא לולאות Retry למניעת בזבוז
             const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
                 method: 'POST', 
                 headers: { 'Content-Type': 'application/json' }, 
                 body: JSON.stringify({ 
                     contents: [{ parts: [{ text: prompt }] }], 
                     generationConfig: { 
-                        temperature: 0.1, // טמפרטורה נמוכה ליציבות JSON
+                        temperature: 0.1, 
                         responseMimeType: "application/json" 
                     },
                     safetySettings: [{ category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }]
