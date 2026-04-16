@@ -683,9 +683,9 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
           <div id="verdict-content"></div>
         </div>
 
-        <div class="card full-width">
+        <div class="card full-width" id="scores-card-container">
           <div class="card-title">🤖 איכות החברה (AI Scores)</div>
-          <div class="overall-score-container">
+          <div class="overall-score-container" id="ai-score-circle-container">
             <div class="score-circle" id="ai-score-circle" style="--score: 0;"><span id="ai-score-text">0</span></div>
             <div class="score-text-wrap">
               <div class="score-text-title" id="ai-score-title">מנתח איכות עסקית...</div>
@@ -1060,29 +1060,54 @@ window.voteForCrowd = async function() {
 window.generateSharkPortfolio = async function() {
     const container = document.getElementById('shark-portfolio-list');
     container.innerHTML = '<div style="text-align:center; color:var(--blue); padding: 20px;">הכריש מנתח את כלל השוק ובונה תיק מנצח... 🦈</div>';
+    
     try {
+        const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+        const sharkCacheRef = doc(db, 'ai_cache', 'shark_weekly');
+        const sharkCacheSnap = await getDoc(sharkCacheRef);
+        
+        // 1. קאש שבועי לתיק הכריש כדי לחסוך קריאות ל-API
+        if (sharkCacheSnap.exists()) {
+            const cacheData = sharkCacheSnap.data();
+            if (Date.now() - (cacheData.timestamp || 0) < SEVEN_DAYS_MS) {
+                renderSharkHTML(cacheData.portfolio, container);
+                return;
+            }
+        }
+
         const res = await fetch(`${NETLIFY_API_URL}?action=shark_portfolio`);
         const data = await res.json();
+        
         if(data.success && data.portfolio) {
-            let html = '';
-            data.portfolio.forEach(item => {
-                html += `
-                <div style="background:linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)); border:1px solid var(--glass-border); padding:20px; border-radius:16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:var(--transition); box-shadow: 0 4px 15px rgba(0,0,0,0.2);" onclick="window.goToAnalysis('${item.ticker}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--glass-border)'">
-                    <div style="display:flex; align-items:center; gap:16px; flex:1;">
-                        <div style="width: 56px; height: 56px; min-width: 56px; border-radius: 14px; background: rgba(255,214,10,0.15); color: var(--gold); border: 1px solid rgba(255,214,10,0.3); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 900;">${item.weight}%</div>
-                        <div>
-                            <div style="font-weight:900; font-size:1.3rem; direction:ltr; text-align:left; color:var(--text); letter-spacing: 0.05em;">${item.ticker}</div>
-                            <div style="font-size:0.8rem; font-weight:600; color:var(--blue); margin-top:4px;">${item.role}</div>
-                            <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:4px;">${item.reason}</div>
-                        </div>
-                    </div>
-                </div>`;
+            await setDoc(sharkCacheRef, {
+                timestamp: Date.now(),
+                portfolio: data.portfolio
             });
-            container.innerHTML = html;
+            renderSharkHTML(data.portfolio, container);
         } else {
             container.innerHTML = '<p style="color:var(--red);">שגיאה. נסה שנית בעוד מספר רגעים.</p>';
         }
-    } catch(e) { container.innerHTML = '<p style="color:var(--red);">שגיאת תקשורת עם הכריש.</p>'; }
+    } catch(e) { 
+        container.innerHTML = '<p style="color:var(--red);">שגיאת תקשורת עם הכריש.</p>'; 
+    }
+}
+
+function renderSharkHTML(portfolioArray, container) {
+    let html = '';
+    portfolioArray.forEach(item => {
+        html += `
+        <div style="background:linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)); border:1px solid var(--glass-border); padding:20px; border-radius:16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:var(--transition); box-shadow: 0 4px 15px rgba(0,0,0,0.2);" onclick="window.goToAnalysis('${item.ticker}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--glass-border)'">
+            <div style="display:flex; align-items:center; gap:16px; flex:1;">
+                <div style="width: 56px; height: 56px; min-width: 56px; border-radius: 14px; background: rgba(255,214,10,0.15); color: var(--gold); border: 1px solid rgba(255,214,10,0.3); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 900;">${item.weight}%</div>
+                <div>
+                    <div style="font-weight:900; font-size:1.3rem; direction:ltr; text-align:left; color:var(--text); letter-spacing: 0.05em;">${item.ticker}</div>
+                    <div style="font-size:0.8rem; font-weight:600; color:var(--blue); margin-top:4px;">${item.role}</div>
+                    <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:4px;">${item.reason}</div>
+                </div>
+            </div>
+        </div>`;
+    });
+    container.innerHTML = html;
 }
 
 window.loadCommunityData = async function() {
@@ -1312,27 +1337,42 @@ window.analyzeStock = async function() {
   warnEl.style.display = 'none';
 
   const cacheDoc = await getDoc(doc(db, 'ai_cache', ticker));
-  if (cacheDoc.exists()) {
+  
+  // משיכת מחיר נוכחי לבדיקת שינוי אחוזים וחוק ה-5%
+  let liveData = null;
+  try {
+      const liveRes = await fetch(`${NETLIFY_API_URL}?action=live_data&ticker=${ticker}`);
+      liveData = await liveRes.json();
+  } catch(e) { console.error("Error fetching live price", e); }
+
+  if (cacheDoc.exists() && liveData && liveData.success) {
       const cached = cacheDoc.data().data;
-      if (cached.isDataComplete) {
-          animateLoadingSteps(['נמצא ניתוח שלם בקאש...', 'מעדכן מחיר נוכחי...']);
-          try {
-              const liveRes = await fetch(`${NETLIFY_API_URL}?action=live_data&ticker=${ticker}`);
-              const liveData = await liveRes.json();
-              if (liveData.success) {
-                  cached.price = liveData.price;
-                  cached.changePercentage = liveData.changePercentage;
-                  cached.chartData = liveData.chartData;
-                  hideLoading();
-                  State.currentData = cached; 
-                  renderResults(cached, cached.analysis, cached.chartData, cached.tickerNews || []);
-                  return;
-              }
-          } catch(e) {}
+      const cachedPrice = cached.price;
+      const currentPrice = liveData.price;
+      
+      const priceChangePct = Math.abs((currentPrice - cachedPrice) / cachedPrice);
+      const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+      const timePassed = Date.now() - (cacheDoc.data().lastUpdated || 0);
+
+      // אם המחיר לא השתנה ב-5% ולא עבר שבוע, נשתמש בקאש
+      if (timePassed < SEVEN_DAYS_MS && priceChangePct <= 0.05) {
+          animateLoadingSteps(['נמצא ניתוח מעודכן...', 'המחיר יציב (פחות מ-5%), משתמש בנתונים קיימים כדי לחסוך קריאות...']);
+          
+          cached.price = currentPrice;
+          cached.changePercentage = liveData.changePercentage;
+          cached.chartData = liveData.chartData;
+          cached.rsi = liveData.rsi;
+          cached.ma50 = liveData.ma50;
+          cached.ma200 = liveData.ma200;
+          
+          hideLoading();
+          State.currentData = cached; 
+          renderResults(cached, cached.analysis, cached.chartData, cached.tickerNews || []);
+          return;
       }
   }
 
-  animateLoadingSteps(['מבצע ניתוח עומק מקיף...', 'שולף נתוני API בזמן אמת...']);
+  animateLoadingSteps(['מבצע ניתוח עומק חדש...', 'מזהה תנודה במחיר או פג תוקף...']);
   try {
       const response = await fetch(`${NETLIFY_API_URL}?action=analyze&ticker=${ticker}`);
       const data = await response.json();
@@ -1346,8 +1386,11 @@ window.analyzeStock = async function() {
       
       State.currentData = data;
       if (data.isDataComplete) {
+          // שומר מחדש את הניתוח הטרי ב-Cache
           await setDoc(doc(db, 'ai_cache', ticker), { ticker, data, lastUpdated: Date.now() });
-          if (data.analysis && data.analysis.scores && data.analysis.scores.overall >= 70) {
+          
+          // שומר ב-Setups רק אם אין שגיאה והציון גבוה
+          if (data.analysis && !data.analysis.isError && data.analysis.scores && data.analysis.scores.overall >= 70) {
               await setDoc(doc(db, 'ai_setups', ticker), {
                   ticker, score: data.analysis.scores.overall, rating: data.analysis.rating || 'קנייה',
                   intrinsicValue: data.analysis.long_term?.intrinsic_value || '', lastUpdated: Date.now()
@@ -1435,8 +1478,8 @@ function renderChart(historyData, months, fullDataObj) {
         priceFormat: { type: 'volume' },
         priceScaleId: '', 
         scaleMargins: { top: 0.85, bottom: 0 },
-        lastValueVisible: false, // 💡 מעלים את מספר הנפח מהצד
-        priceLineVisible: false // 💡 מעלים את קו הנפח הנוכחי
+        lastValueVisible: false, 
+        priceLineVisible: false 
     });
     volumeSeries.setData(volumes);
 
@@ -1481,7 +1524,7 @@ function renderChart(historyData, months, fullDataObj) {
         });
     }
 
-    if (fullDataObj && fullDataObj.analysis && fullDataObj.analysis.short_term) {
+    if (fullDataObj && fullDataObj.analysis && fullDataObj.analysis.short_term && !fullDataObj.analysis.isError) {
         const sTerm = fullDataObj.analysis.short_term;
         const currentPrice = fullDataObj.price;
         
@@ -1542,6 +1585,9 @@ function renderScores(scores) {
 }
 
 function renderResults(data, analysis, historyData, newsData) {
+  const safeAnalysis = analysis || {};
+  const isError = safeAnalysis.isError === true;
+  
   const isUp = typeof data.changePercentage === 'number' && data.changePercentage >= 0; 
   safeText('res-ticker', `${data.ticker || 'N/A'} · ${data.sector || 'N/A'}`); 
   safeText('res-name', data.name || 'N/A'); 
@@ -1619,8 +1665,6 @@ function renderResults(data, analysis, historyData, newsData) {
   const rsiTag = rsiVal > 70 ? 'קניית יתר (Overbought)' : rsiVal < 30 ? 'מכירת יתר (Oversold)' : 'ניטרלי';
   const rsiClass = rsiVal > 70 ? 'tag-bad' : rsiVal < 30 ? 'tag-good' : 'tag-neutral';
 
-  const safeAnalysis = analysis || {};
-
   safeHTML('technical-content', `
     <div class="data-row"><span class="data-label">סקטור ותעשייה</span><div class="data-value-wrap"><span class="data-value" style="font-size:0.8rem;text-align:left;">${data.sector || 'N/A'} • ${data.industry || 'N/A'}</span></div></div>
     <div class="data-row"><span class="data-label">מגמה טכנית</span><div class="data-value-wrap"><span class="data-value">${a50&&a200?'Bull 🐂':!a50&&!a200?'Bear 🐻':'Mixed ⚖️'}</span><span class="tag ${a50&&a200?'tag-good':!a50&&!a200?'tag-bad':'tag-neutral'}">${a50&&a200?'חיובי':!a50&&!a200?'שלילי':'מעורב'}</span></div></div>
@@ -1661,29 +1705,48 @@ function renderResults(data, analysis, historyData, newsData) {
       }
   }
 
-  renderScores(safeAnalysis.scores);
-
-  const finalOverallScore = typeof safeAnalysis.scores?.overall === 'number' ? safeAnalysis.scores.overall : 50;
-  let ratingLabel = 'החזקה —', ratingCls = 'hold';
-  if (finalOverallScore >= 80) { ratingLabel = 'קנייה חזקה 🔥'; ratingCls = 'buy'; }
-  else if (finalOverallScore >= 60) { ratingLabel = 'קנייה ✓'; ratingCls = 'buy'; }
-  else if (finalOverallScore <= 40) { ratingLabel = 'מכירה ✗'; ratingCls = 'sell'; }
+  // --- ניהול תצוגת הציונים למקרה של שגיאת שרת ---
+  const aiScoreCircle = document.getElementById('ai-score-circle');
+  const aiScoresBar = document.getElementById('ai-scores');
+  const aiScoreTitle = document.getElementById('ai-score-title');
+  const aiScoreDesc = document.getElementById('ai-score-desc');
   
-  safeHTML('verdict-rating-pill', `<div class="verdict-rating ${ratingCls}">${ratingLabel}</div>`);
+  if (isError || !safeAnalysis.scores) {
+      if(aiScoreCircle) aiScoreCircle.style.display = 'none';
+      if(aiScoresBar) aiScoresBar.style.display = 'none';
+      if(aiScoreTitle) {
+          aiScoreTitle.textContent = safeAnalysis.identity;
+          aiScoreTitle.style.color = 'var(--red)';
+      }
+      if(aiScoreDesc) aiScoreDesc.textContent = safeAnalysis.technical;
+      
+      safeHTML('verdict-rating-pill', `<div class="verdict-rating sell" style="background:var(--red-dim);color:var(--red);border-color:var(--red);">שגיאה בניתוח</div>`);
+  } else {
+      if(aiScoreCircle) aiScoreCircle.style.display = 'flex';
+      if(aiScoresBar) aiScoresBar.style.display = 'block';
+      renderScores(safeAnalysis.scores);
+      
+      const finalOverallScore = typeof safeAnalysis.scores?.overall === 'number' ? safeAnalysis.scores.overall : 50;
+      let ratingLabel = 'החזקה —', ratingCls = 'hold';
+      if (finalOverallScore >= 80) { ratingLabel = 'קנייה חזקה 🔥'; ratingCls = 'buy'; }
+      else if (finalOverallScore >= 60) { ratingLabel = 'קנייה ✓'; ratingCls = 'buy'; }
+      else if (finalOverallScore <= 40) { ratingLabel = 'מכירה ✗'; ratingCls = 'sell'; }
+      safeHTML('verdict-rating-pill', `<div class="verdict-rating ${ratingCls}">${ratingLabel}</div>`);
+  }
 
   const lTerm = safeAnalysis.long_term || {};
   const sTerm = safeAnalysis.short_term || {};
 
   let upside = 0;
   const target12M = lTerm.price_target;
-  if (target12M && p > 0) {
+  if (target12M && p > 0 && !isError) {
       const tPriceNum = Number(String(target12M).replace(/[^0-9.]/g, ''));
       if (!isNaN(tPriceNum) && tPriceNum > 0) upside = (((tPriceNum / p) - 1) * 100).toFixed(1);
   }
 
   safeHTML('verdict-content', `
     <div style="margin-bottom:22px">
-        <div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--blue); margin-bottom:8px;">פרופיל חברה והשפעת חדשות (${safeAnalysis.news_sentiment || 'ללא שינוי'})</div>
+        <div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--blue); margin-bottom:8px;">פרופיל חברה והשפעת חדשות</div>
         <div style="font-size:0.95rem;line-height:1.6;color:var(--text); font-weight:500; margin-bottom:10px;">${safeAnalysis.identity || "מידע חסר"}</div>
     </div>
     
@@ -1732,10 +1795,10 @@ function renderResults(data, analysis, historyData, newsData) {
         <div class="verdict-col"><div class="verdict-col-title cons">⚠️ גורמי סיכון</div><div class="verdict-col-content">${(safeAnalysis.cons || []).join('\n')}</div></div>
     </div>
     
-    <div style="background: linear-gradient(135deg, rgba(255,214,10,0.1), rgba(255,214,10,0.02)); border: 1px solid rgba(255,214,10,0.3); padding: 24px; border-radius: 16px; text-align: center; box-shadow: 0 8px 32px rgba(255,214,10,0.06); margin-top:20px;">
+    ${!isError ? `<div style="background: linear-gradient(135deg, rgba(255,214,10,0.1), rgba(255,214,10,0.02)); border: 1px solid rgba(255,214,10,0.3); padding: 24px; border-radius: 16px; text-align: center; box-shadow: 0 8px 32px rgba(255,214,10,0.06); margin-top:20px;">
          <div style="font-size: 0.85rem; color: var(--gold); font-weight: 800; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em;">🎯 פוטנציאל רווח (מול תחזית 12 חודשים)</div>
          <div style="font-size: 1.05rem; font-weight: 800; color: ${parseFloat(upside) >= 0 ? 'var(--green)' : 'var(--red)'}; direction:ltr;">${parseFloat(upside) >= 0 ? '▲ אפסייד:' : '▼ דאונסייד:'} ${parseFloat(upside) >= 0 ? '+' : ''}${upside}%</div>
-    </div>`);
+    </div>` : ''}`);
 
   if (Array.isArray(newsData) && newsData.length > 0) { 
       const newsHtml = newsData.map(n => { 
