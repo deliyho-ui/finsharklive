@@ -570,14 +570,14 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 
   <div id="section-community" class="section">
     <div class="section-title">👥 קהילה וחוכמת הכריש</div>
-    <div class="section-subtitle">עקבו אחרי התיק הקהילתי ואחרי תיק ה-AI המנוהל (Shark Fund).</div>
+    <div class="section-subtitle">עקבו אחרי הסטאפים המובילים ואחרי תיק ה-AI המנוהל (Shark Fund).</div>
     
     <div class="results-grid" style="align-items: start;">
         <div class="card">
-            <div class="card-title" style="color:var(--blue)">🥧 התיק הקהילתי</div>
-            <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:15px;">התפלגות המניות המועדפות על המשתמשים שלנו</p>
-            <div id="community-portfolio-list" style="display:flex; flex-direction:column; gap:12px; min-height: 200px;">
-                 טוען נתוני קהילה...
+            <div class="card-title" style="color:var(--blue)">🔥 10 הסטאפים החמים (Top Setups)</div>
+            <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:15px;">עשר המניות שקיבלו את ציוני ה-AI הגבוהים ביותר מכלל חיפושי המשתמשים שלנו.</p>
+            <div id="top-setups-list" style="display:flex; flex-direction:column; gap:12px; min-height: 200px;">
+                 טוען נתוני סטאפים...
             </div>
         </div>
         <div class="card">
@@ -623,7 +623,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
         <div class="header-actions">
           <button class="btn-trade" onclick="openBuyModal('virtual')">🎮 לתיק הוירטואלי</button>
           <button class="btn btn-ghost" onclick="openBuyModal('real')" style="border-color:var(--gold); color:var(--gold);">🏦 הוסף לתיק מעקב</button>
-          <button class="icon-btn tooltip-wrap" data-tip="הצבע לתיק חוכמת ההמונים" id="btn-vote-crowd" onclick="voteForCrowd()">👥</button>
           <button class="icon-btn tooltip-wrap" data-tip="הוסף לרשימת מעקב" id="btn-add-watch-results" onclick="addToWatchlistFromResults()">📌</button>
         </div>
         <div class="stock-price-group" style="width:100%; display:flex; justify-content:space-between; align-items:center; margin-top:15px;">
@@ -685,7 +684,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 
         <div class="card full-width" id="scores-card-container">
           <div class="card-title">🤖 איכות החברה (AI Scores)</div>
-          <div class="overall-score-container" id="ai-score-circle-container">
+          <div class="overall-score-container">
             <div class="score-circle" id="ai-score-circle" style="--score: 0;"><span id="ai-score-text">0</span></div>
             <div class="score-text-wrap">
               <div class="score-text-title" id="ai-score-title">מנתח איכות עסקית...</div>
@@ -1041,20 +1040,40 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-window.voteForCrowd = async function() {
-    const ticker = State.currentData?.ticker;
-    if (!ticker || !State.currentUser) return;
-    const btn = document.getElementById('btn-vote-crowd');
-    if(btn) { btn.textContent = '⏳'; btn.classList.add('active'); }
+// פונקציית טעינת 10 הסטאפים המובילים במקום תיק הקהילה
+window.loadTopSetupsData = async function() {
+    const container = document.getElementById('top-setups-list');
+    if (!container) return;
+    container.innerHTML = '<div style="text-align:center; padding: 20px;">מחפש את הסטאפים החמים...</div>';
     try {
-        const docRef = doc(db, 'community_portfolio', ticker);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) await updateDoc(docRef, { votes: increment(1), lastUpdated: Date.now() });
-        else await setDoc(docRef, { ticker: ticker, votes: 1, lastUpdated: Date.now() });
-        if(btn) { btn.textContent = '✓ תודה!'; setTimeout(() => { btn.classList.remove('active'); btn.textContent = '👥'; }, 2000); }
-    } catch(e) {
-        if(btn) { btn.textContent = '❌'; setTimeout(() => { btn.classList.remove('active'); btn.textContent = '👥'; }, 2000); }
-    }
+        const snap = await getDocs(collection(db, 'ai_setups'));
+        let setups = [];
+        snap.forEach(d => { setups.push(d.data()); });
+        // מיון יורד לפי ציון AI
+        setups.sort((a,b) => (b.score || 0) - (a.score || 0));
+        
+        if(setups.length === 0) {
+            container.innerHTML = '<p style="color:var(--text-secondary)">אין כרגע סטאפים במערכת. נתח מניות כדי להוסיף אותן למאגר.</p>';
+        } else {
+            let html = '<div style="display:flex; flex-direction:column; gap:12px; width:100%;">';
+            setups.slice(0, 10).forEach((item, index) => {
+                const scoreColor = item.score >= 80 ? 'var(--green)' : 'var(--blue)';
+                html += `
+                <div style="display:flex; align-items:center; gap:12px; cursor:pointer; background:rgba(255,255,255,0.02); padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); transition: var(--transition);" onclick="goToAnalysis('${item.ticker}')" onmouseover="this.style.borderColor='${scoreColor}'" onmouseout="this.style.borderColor='var(--glass-border)'">
+                    <div style="width: 24px; font-weight: 800; color: var(--text-secondary);">${index + 1}.</div>
+                    <div style="width: 50px; font-weight:800; color:var(--text); direction:ltr; text-align:left;">${item.ticker}</div>
+                    <div style="flex:1; display: flex; align-items: center; gap: 8px;">
+                        <div style="flex:1; height:8px; background:rgba(255,255,255,0.05); border-radius:4px; overflow:hidden;">
+                            <div style="width:${item.score}%; height:100%; background:${scoreColor}; border-radius:4px;"></div>
+                        </div>
+                    </div>
+                    <div style="width:40px; font-size:0.9rem; font-weight:800; text-align:right; color:${scoreColor};">${item.score}</div>
+                </div>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+    } catch(e) { container.innerHTML = 'שגיאה בטעינת הנתונים.'; }
 };
 
 window.generateSharkPortfolio = async function() {
@@ -1066,7 +1085,6 @@ window.generateSharkPortfolio = async function() {
         const sharkCacheRef = doc(db, 'ai_cache', 'shark_weekly');
         const sharkCacheSnap = await getDoc(sharkCacheRef);
         
-        // 1. קאש שבועי לתיק הכריש כדי לחסוך קריאות ל-API
         if (sharkCacheSnap.exists()) {
             const cacheData = sharkCacheSnap.data();
             if (Date.now() - (cacheData.timestamp || 0) < SEVEN_DAYS_MS) {
@@ -1109,35 +1127,6 @@ function renderSharkHTML(portfolioArray, container) {
     });
     container.innerHTML = html;
 }
-
-window.loadCommunityData = async function() {
-    const commContainer = document.getElementById('community-portfolio-list');
-    if (!commContainer) return;
-    commContainer.innerHTML = '<div style="text-align:center; padding: 20px;">מושך נתונים...</div>';
-    try {
-        const commSnap = await getDocs(collection(db, 'community_portfolio'));
-        let portfolio = []; let totalVotes = 0;
-        commSnap.forEach(d => { const data = d.data(); portfolio.push(data); totalVotes += (data.votes || 0); });
-        portfolio.sort((a,b) => b.votes - a.votes);
-        
-        if(portfolio.length === 0) {
-            commContainer.innerHTML = '<p style="color:var(--text-secondary)">התיק הקהילתי עדיין ריק.</p>';
-        } else {
-            let html = '<div style="display:flex; flex-direction:column; gap:16px; width:100%;">';
-            portfolio.slice(0, 10).forEach(item => {
-                const pct = totalVotes > 0 ? ((item.votes / totalVotes) * 100).toFixed(1) : 0;
-                html += `
-                <div style="display:flex; align-items:center; gap:12px; cursor:pointer;" onclick="goToAnalysis('${item.ticker}')">
-                    <div style="width:50px; font-weight:800; color:var(--blue); direction:ltr; text-align:left;">${item.ticker}</div>
-                    <div style="flex:1; height:10px; background:rgba(255,255,255,0.05); border-radius:5px; overflow:hidden;"><div style="width:${pct}%; height:100%; background:var(--blue); border-radius:5px;"></div></div>
-                    <div style="width:60px; font-size:0.85rem; font-weight:700; text-align:right;">${pct}%</div>
-                    <div style="font-size:0.75rem; color:var(--text-secondary); width:50px;">(${item.votes} קולות)</div>
-                </div>`;
-            });
-            html += '</div>'; commContainer.innerHTML = html;
-        }
-    } catch(e) { commContainer.innerHTML = 'שגיאה בטעינת הנתונים.'; }
-};
 
 function setupAdminDashboard() {
   if (State.currentUser?.role !== 'admin') return;
@@ -1238,7 +1227,7 @@ function renderApp() {
   if (isAdmin && State.currentTab === 'admin') { const sec = document.getElementById('section-admin'); if(sec) sec.classList.add('active'); setupAdminDashboard(); }
   else if (State.currentTab === 'pending') { const sec = document.getElementById('section-pending'); if(sec) sec.classList.add('active'); }
   else if (State.currentTab === 'shark') { const sec = document.getElementById('section-shark'); if(sec) sec.classList.add('active'); }
-  else if (State.currentTab === 'community') { const sec = document.getElementById('section-community'); if(sec) sec.classList.add('active'); loadCommunityData(); }
+  else if (State.currentTab === 'community') { const sec = document.getElementById('section-community'); if(sec) sec.classList.add('active'); loadTopSetupsData(); }
   else if (State.currentTab === 'watchlist') { const sec = document.getElementById('section-watchlist'); if(sec) sec.classList.add('active'); renderWatchlist(); }
   else if (State.currentTab === 'portfolio') { const sec = document.getElementById('section-portfolio'); if(sec) sec.classList.add('active'); renderPortfolio(); }
   else if (State.currentTab === 'academy') { const sec = document.getElementById('section-academy'); if(sec) sec.classList.add('active'); }
@@ -1337,8 +1326,6 @@ window.analyzeStock = async function() {
   warnEl.style.display = 'none';
 
   const cacheDoc = await getDoc(doc(db, 'ai_cache', ticker));
-  
-  // משיכת מחיר נוכחי לבדיקת שינוי אחוזים וחוק ה-5%
   let liveData = null;
   try {
       const liveRes = await fetch(`${NETLIFY_API_URL}?action=live_data&ticker=${ticker}`);
@@ -1354,7 +1341,6 @@ window.analyzeStock = async function() {
       const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
       const timePassed = Date.now() - (cacheDoc.data().lastUpdated || 0);
 
-      // אם המחיר לא השתנה ב-5% ולא עבר שבוע, נשתמש בקאש
       if (timePassed < SEVEN_DAYS_MS && priceChangePct <= 0.05) {
           animateLoadingSteps(['נמצא ניתוח מעודכן...', 'המחיר יציב (פחות מ-5%), משתמש בנתונים קיימים כדי לחסוך קריאות...']);
           
@@ -1372,7 +1358,7 @@ window.analyzeStock = async function() {
       }
   }
 
-  animateLoadingSteps(['מבצע ניתוח עומק חדש...', 'מזהה תנודה במחיר או פג תוקף...']);
+  animateLoadingSteps(['מבצע ניתוח עומק מקיף...', 'שולף נתוני API בזמן אמת...']);
   try {
       const response = await fetch(`${NETLIFY_API_URL}?action=analyze&ticker=${ticker}`);
       const data = await response.json();
@@ -1386,10 +1372,7 @@ window.analyzeStock = async function() {
       
       State.currentData = data;
       if (data.isDataComplete) {
-          // שומר מחדש את הניתוח הטרי ב-Cache
           await setDoc(doc(db, 'ai_cache', ticker), { ticker, data, lastUpdated: Date.now() });
-          
-          // שומר ב-Setups רק אם אין שגיאה והציון גבוה
           if (data.analysis && !data.analysis.isError && data.analysis.scores && data.analysis.scores.overall >= 70) {
               await setDoc(doc(db, 'ai_setups', ticker), {
                   ticker, score: data.analysis.scores.overall, rating: data.analysis.rating || 'קנייה',
@@ -1705,7 +1688,6 @@ function renderResults(data, analysis, historyData, newsData) {
       }
   }
 
-  // --- ניהול תצוגת הציונים למקרה של שגיאת שרת ---
   const aiScoreCircle = document.getElementById('ai-score-circle');
   const aiScoresBar = document.getElementById('ai-scores');
   const aiScoreTitle = document.getElementById('ai-score-title');
@@ -1714,12 +1696,8 @@ function renderResults(data, analysis, historyData, newsData) {
   if (isError || !safeAnalysis.scores) {
       if(aiScoreCircle) aiScoreCircle.style.display = 'none';
       if(aiScoresBar) aiScoresBar.style.display = 'none';
-      if(aiScoreTitle) {
-          aiScoreTitle.textContent = safeAnalysis.identity;
-          aiScoreTitle.style.color = 'var(--red)';
-      }
+      if(aiScoreTitle) { aiScoreTitle.textContent = safeAnalysis.identity; aiScoreTitle.style.color = 'var(--red)'; }
       if(aiScoreDesc) aiScoreDesc.textContent = safeAnalysis.technical;
-      
       safeHTML('verdict-rating-pill', `<div class="verdict-rating sell" style="background:var(--red-dim);color:var(--red);border-color:var(--red);">שגיאה בניתוח</div>`);
   } else {
       if(aiScoreCircle) aiScoreCircle.style.display = 'flex';
