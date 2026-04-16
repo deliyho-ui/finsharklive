@@ -22,7 +22,7 @@ async function fetchYahooData(ticker, range = "2y", interval = "1d", p50 = 50, p
             date: new Date(t * 1000).toISOString().split('T')[0],
             open: Number(quotes.open[i]), high: Number(quotes.high[i]), low: Number(quotes.low[i]),
             close: Number(quotes.close[i]), value: Number(quotes.close[i]), volume: Number(quotes.volume[i]) 
-        })).filter(p => !isNaN(p.close) && p.close !== null);
+        })).filter(p => !isNaN(p.close) && p.close !== null && p.close > 0); // סינון נתונים פגומים
 
         return points.map((point, i, arr) => {
             let ma50_val = null, ma200_val = null;
@@ -46,10 +46,8 @@ async function fetchYahooScreener(scrId) {
         const data = await res.json();
         if(data?.finance?.result?.[0]) {
             return data.finance.result[0].quotes.map(q => ({
-                symbol: q.symbol,
-                name: q.shortName || q.longName || q.symbol,
-                price: q.regularMarketPrice,
-                changesPercentage: q.regularMarketChangePercent
+                symbol: q.symbol, name: q.shortName || q.longName || q.symbol,
+                price: q.regularMarketPrice, changesPercentage: q.regularMarketChangePercent
             }));
         }
         return [];
@@ -90,6 +88,7 @@ function extractKeyLevels(points) {
     const currentPrice = points[points.length - 1].close;
     let above = levels.filter(l => l.price > currentPrice * 1.01 && l.type.includes('התנגדות')).sort((a,b) => a.price - b.price);
     let below = levels.filter(l => l.price < currentPrice * 0.99 && l.type.includes('תמיכה')).sort((a,b) => b.price - a.price);
+    
     let finalLevels = [];
     if (above.length > 0) finalLevels.push(above[0]); 
     if (below.length > 0) finalLevels.push(below[0]); 
@@ -97,7 +96,7 @@ function extractKeyLevels(points) {
 }
 
 function detectAllPatterns(chartPoints) {
-    if (!chartPoints || chartPoints.length < 50) return { text: "אין מספיק נתונים", lines: [] };
+    if (!chartPoints || chartPoints.length < 50) return { text: "אין מספיק נתונים לזיהוי תבנית", lines: [] };
     const last40 = chartPoints.slice(-40);
     const currentPrice = chartPoints[chartPoints.length - 1].close;
     let patterns = [];
@@ -122,8 +121,7 @@ function detectAllPatterns(chartPoints) {
         if(last40[i].low < min2.val) { min2.val = last40[i].low; min2.time = last40[i].date; }
     }
 
-    const h1 = max1.val, h2 = max2.val;
-    const l1 = min1.val, l2 = min2.val;
+    const h1 = max1.val, h2 = max2.val, l1 = min1.val, l2 = min2.val;
 
     if (Math.abs(h1 - h2) / h1 < 0.02 && currentPrice < h1 * 0.96) {
         patterns.push("פסגה כפולה (Double Top) ⛰️⛰️");
@@ -134,19 +132,13 @@ function detectAllPatterns(chartPoints) {
         lines.push({ start: {time: min1.time, value: l1}, end: {time: min2.time, value: l2}, color: 'rgba(48, 209, 88, 0.8)' });
     }
     
-    const isRising = h2 > h1 && l2 > l1;
-    const isFalling = h2 < h1 && l2 < l1;
-    const converge = (h1 - l1) > (h2 - l2) * 1.2; 
+    const isRising = h2 > h1 && l2 > l1, isFalling = h2 < h1 && l2 < l1, converge = (h1 - l1) > (h2 - l2) * 1.2; 
 
-    if (isRising && converge) {
-        patterns.push("יתד עולה (Rising Wedge) 📐⬇️");
-        lines.push({ start: {time: max1.time, value: h1}, end: {time: max2.time, value: h2}, color: 'rgba(255, 69, 58, 0.6)' });
-        lines.push({ start: {time: min1.time, value: l1}, end: {time: min2.time, value: l2}, color: 'rgba(255, 69, 58, 0.6)' });
-    } else if (isFalling && converge) {
-        patterns.push("יתד יורד (Falling Wedge) 📐⬆️");
-        lines.push({ start: {time: max1.time, value: h1}, end: {time: max2.time, value: h2}, color: 'rgba(48, 209, 88, 0.6)' });
-        lines.push({ start: {time: min1.time, value: l1}, end: {time: min2.time, value: l2}, color: 'rgba(48, 209, 88, 0.6)' });
-    }
+    if (isRising && converge) patterns.push("יתד עולה (Rising Wedge) 📐⬇️");
+    else if (isFalling && converge) patterns.push("יתד יורד (Falling Wedge) 📐⬆️");
+    else if (isRising && !converge) patterns.push("תעלה עולה (Ascending Channel) ↗️");
+    else if (isFalling && !converge) patterns.push("תעלה יורדת (Descending Channel) ↘️");
+    
     const text = patterns.length === 0 ? "דשדוש (Consolidation) ↔️" : [...new Set(patterns)].join(" | ");
     return { text, lines };
 }
@@ -170,37 +162,7 @@ module.exports = async function(req, res) {
         const finnhubKey = process.env.FINNHUB_API_KEY;
         if (!apiKey || !finnhubKey) return res.status(500).json({ success: false, message: "Missing API Keys" });
 
-        // 💡 הפיצ'ר החדש! הכריש מרכיב תיק בעצמו בזמן אמת.
-        if (action === 'shark_portfolio') {
-            const prompt = `You are "FinShark", an elite Wall Street AI hedge fund manager. 
-            Construct a 5-stock model portfolio for today's market environment. 
-            Choose real US stocks. Balance it between Growth, Value, and Momentum.
-            
-            Return ONLY a valid JSON array in Hebrew. Do not wrap in markdown blocks. Format exactly like this:
-            [
-              {"ticker": "NVDA", "weight": 30, "role": "מנוע צמיחה ומומנטום", "reason": "מובילת שוק השבבים העולמית"},
-              {"ticker": "AAPL", "weight": 20, "role": "עוגן ערך ויציבות", "reason": "תזרים מזומנים אדיר"}
-            ]`;
-
-            const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ 
-                    contents: [{ parts: [{ text: prompt }] }], 
-                    generationConfig: { temperature: 0.7 },
-                    safetySettings: [
-                        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-                    ]
-                })
-            });
-            const aiData = await aiRes.json();
-            let text = aiData.candidates[0].content.parts[0].text;
-            const match = text.match(/\[[\s\S]*\]/);
-            if(match) {
-                return res.status(200).json({ success: true, portfolio: JSON.parse(match[0]) });
-            } else {
-                throw new Error("AI Failed to format portfolio");
-            }
-        }
-
+        // משיכת נתוני שוק כלליים
         if (action === 'market' || (!ticker && action !== 'analyze')) {
             const [spy, qqq, dia, iwm, xlk, xlv, xlf, xle, xly, xli, newsData, topGainers, topLosers] = await Promise.all([
                 fetchFinnhub('quote', 'symbol=SPY'), fetchFinnhub('quote', 'symbol=QQQ'), fetchFinnhub('quote', 'symbol=DIA'), fetchFinnhub('quote', 'symbol=IWM'), 
@@ -235,18 +197,27 @@ module.exports = async function(req, res) {
 
         if (!ticker) return res.status(400).json({ success: false, message: "Missing ticker symbol" });
 
+        // 💡 הגנת קריסה חזקה: בדיקה ראשונית אם המניה קיימת ויש לה נתונים
+        const [quote, chartPoints] = await Promise.all([
+            fetchFinnhub('quote', `symbol=${ticker}`),
+            fetchYahooData(ticker, '2y', '1d')
+        ]);
+
+        if (!quote || quote.c === 0 || chartPoints.length < 10) {
+            return res.status(404).json({ success: false, message: `הסימול ${ticker} לא נמצא במערכת, או שאין מספיק נתוני מסחר עבורו.` });
+        }
+
         if (action === 'live_data') {
-            const [quote, chartPoints, profile, metricsData] = await Promise.all([
-                fetchFinnhub('quote', `symbol=${ticker}`), fetchYahooData(ticker, '2y', '1d'),
+            const [profile, metricsData] = await Promise.all([
                 fetchFinnhub('stock/profile2', `symbol=${ticker}`), fetchFinnhub('stock/metric', `symbol=${ticker}&metric=all`)
             ]);
-            const lastChartPoint = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1] : {};
+            const lastChartPoint = chartPoints[chartPoints.length - 1];
             const m = metricsData?.metric || {};
             const patternObj = detectAllPatterns(chartPoints);
             const rawMarketCap = sanitizeValue(profile?.marketCapitalization || m?.marketCapitalization);
             return res.status(200).json({
-                success: true, ticker, price: Number(quote?.c || 0), changePercentage: Number(quote?.dp || 0),
-                ma50: lastChartPoint.ma50 || null, ma200: lastChartPoint.ma200 || null, volume: Number(quote?.v || lastChartPoint.volume || 0), 
+                success: true, ticker, price: Number(quote.c), changePercentage: Number(quote.dp),
+                ma50: lastChartPoint.ma50 || null, ma200: lastChartPoint.ma200 || null, volume: Number(quote.v || lastChartPoint.volume || 0), 
                 pattern: patternObj.text, patternLines: patternObj.lines, rsi: calculateRSI(chartPoints.map(p=>p.close)),
                 peRatio: sanitizeValue(m?.peBasicExclExtraTTM || m?.peExclExtraAnnual), chartData: chartPoints, marketCap: rawMarketCap !== null ? rawMarketCap * 1000000 : null
             });
@@ -255,9 +226,8 @@ module.exports = async function(req, res) {
         const today = new Date().toISOString().split('T')[0];
         const lastMonth = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-        const [quote, profile, chartPoints, metricsData, earningsData, tickerNews, insiderData] = await Promise.all([
-            fetchFinnhub('quote', `symbol=${ticker}`), fetchFinnhub('stock/profile2', `symbol=${ticker}`),
-            fetchYahooData(ticker, '2y', '1d'), fetchFinnhub('stock/metric', `symbol=${ticker}&metric=all`),
+        const [profile, metricsData, earningsData, tickerNews, insiderData] = await Promise.all([
+            fetchFinnhub('stock/profile2', `symbol=${ticker}`), fetchFinnhub('stock/metric', `symbol=${ticker}&metric=all`),
             fetchFinnhub('stock/earnings', `symbol=${ticker}`), fetchFinnhub('company-news', `symbol=${ticker}&from=${lastMonth}&to=${today}`),
             fetchFinnhub('insider-transactions', `symbol=${ticker}`)
         ]);
@@ -282,49 +252,48 @@ module.exports = async function(req, res) {
         insiders.slice(0, 15).forEach(t => netInsiderShares += (t.change || 0));
         const insiderSentiment = netInsiderShares > 0 ? 'חיובי (קניות)' : netInsiderShares < 0 ? 'שלילי (מכירות)' : 'ניטרלי';
 
-        const lastPoint = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1] : {};
+        const lastPoint = chartPoints[chartPoints.length - 1];
         const keyLevels = extractKeyLevels(chartPoints);
         const levelsPrompt = keyLevels.map(l => `${l.type}: $${l.price.toFixed(2)}`).join(', ');
         const patternObj = detectAllPatterns(chartPoints);
         const rsiVal = calculateRSI(chartPoints.map(p=>p.close));
         const isDataComplete = true; 
         const recentNews = (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 3).map(n => n.headline).join(" | ");
-        const currPrice = Number(quote?.c || 0);
+        const currPrice = Number(quote.c);
 
-        let latestEarningStr = "No recent earnings data";
+        let latestEarningStr = "אין נתוני דוח אחרון";
         if (Array.isArray(earningsData) && earningsData.length > 0 && earningsData[0].surprisePercent !== null) {
-            latestEarningStr = `Latest Earning Surprise: ${earningsData[0].surprisePercent}% vs estimates.`;
+            latestEarningStr = `דוח אחרון: הפתעה של ${earningsData[0].surprisePercent}% ביחס לתחזיות.`;
         }
 
-        const prompt = `אתה "הכריש" - מנתח מניות בכיר. הניתוח הוא לצרכי סימולציה לימודית בלבד.
-        נתח את ${ticker}. מחיר נוכחי: $${currPrice}.
+        // 💡 חזרה לפרומפט המדויק בעברית עם דרישות נוקשות של JSON בלבד
+        const prompt = `אתה "הכריש" - מנתח מניות בכיר וסוחר סווינג.
+        נתח את המניה ${ticker}. מחיר נוכחי: $${currPrice}.
         
-        נתונים טכניים (חובה להתייחס בסטופ/יעד):
-        - תבניות: ${patternObj.text}
-        - תמיכה/התנגדות: ${levelsPrompt || 'לא זוהו מובהקות'}
-        - RSI: ${rsiVal.toFixed(1)}
+        נתונים טכניים שמצאנו (חובה לבסס עליהם יעד וסטופ):
+        - תבנית: ${patternObj.text}
+        - רמות קריטיות בגרף: ${levelsPrompt || 'לא זוהו מובהקות'}
+        - RSI: ${rsiVal.toFixed(1)} | ממוצע נע 50: $${lastPoint.ma50 || 'N/A'} | ממוצע נע 200: $${lastPoint.ma200 || 'N/A'}.
         
-        נתונים פונדמנטליים: P/E: ${fundamentals.peRatio || 'N/A'}. הפתעת דוח: ${latestEarningStr}.
+        נתונים פונדמנטליים: 
+        - P/E: ${fundamentals.peRatio || 'N/A'}. צמיחה: ${fundamentals.revenueGrowth || 'N/A'}%.
+        - דוח רווח אחרון: ${latestEarningStr}.
         
-        החזר אך ורק JSON נקי בעברית לפי המבנה הבא (ללא שום טקסט לפני או אחרי):
+        החזר אך ורק מבנה JSON תקין בעברית לפי המבנה הבא (ללא שום מילה לפני או אחרי הסוגריים המסולסלים):
         { 
-          "identity": "תיאור החברה", 
-          "technical": "תיאור הגרף",
+          "identity": "תיאור עסקי קצר של החברה (משפט אחד)", 
+          "technical": "תיאור מדויק של מצב הגרף והמומנטום",
           "news_sentiment": "חיובי / שלילי / ניטרלי",
-          "long_term": { "summary": "מסקנה לטווח ארוך", "intrinsic_value": "150", "accumulation_zone": "120 - 130", "price_target": "160" },
-          "short_term": { "summary": "מסקנה לסווינג", "entry_price": "${currPrice}", "target_price": "130", "stop_loss": "110" },
-          "pros": ["1", "2"], "cons": ["1", "2"], 
-          "scores": {"overall": 80, "growth":80, "value":80, "momentum":80, "quality":80}, "rating": "קנייה חזקה" 
+          "long_term": { "summary": "מסקנה מקצועית למשקיעי ערך", "intrinsic_value": "150", "accumulation_zone": "120 - 130", "price_target": "160" },
+          "short_term": { "summary": "מסקנה ברורה לסוחרי סווינג כולל ניהול סיכונים", "entry_price": "${currPrice}", "target_price": "מספר נקי מבוסס התנגדות", "stop_loss": "מספר נקי מבוסס תמיכה מתחת למחיר" },
+          "pros": ["נקודת חוזקה 1", "נקודת חוזקה 2"], "cons": ["סיכון 1", "סיכון 2"], 
+          "scores": {"overall": 80, "growth":80, "value":80, "momentum":80, "quality":80}, "rating": "קנייה חזקה / קנייה / המתנה / מכירה" 
         }`;
 
-        // 💡 התיקון לקריסת גוגל! ביטול Safety Block + Regex קשוח לחילוץ JSON
         const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ 
                 contents: [{ parts: [{ text: prompt }] }], 
-                generationConfig: { temperature: 0.1 },
-                safetySettings: [
-                    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-                ]
+                generationConfig: { temperature: 0.1 } 
             })
         });
 
@@ -332,22 +301,26 @@ module.exports = async function(req, res) {
             news_sentiment: "אין מידע.", technical: "לא הצלחנו לייצר קריאה.",
             long_term: { summary: "שגיאת AI.", intrinsic_value: "", accumulation_zone: "", price_target: "" },
             short_term: { summary: "שגיאת AI.", entry_price: "", target_price: "", stop_loss: "" },
-            scores: { overall: 50 }, rating: "החזקה" 
+            scores: { overall: 50 }, rating: "המתנה" 
         };
         
         if (aiResponse.ok) {
             const aiData = await aiResponse.json();
             try {
                 let text = aiData.candidates[0].content.parts[0].text;
-                const match = text.match(/\{[\s\S]*\}/);
-                if (match) { aiVerdict = JSON.parse(match[0]); }
-            } catch (e) { console.error("JSON parse failed"); }
+                // חילוץ JSON קשוח שמונע שגיאות במקרה של זבל מה-AI
+                const startIndex = text.indexOf('{');
+                const endIndex = text.lastIndexOf('}');
+                if (startIndex !== -1 && endIndex !== -1) { 
+                    aiVerdict = JSON.parse(text.substring(startIndex, endIndex + 1)); 
+                }
+            } catch (e) { console.error("JSON parse failed", e); }
         }
 
         return res.status(200).json({
             success: true, isDataComplete, ticker, name: profile?.name || ticker, industry: profile?.finnhubIndustry || "N/A", sector: profile?.finnhubIndustry || "N/A",
-            price: currPrice, changePercentage: Number(quote?.dp || 0),
-            ma50: lastPoint.ma50, ma200: lastPoint.ma200, volume: Number(quote?.v || lastPoint.volume || 0),
+            price: currPrice, changePercentage: Number(quote.dp),
+            ma50: lastPoint.ma50, ma200: lastPoint.ma200, volume: Number(quote.v || lastPoint.volume || 0),
             pattern: patternObj.text, patternLines: patternObj.lines, rsi: rsiVal, keyLevels, ...fundamentals,
             latestEarnings: (Array.isArray(earningsData) && earningsData.length > 0) ? earningsData[0] : null,
             tickerNews: (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 5),
