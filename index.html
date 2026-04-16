@@ -126,8 +126,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .search-input { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); border-radius: 18px; padding: 20px 26px; color: var(--text); font-size: 1.15rem; font-weight: 700; text-transform: uppercase; outline: none; direction: ltr; }
 .search-btn { padding: 20px 36px; font-size: 1rem; border-radius: 18px; }
 
-.rate-limit-box { display: none; background: rgba(255,69,58,0.15); border: 1px solid var(--red); color: #fff; padding: 14px 20px; border-radius: var(--radius-sm); margin-bottom: 20px; font-size: 0.95rem; font-weight: 600; text-align: center; align-items: center; justify-content: center; gap: 10px; animation: fadeUp 0.3s forwards; }
-
 .header-actions { display: flex; gap: 8px; align-items: center; }
 .icon-btn { width: 38px; height: 38px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1rem; transition: var(--transition); color: var(--text-secondary); }
 .icon-btn:hover { background: var(--glass-hover); color: var(--text); transform: scale(1.05); }
@@ -147,7 +145,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .mt-32 { margin-top: 32px; }
 .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); z-index: 300; align-items: center; justify-content: center; flex-direction: column; gap: 24px; }
 .loading-overlay.active { display: flex; }
-/* --- HUD Loading Animation (Sonar) --- */
 .sonar-wrapper { position: relative; width: 120px; height: 120px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px;}
 .sonar-shark { font-size: 3rem; z-index: 2; position: relative; animation: floatShark 3s ease-in-out infinite; }
 .sonar-ring { position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 2px solid var(--blue); opacity: 0; animation: sonarPulse 2s cubic-bezier(0.1, 0.5, 0.1, 1) infinite; }
@@ -249,9 +246,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .tooltip-wrap::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: rgba(20,20,24,0.97); border: 1px solid var(--glass-border); border-radius: 8px; padding: 7px 12px; font-size: 0.73rem; color: var(--text-secondary); white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s; font-weight: 500; direction: rtl; z-index:100; }
 .tooltip-wrap:hover::after { opacity: 1; }
 
-.debug-box { background: rgba(255,69,58,0.1); border: 1px solid var(--red); color: #fff; padding: 15px; border-radius: 10px; margin: 15px 0; font-family: monospace; font-size: 13px; text-align: left; direction: ltr; white-space: pre-wrap; word-break: break-all; }
-
-/* 💡 עיצוב טאבים לתיק היברידי */
 .portfolio-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; }
 .port-tab { padding: 10px 20px; font-size: 1rem; font-weight: 700; color: var(--text-secondary); cursor: pointer; border-radius: 10px; transition: var(--transition); }
 .port-tab.active { background: var(--blue-dim); color: var(--blue); }
@@ -265,7 +259,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .btn-trade { padding: 8px 24px; font-size: 0.9rem; border-radius: 12px; background: rgba(10,132,255,0.1); color: var(--blue); border: 1px solid rgba(10,132,255,0.3); transition: var(--transition); cursor:pointer;}
 .btn-trade:hover { background: var(--blue); color: #fff; }
 
-/* 💡 עיצוב מודל אונבורדינג חדש */
 #onboarding-modal .modal { padding: 0; overflow: hidden; max-width: 500px;}
 .onboarding-slider { display: flex; width: 500%; transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
 .onboarding-slide { width: 20%; padding: 40px; display: flex; flex-direction: column; align-items: center; text-align: center; }
@@ -276,7 +269,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .ob-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--glass-border); transition: var(--transition); }
 .ob-dot.active { background: var(--blue); width: 24px; border-radius: 4px; }
 .ob-controls { padding: 20px 40px; background: rgba(0,0,0,0.2); border-top: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; }
-
 
 .academy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-top: 20px; }
 .course-card { background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 20px; padding: 28px; transition: var(--transition); display: flex; flex-direction: column; gap: 16px; position: relative; overflow: hidden; }
@@ -343,7 +335,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 
 <div class="aurora"><div class="aurora-blob"></div><div class="aurora-blob"></div><div class="aurora-blob"></div></div>
 
-<!-- 💡 סונאר כריש (טעינה חכמה) -->
 <div class="loading-overlay" id="loading">
   <div class="sonar-wrapper">
     <div class="sonar-ring"></div>
@@ -355,7 +346,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   <div class="loading-steps" id="loading-steps"></div>
 </div>
 
-<!-- 💡 מסך הפתיחה (קרוסלה - אונבורדינג) -->
 <div class="modal-overlay" id="onboarding-modal">
   <div class="modal">
     <div class="onboarding-slider" id="ob-slider">
@@ -409,7 +399,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   </div>
 </div>
 
-<!-- 💡 מודל התיק ההיברידי החדש -->
 <div class="modal-overlay" id="modal-trade">
   <div class="modal" style="position:relative">
     <button class="modal-close" onclick="document.getElementById('modal-trade').classList.remove('active')">✕</button>
@@ -485,8 +474,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
     <div class="section-title">🌐 מזג האוויר של השוק</div>
     <div class="section-subtitle">נתוני מדדים מרכזיים ועדכוני שוק בזמן אמת</div>
 
-    <div id="debug-market" style="display:none"></div>
-
     <div class="ticker-wrap"><div class="ticker-track" id="ticker-track">ממתין לנתונים מ-Finnhub...</div></div>
     <div class="market-stats" id="market-stats"></div>
     
@@ -520,10 +507,9 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
     </div>
   </div>
 
-  <!-- 💡 אזור התיק ההיברידי החדש -->
   <div id="section-portfolio" class="section">
     <div class="section-title">💼 תיק השקעות שלך</div>
-    <div class="section-subtitle">נהל סימולציות וירטואליות או עקוב אחרי התיק האמיתי שלך מהבנק.</div>
+    <div class="section-subtitle">נהל סימולציות וירטואליות או עקוב אחרי התיק האמיתי שלך מול הבורסה.</div>
     
     <div class="portfolio-tabs">
         <div class="port-tab active" id="tab-virt-port" onclick="switchPortfolioType('virtual')">🎮 זירת אימונים (וירטואלי)</div>
@@ -565,7 +551,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
     <div class="section-title" style="color:var(--gold)">⚙️ פאנל מנהל מערכת</div>
     <div class="section-subtitle">ניהול משתמשים והרשאות גישה למערכת בענן</div>
     
-    <!-- 💡 מנגנון מחיקת קאש למנהלים -->
     <div style="margin-top: 30px; margin-bottom:30px; padding: 20px; background: rgba(255,69,58,0.1); border: 1px solid var(--red); border-radius: 12px;">
         <h3 style="color: var(--red); margin-bottom: 10px;">מחיקת זיכרון (Cache) ליישור קו</h3>
         <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 15px;">כדי להכריח את הכריש לנתח מניה מחדש ולא למשוך נתונים ישנים מהזיכרון.</p>
@@ -584,11 +569,20 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
     
     <div class="results-grid" style="align-items: start;">
         <div class="card">
-            <!-- 💡 שינוי שם ל"תיק הכריש" ותצוגה וירטואלית -->
-            <div class="card-title" style="color:var(--gold)">🦈 התיק האישי של הכריש</div>
-            <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:15px;">תיק השקעות וירטואלי שה-AI בונה לעצמו בזמן אמת, מבוסס על המניות החזקות ביותר שהוא ניתח (ציון 75 ומעלה).</p>
-            <div id="top-setups-list" style="display:flex; flex-direction:column; gap:10px; min-height: 200px;">
-                 טוען את תיק הכריש...
+            <div class="card-title" style="color:var(--blue)">🥧 התיק הקהילתי</div>
+            <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:15px;">התפלגות המניות המועדפות על המשתמשים שלנו</p>
+            <div id="community-portfolio-list" style="display:flex; flex-direction:column; gap:12px; min-height: 200px;">
+                 טוען נתוני קהילה...
+            </div>
+        </div>
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <div class="card-title" style="color:var(--gold); margin:0;">🦈 תיק חוכמת הכריש (AI LIVE)</div>
+                <button class="btn btn-ghost" style="font-size:0.7rem; padding:4px 10px; border-color:var(--gold); color:var(--gold);" onclick="generateSharkPortfolio()">בקש מהכריש לבנות תיק</button>
+            </div>
+            <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:15px;">לחץ על הכפתור כדי לאפשר ל-AI לסרוק את השוק כרגע, ולהרכיב תיק מנצח של 5 מניות מבוסס מומנטום וערך.</p>
+            <div id="shark-portfolio-list" style="display:flex; flex-direction:column; gap:10px; min-height: 200px;">
+                 ממתין להוראה שלך...
             </div>
         </div>
     </div>
@@ -612,10 +606,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
       <button class="btn btn-primary search-btn" onclick="analyzeStock()">נתח ←</button>
     </div>
 
-    <div id="rate-limit-warning" class="rate-limit-box"></div>
-
     <div id="results" class="mt-32" style="display:none">
-      <div id="debug-analyze" style="display:none"></div>
       <div class="stock-header">
         <div>
           <div class="stock-ticker-label" id="res-ticker"></div>
@@ -645,7 +636,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
             </div>
           </div>
           <div class="chart-container" id="stockChart">
-              <!-- 💡 מקרא הגרף הצף -->
               <div class="chart-legend-overlay">
                   <div class="legend-item"><div class="legend-color" style="background:#0a84ff;"></div> MA 50</div>
                   <div class="legend-item"><div class="legend-color" style="background:#bf5af2;"></div> MA 200</div>
@@ -715,14 +705,11 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
     <div class="watchlist-grid" id="watchlist-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px;"></div>
   </div>
 
-  <!-- אזור לובי האקדמיה -->
   <div id="section-academy" class="section">
     <div class="hero-badge" style="background: rgba(191,90,242,0.15); color: var(--purple); border-color: rgba(191,90,242,0.3);">✦ FinShark Masterclass</div>
     <div class="section-title">🎓 אקדמיית הכריש</div>
     <div class="section-subtitle">הפכו מסוחרים מתחילים למשקיעי-על. למדו לקרוא את השוק, לנהל סיכונים ולהשתמש בבינה המלאכותית שלנו כדי לייצר רווחים.</div>
-    
     <div class="academy-grid">
-        <!-- קורס 1 -->
         <div class="course-card">
             <div class="course-num">1</div>
             <div class="course-icon-wrap" style="background: rgba(10,132,255,0.15); color: var(--blue);">🌊</div>
@@ -730,15 +717,10 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
             <div class="course-desc">הסוד שמאחורי שווי השוק, קריאת נרות יפניים, מחזורי מסחר וההבדל הקריטי בין מסחר סווינג להשקעת ערך ארוכת טווח.</div>
             <div class="course-actions">
                 <button class="btn btn-ghost" style="width: 100%; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;" onclick="window.open('academy.html?course=1', '_blank')"><span>צפה במצגת הקורס</span> <span>🖥️</span></button>
-                <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; font-weight: 600;">האזן לפודקאסט הסיכום (NotebookLM):</span>
-                <audio controls class="course-audio">
-                    <source src="איך_שווי_שוק_וווליום_חושפים_לווייתנים.m4a" type="audio/mp4">
-                    הדפדפן אינו תומך בנגן שמע.
-                </audio>
+                <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; font-weight: 600;">האזן לפודקאסט הסיכום:</span>
+                <audio controls class="course-audio"><source src="איך_שווי_שוק_וווליום_חושפים_לווייתנים.m4a" type="audio/mp4"></audio>
             </div>
         </div>
-
-        <!-- קורס 2 -->
         <div class="course-card">
             <div class="course-num">2</div>
             <div class="course-icon-wrap" style="background: rgba(48,209,88,0.15); color: var(--green);">📊</div>
@@ -746,15 +728,10 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
             <div class="course-desc">איך מזהים מניה יקרה? מכפילי רווח, דוחות רבעוניים, שולי רווח נקי, ואיך מעקב אחרי "הכסף החכם" של בעלי עניין יציל אתכם.</div>
             <div class="course-actions">
                 <button class="btn btn-ghost" style="width: 100%; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;" onclick="window.open('academy.html?course=2', '_blank')"><span>צפה במצגת הקורס</span> <span>🖥️</span></button>
-                <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; font-weight: 600;">האזן לפודקאסט הסיכום (NotebookLM):</span>
-                <audio controls class="course-audio">
-                    <source src="למה_מניות_מתרסקות_למרות_רווחי_ענק.m4a" type="audio/mp4">
-                    הדפדפן אינו תומך בנגן שמע.
-                </audio>
+                <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; font-weight: 600;">האזן לפודקאסט הסיכום:</span>
+                <audio controls class="course-audio"><source src="למה_מניות_מתרסקות_למרות_רווחי_ענק.m4a" type="audio/mp4"></audio>
             </div>
         </div>
-
-        <!-- קורס 3 -->
         <div class="course-card">
             <div class="course-num">3</div>
             <div class="course-icon-wrap" style="background: rgba(191,90,242,0.15); color: var(--purple);">📈</div>
@@ -762,15 +739,10 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
             <div class="course-desc">הפסיכולוגיה שמאחורי הגרף: רמות תמיכה והתנגדות אמתית, ממוצעים נעים (חיתוכי זהב ומוות), מדד ה-RSI ותבניות גיאומטריות מתקדמות.</div>
             <div class="course-actions">
                 <button class="btn btn-ghost" style="width: 100%; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;" onclick="window.open('academy.html?course=3', '_blank')"><span>צפה במצגת הקורס</span> <span>🖥️</span></button>
-                <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; font-weight: 600;">האזן לפודקאסט הסיכום (NotebookLM):</span>
-                <audio controls class="course-audio">
-                    <source src="הפסיכולוגיה_האנושית_שמאחורי_הגרפים_בבורסה.m4a" type="audio/mp4">
-                    הדפדפן אינו תומך בנגן שמע.
-                </audio>
+                <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; font-weight: 600;">האזן לפודקאסט הסיכום:</span>
+                <audio controls class="course-audio"><source src="הפסיכולוגיה_האנושית_שמאחורי_הגרפים_בבורסה.m4a" type="audio/mp4"></audio>
             </div>
         </div>
-
-        <!-- קורס 4 -->
         <div class="course-card">
             <div class="course-num">4</div>
             <div class="course-icon-wrap" style="background: rgba(255,69,58,0.15); color: var(--red);">🛡️</div>
@@ -778,15 +750,10 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
             <div class="course-desc">איך אפשר להרוויח גם אם טועים ב-50% מהעסקאות? יחסי סיכוי-סיכון, סטופ-לוס קשיח, "כלל ה-1%" המפורסם והתמודדות עם פחד (FOMO).</div>
             <div class="course-actions">
                 <button class="btn btn-ghost" style="width: 100%; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;" onclick="window.open('academy.html?course=4', '_blank')"><span>צפה במצגת הקורס</span> <span>🖥️</span></button>
-                <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; font-weight: 600;">האזן לפודקאסט הסיכום (NotebookLM):</span>
-                <audio controls class="course-audio">
-                    <source src="איך_להרוויח_כשטועים_בחצי_מהזמן.m4a" type="audio/mp4">
-                    הדפדפן אינו תומך בנגן שמע.
-                </audio>
+                <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; font-weight: 600;">האזן לפודקאסט הסיכום:</span>
+                <audio controls class="course-audio"><source src="איך_להרוויח_כשטועים_בחצי_מהזמן.m4a" type="audio/mp4"></audio>
             </div>
         </div>
-
-        <!-- קורס 5 -->
         <div class="course-card">
             <div class="course-num">5</div>
             <div class="course-icon-wrap" style="background: rgba(255,214,10,0.15); color: var(--gold);">🦈</div>
@@ -794,11 +761,8 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
             <div class="course-desc">איך לנצל את מערכת ה-AI שלנו למסחר בפועל: הבנת ה-Shark Score, פיצוח הפסיקה הכפולה (Dual Verdict) ואימון מתקדם בתיק הוירטואלי.</div>
             <div class="course-actions">
                 <button class="btn btn-primary" style="width: 100%; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(10,132,255,0.3);" onclick="window.open('academy.html?course=5', '_blank')"><span>צפה במצגת המסכמת</span> <span>🖥️</span></button>
-                <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; font-weight: 600;">האזן לפודקאסט המסכם (NotebookLM):</span>
-                <audio controls class="course-audio">
-                    <source src="ציון_הכריש_ושיטת_הפסיקה_הכפולה_למסחר.m4a" type="audio/mp4">
-                    הדפדפן אינו תומך בנגן שמע.
-                </audio>
+                <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; font-weight: 600;">האזן לפודקאסט הסיכום:</span>
+                <audio controls class="course-audio"><source src="ציון_הכריש_ושיטת_הפסיקה_הכפולה_למסחר.m4a" type="audio/mp4"></audio>
             </div>
         </div>
     </div>
@@ -836,11 +800,10 @@ function formatNumberShort(num) {
     return sign + absNum.toLocaleString(); 
 }
 
-/* --- 💡 Onboarding Logic --- */
 let obCurrentSlide = 0;
 window.closeOnboarding = function() {
     document.getElementById('onboarding-modal').classList.remove('active');
-    localStorage.setItem('finshark_onb_v3', 'true'); // מפתח חדש כדי להכריח הופעה
+    localStorage.setItem('finshark_onb_v4', 'true');
 };
 window.nextOnboardingSlide = function() {
     if (obCurrentSlide < 4) {
@@ -865,15 +828,13 @@ window.goToAcademyFromModal = function() {
 
 window.addEventListener('DOMContentLoaded', () => { 
     loadMarketWeather(); 
-    
-    if (!localStorage.getItem('finshark_onb_v3')) {
+    if (!localStorage.getItem('finshark_onb_v4')) {
         setTimeout(() => document.getElementById('onboarding-modal').classList.add('active'), 1000);
     } else if (!localStorage.getItem('finshark_academy_update_seen')) {
         setTimeout(() => document.getElementById('modal-update').classList.add('active'), 1500);
     }
 });
 
-/* --- 💡 Hybrid Portfolio Logic --- */
 window.switchPortfolioType = function(mode) {
     State.portfolioMode = mode;
     document.getElementById('tab-virt-port').classList.toggle('active', mode==='virtual');
@@ -887,16 +848,12 @@ window.openBuyModal = function(mode = 'virtual') {
     State.portfolioMode = mode;
     const p = State.currentData.price;
     document.getElementById('trade-modal-title').textContent = mode === 'virtual' ? "💼 מסחר וירטואלי" : "🏦 מעקב תיק אישי";
-    
     safeText('trade-price', `$${p.toFixed(2)}`);
     safeText('trade-cash', `$${(State.currentUser.balance || 0).toLocaleString()}`);
-    
     document.getElementById('trade-virtual-info').style.display = mode === 'virtual' ? 'block' : 'none';
     document.getElementById('trade-actions-virtual').style.display = mode === 'virtual' ? 'flex' : 'none';
-    
     document.getElementById('trade-real-price-input').style.display = mode === 'real' ? 'block' : 'none';
     document.getElementById('trade-actions-real').style.display = mode === 'real' ? 'block' : 'none';
-    
     document.getElementById('trade-shares').value = '';
     document.getElementById('trade-avg-price').value = p.toFixed(2);
     safeText('trade-total', '$0.00');
@@ -920,20 +877,15 @@ window.executeRealTrade = async function() {
     if(qty < 0) { errEl.textContent = 'כמות לא חוקית'; errEl.style.display = 'block'; return; }
 
     let realPortfolio = State.currentUser.realPortfolio || {};
-    if (qty === 0) {
-        delete realPortfolio[ticker]; 
-    } else {
-        realPortfolio[ticker] = { shares: qty, avgPrice: avgPrice };
-    }
+    if (qty === 0) delete realPortfolio[ticker]; 
+    else realPortfolio[ticker] = { shares: qty, avgPrice: avgPrice };
 
     try {
         await updateDoc(doc(db, 'users', State.currentUser.uid), { realPortfolio: realPortfolio });
         document.getElementById('modal-trade').classList.remove('active');
         alert("התיק האישי עודכן בהצלחה!");
         if (State.currentTab === 'portfolio') renderPortfolio();
-    } catch(e) {
-        errEl.textContent = 'שגיאת שרת. נסה שוב.'; errEl.style.display = 'block';
-    }
+    } catch(e) { errEl.textContent = 'שגיאת שרת. נסה שוב.'; errEl.style.display = 'block'; }
 };
 
 window.executeTrade = async function(type) {
@@ -970,9 +922,7 @@ window.executeTrade = async function(type) {
         document.getElementById('modal-trade').classList.remove('active');
         alert('הפעולה בוצעה בהצלחה!');
         if (State.currentTab === 'portfolio') renderPortfolio();
-    } catch (e) {
-        errEl.textContent = 'שגיאת שרת. נסה שוב.'; errEl.style.display = 'block';
-    }
+    } catch (e) { errEl.textContent = 'שגיאת שרת. נסה שוב.'; errEl.style.display = 'block'; }
 };
 
 window.renderPortfolio = async function() {
@@ -994,10 +944,7 @@ window.renderPortfolio = async function() {
     }
 
     listEl.innerHTML = '<p style="color:var(--blue); text-align:center;">מעדכן מחירים חיים מהבורסה...</p>';
-    
-    let totalStockValue = 0;
-    let totalInvested = 0;
-    let html = '';
+    let totalStockValue = 0; let totalInvested = 0; let html = '';
 
     for (let t of tickers) {
         const pos = activePort[t];
@@ -1025,9 +972,7 @@ window.renderPortfolio = async function() {
                     <div class="port-pnl" style="color:${pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPct.toFixed(2)}%)</div>
                 </div>
             </div>`;
-        } catch(e) {
-            console.log("Failed to fetch port data for " + t);
-        }
+        } catch(e) {}
     }
     
     const totalEquity = cash + totalStockValue;
@@ -1039,7 +984,6 @@ window.renderPortfolio = async function() {
     const pnlEl = document.getElementById('port-pnl');
     pnlEl.textContent = `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} (${totalPnlPct.toFixed(2)}%)`;
     pnlEl.style.color = totalPnl >= 0 ? 'var(--green)' : 'var(--red)';
-    
     listEl.innerHTML = html;
 };
 
@@ -1071,12 +1015,9 @@ onAuthStateChanged(auth, async (user) => {
     onSnapshot(doc(db, 'users', user.uid), async (docSnap) => {
       if (docSnap.exists()) {
         const userData = docSnap.data();
-        if (userData.balance === undefined) {
-            await updateDoc(doc(db, 'users', user.uid), { balance: 100000, portfolio: {}, realPortfolio: {} });
-        }
+        if (userData.balance === undefined) await updateDoc(doc(db, 'users', user.uid), { balance: 100000, portfolio: {}, realPortfolio: {} });
         State.currentUser = { uid: user.uid, ...userData };
         State.watchlist = userData.watchlist || [];
-
         if (State.currentTab === 'pending' && userData.status === 'approved') State.currentTab = 'shark';
         else if (State.currentTab === 'pending' && userData.role === 'admin') State.currentTab = 'admin';
         renderApp();
@@ -1100,19 +1041,42 @@ window.voteForCrowd = async function() {
         if (docSnap.exists()) await updateDoc(docRef, { votes: increment(1), lastUpdated: Date.now() });
         else await setDoc(docRef, { ticker: ticker, votes: 1, lastUpdated: Date.now() });
         if(btn) { btn.textContent = '✓ תודה!'; setTimeout(() => { btn.classList.remove('active'); btn.textContent = '👥'; }, 2000); }
-    } catch(e) {
-        if(btn) { btn.textContent = '❌'; setTimeout(() => { btn.classList.remove('active'); btn.textContent = '👥'; }, 2000); }
-    }
+    } catch(e) { if(btn) { btn.textContent = '❌'; setTimeout(() => { btn.classList.remove('active'); btn.textContent = '👥'; }, 2000); } }
 };
+
+// 💡 בניית תיק חוכמת הכריש באופן עצמאי דרך השרת
+window.generateSharkPortfolio = async function() {
+    const container = document.getElementById('shark-portfolio-list');
+    container.innerHTML = '<div style="text-align:center; color:var(--blue); padding: 20px;">הכריש מנתח את כלל השוק ובונה תיק מנצח... 🦈</div>';
+    try {
+        const res = await fetch(`${NETLIFY_API_URL}?action=shark_portfolio`);
+        const data = await res.json();
+        if(data.success && data.portfolio) {
+            let html = '';
+            data.portfolio.forEach(item => {
+                html += `
+                <div style="background:linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)); border:1px solid var(--glass-border); padding:20px; border-radius:16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:var(--transition); box-shadow: 0 4px 15px rgba(0,0,0,0.2);" onclick="window.goToAnalysis('${item.ticker}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--glass-border)'">
+                    <div style="display:flex; align-items:center; gap:16px; flex:1;">
+                        <div style="width: 56px; height: 56px; min-width: 56px; border-radius: 14px; background: rgba(255,214,10,0.15); color: var(--gold); border: 1px solid rgba(255,214,10,0.3); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 900;">${item.weight}%</div>
+                        <div>
+                            <div style="font-weight:900; font-size:1.3rem; direction:ltr; text-align:left; color:var(--text); letter-spacing: 0.05em;">${item.ticker}</div>
+                            <div style="font-size:0.8rem; font-weight:600; color:var(--blue); margin-top:4px;">${item.role}</div>
+                            <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:4px;">${item.reason}</div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = '<p style="color:var(--red);">שגיאה. נסה שנית בעוד מספר רגעים.</p>';
+        }
+    } catch(e) { container.innerHTML = '<p style="color:var(--red);">שגיאת תקשורת עם הכריש.</p>'; }
+}
 
 window.loadCommunityData = async function() {
     const commContainer = document.getElementById('community-portfolio-list');
-    const setupsContainer = document.getElementById('top-setups-list');
-    if (!commContainer || !setupsContainer) return;
-
+    if (!commContainer) return;
     commContainer.innerHTML = '<div style="text-align:center; padding: 20px;">מושך נתונים...</div>';
-    setupsContainer.innerHTML = '<div style="text-align:center; padding: 20px;">מושך נתונים...</div>';
-    
     try {
         const commSnap = await getDocs(collection(db, 'community_portfolio'));
         let portfolio = []; let totalVotes = 0;
@@ -1135,37 +1099,7 @@ window.loadCommunityData = async function() {
             });
             html += '</div>'; commContainer.innerHTML = html;
         }
-        
-        const setupsSnap = await getDocs(collection(db, 'ai_setups'));
-        let setups = []; setupsSnap.forEach(d => setups.push(d.data()));
-        setups.sort((a,b) => b.score - a.score);
-        
-        // 💡 שינוי התצוגה לתיק הכריש הוירטואלי
-        const sharkPortfolio = setups.filter(s => s.score >= 75).slice(0, 6);
-        if (sharkPortfolio.length === 0) {
-            setupsContainer.innerHTML = '<p style="color:var(--text-secondary)">הכריש עדיין לא מצא מניות שראויות לתיק שלו. (נדרש ציון 75+).</p>';
-        } else {
-            const allocation = Math.floor(100 / sharkPortfolio.length);
-            let sHtml = '';
-            sharkPortfolio.forEach((item, index) => {
-                sHtml += `
-                <div style="background:linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); border:1px solid var(--glass-border); padding:20px; border-radius:16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:var(--transition); flex-wrap:wrap; gap:12px;" onclick="window.goToAnalysis('${item.ticker}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--glass-border)'">
-                    <div style="display:flex; align-items:center; gap:16px;">
-                        <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(10,132,255,0.15); color: var(--blue); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 900;">${allocation}%</div>
-                        <div>
-                            <div style="font-weight:900; font-size:1.3rem; direction:ltr; text-align:left; color:var(--text);">${item.ticker}</div>
-                            <div style="font-size:0.85rem; font-weight:700; color:var(--gold); margin-top:2px;">ציון AI: ${item.score}</div>
-                        </div>
-                    </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:1rem; font-weight:800; color:var(--green); direction:ltr;">${item.intrinsicValue ? 'Target: $'+item.intrinsicValue : ''}</div>
-                        <div style="font-size:0.85rem; font-weight:800; color:var(--blue); margin-top:4px; padding:4px 12px; background:rgba(255,255,255,0.05); border-radius:6px; display:inline-block;">${item.rating || 'קנייה חזקה'}</div>
-                    </div>
-                </div>`;
-            });
-            setupsContainer.innerHTML = sHtml;
-        }
-    } catch(e) { console.error("Error loading community data", e); commContainer.innerHTML = 'שגיאה בטעינת הנתונים.'; setupsContainer.innerHTML = 'שגיאה בטעינת הנתונים.'; }
+    } catch(e) { commContainer.innerHTML = 'שגיאה בטעינת הנתונים.'; }
 };
 
 function setupAdminDashboard() {
@@ -1175,7 +1109,6 @@ function setupAdminDashboard() {
     if (!listEl) return;
     snapshot.forEach(doc => { if (doc.data().role !== 'admin') users.push({ id: doc.id, ...doc.data() }); });
     if(users.length === 0) { listEl.innerHTML = '<p style="color:var(--text-secondary)">אין משתמשים במערכת כרגע.</p>'; return; }
-    
     listEl.innerHTML = users.map(u => { 
         const isApproved = u.status === 'approved'; 
         const isRestricted = u.restrictedUntil && Date.now() < u.restrictedUntil;
@@ -1191,7 +1124,6 @@ window.approveUser = async function(uid) { await updateDoc(doc(db, 'users', uid)
 window.revokeUser = async function(uid) { await updateDoc(doc(db, 'users', uid), { status: 'pending' }); };
 window.removeRestriction = async function(uid) { await updateDoc(doc(db, 'users', uid), { restrictedUntil: null, analysisCount: 0 }); };
 
-// 💡 פונקציה חדשה למנהל - מחיקת קאש
 window.adminClearCache = async function() {
     const t = document.getElementById('admin-cache-input').value.trim().toUpperCase();
     if(!t) return;
@@ -1220,19 +1152,15 @@ window.switchTab = function(tab, el) {
   const isLoggedIn = State.currentUser !== null;
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
   const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
-  
   if ((tab === 'shark' || tab === 'watchlist' || tab === 'community' || tab === 'portfolio' || tab === 'academy') && !isAdmin) {
       if (!isLoggedIn) { window.openLogin(); return; }
       if (!isApproved) { State.currentTab = 'pending'; renderApp(); return; }
   }
-  
-  State.currentTab = tab;
-  renderApp();
+  State.currentTab = tab; renderApp();
 };
 
 function renderApp() {
   ['section-market', 'section-pending', 'section-shark', 'section-admin', 'section-watchlist', 'section-community', 'section-portfolio', 'section-academy'].forEach(s => { const elem = document.getElementById(s); if(elem) elem.classList.remove('active'); });
-  
   const isLoggedIn = State.currentUser !== null;
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
   const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
@@ -1240,28 +1168,22 @@ function renderApp() {
   if ((State.currentTab === 'shark' || State.currentTab === 'watchlist' || State.currentTab === 'community' || State.currentTab === 'portfolio' || State.currentTab === 'academy') && !isAdmin && !isApproved) {
       State.currentTab = isLoggedIn ? 'pending' : 'market';
   }
-  if (State.currentTab === 'pending' && (isApproved || isAdmin)) {
-      State.currentTab = isAdmin ? 'admin' : 'shark';
-  }
+  if (State.currentTab === 'pending' && (isApproved || isAdmin)) State.currentTab = isAdmin ? 'admin' : 'shark';
 
   const btnLogin = document.getElementById('btn-login'); if(btnLogin) btnLogin.style.display = isLoggedIn ? 'none' : '';
   const btnLogout = document.getElementById('btn-logout'); if(btnLogout) btnLogout.style.display = isLoggedIn ? '' : 'none';
-  
   ['lock-shark', 'lock-watch', 'lock-comm', 'lock-port', 'lock-acad'].forEach(id => {
       const lock = document.getElementById(id);
       if (lock) lock.style.display = (isApproved || isAdmin) ? 'none' : 'inline';
   });
 
   const promoBox = document.getElementById('promo-box'); if(promoBox) promoBox.style.display = isLoggedIn ? 'none' : 'block';
-  
   const greeting = document.getElementById('user-greeting');
   if(greeting) {
       if (isLoggedIn) { greeting.textContent = `שלום, ${State.currentUser.email.split('@')[0]}`; greeting.style.display = ''; } 
       else greeting.style.display = 'none';
   }
-  
-  const navAdmin = document.getElementById('nav-admin');
-  if(navAdmin) navAdmin.style.display = isAdmin ? '' : 'none';
+  const navAdmin = document.getElementById('nav-admin'); if(navAdmin) navAdmin.style.display = isAdmin ? '' : 'none';
   
   if (isAdmin && State.currentTab === 'admin') { const sec = document.getElementById('section-admin'); if(sec) sec.classList.add('active'); setupAdminDashboard(); }
   else if (State.currentTab === 'pending') { const sec = document.getElementById('section-pending'); if(sec) sec.classList.add('active'); }
@@ -1285,7 +1207,6 @@ window.loadMarketWeather = async function() {
       if (data.success && data.marketData) renderMarketWeather(data.marketData);
       else { if(debugEl) { debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 שגיאת שרת לוגית:</strong>\n\n${data.message || JSON.stringify(data)}`; } }
   } catch (e) {
-      console.error(e); 
       if(debugEl) { debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 כישלון רשת. האם השרת פועל?</strong><br><br>${e.message}`; }
       if(trackerEl) trackerEl.innerHTML = "שגיאת רשת.";
   }
@@ -1296,7 +1217,6 @@ const mapSectorToHebrew = (engName) => { const map = { "Technology": "טכנול
 function renderMarketWeather(data) {
   let { indexes, sectors, news, gainers, losers } = data;
   if (!Array.isArray(indexes)) indexes = []; if (!Array.isArray(sectors)) sectors = []; if (!Array.isArray(news)) news = [];
-  
   let tickerHtml = "", statsHtml = "";
 
   if (indexes.length === 0) tickerHtml = "<div class='ticker-item' style='color:var(--red)'>המתן... לא הצלחנו למשוך נתונים.</div>";
@@ -1304,13 +1224,11 @@ function renderMarketWeather(data) {
       indexes.forEach(idx => {
           const name = idx.symbol, isUp = typeof idx.changesPercentage === 'number' && idx.changesPercentage >= 0, price = (typeof idx.price === 'number') ? (idx.price >= 1000 ? idx.price.toLocaleString(undefined, {maximumFractionDigits: 0}) : idx.price.toFixed(2)) : 0; 
           const chg = (typeof idx.changesPercentage === 'number') ? `${isUp ? '+' : ''}${idx.changesPercentage.toFixed(2)}%` : '0%'; 
-          const colorUp = isUp;
-          tickerHtml += `<div class="ticker-item"><span class="ticker-name">${name}</span> <span class="ticker-price">${price}</span> <span class="ticker-change ${colorUp?'up':'down'}">${chg}</span></div>`;
-          statsHtml += `<div class="stat-card"><div class="stat-label">${name}</div><div class="stat-value">${price}</div><div class="stat-change ${colorUp?'up':'down'}">${chg} היום</div></div>`;
+          tickerHtml += `<div class="ticker-item"><span class="ticker-name">${name}</span> <span class="ticker-price">${price}</span> <span class="ticker-change ${isUp?'up':'down'}">${chg}</span></div>`;
+          statsHtml += `<div class="stat-card"><div class="stat-label">${name}</div><div class="stat-value">${price}</div><div class="stat-change ${isUp?'up':'down'}">${chg} היום</div></div>`;
       });
   }
-  safeHTML('ticker-track', tickerHtml + tickerHtml);
-  safeHTML('market-stats', statsHtml);
+  safeHTML('ticker-track', tickerHtml + tickerHtml); safeHTML('market-stats', statsHtml);
 
   if (sectors.length > 0) {
       const html = sectors.slice(0, 12).map(s => { const chg = parseFloat(s.changesPercentage); const isUp = chg > 0; const isNeutral = chg === 0; const cls = isNeutral ? 'neutral' : (isUp ? 'up' : 'down'); return `<div class="heatmap-cell ${cls}" title="${s.sector}"><div class="cell-name">${mapSectorToHebrew(s.sector)}</div><div class="cell-change ${cls}">${!isNaN(chg) ? (isUp?'+':'') + chg.toFixed(2) + '%' : '0%'}</div></div>`; }).join('');
@@ -1320,31 +1238,17 @@ function renderMarketWeather(data) {
   const renderMovers = (items, containerId, isGainer) => {
       const container = document.getElementById(containerId);
       if(!container) return;
-      if (!items || items.length === 0) {
-          container.innerHTML = '<p style="color:var(--text-secondary); font-size:0.85rem;">אין נתונים זמינים כרגע.</p>';
-          return;
-      }
+      if (!items || items.length === 0) { container.innerHTML = '<p style="color:var(--text-secondary); font-size:0.85rem;">אין נתונים זמינים כרגע.</p>'; return; }
       container.innerHTML = items.map(item => {
-          const chg = parseFloat(item.changesPercentage);
-          const chgStr = !isNaN(chg) ? `${chg > 0 ? '+' : ''}${chg.toFixed(2)}%` : 'N/A';
-          const p = parseFloat(item.price);
-          const priceStr = !isNaN(p) ? `$${p.toFixed(2)}` : 'N/A';
-          const colorCls = isGainer ? 'up' : 'down';
-          return `
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); border-radius:10px; cursor:pointer; transition:var(--transition);" onclick="quickSearch('${item.symbol}')" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--glass-border)'">
-              <div style="display:flex; flex-direction:column; gap:2px; text-align:left; direction:ltr; flex:1; min-width:0;">
-                  <span style="font-weight:800; color:var(--text); font-size:0.95rem;">${item.symbol}</span>
-                  <span style="font-size:0.7rem; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:90%;">${item.name}</span>
-              </div>
-              <div style="display:flex; flex-direction:column; gap:2px; text-align:right; direction:ltr; min-width:70px;">
-                  <span style="font-weight:700; font-size:0.95rem;">${priceStr}</span>
-                  <span style="font-size:0.8rem; font-weight:700;" class="${colorCls}">${chgStr}</span>
-              </div>
+          const chg = parseFloat(item.changesPercentage); const chgStr = !isNaN(chg) ? `${chg > 0 ? '+' : ''}${chg.toFixed(2)}%` : 'N/A';
+          const p = parseFloat(item.price); const priceStr = !isNaN(p) ? `$${p.toFixed(2)}` : 'N/A';
+          return `<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); border-radius:10px; cursor:pointer; transition:var(--transition);" onclick="quickSearch('${item.symbol}')" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--glass-border)'">
+              <div style="display:flex; flex-direction:column; gap:2px; text-align:left; direction:ltr; flex:1; min-width:0;"><span style="font-weight:800; color:var(--text); font-size:0.95rem;">${item.symbol}</span><span style="font-size:0.7rem; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:90%;">${item.name}</span></div>
+              <div style="display:flex; flex-direction:column; gap:2px; text-align:right; direction:ltr; min-width:70px;"><span style="font-weight:700; font-size:0.95rem;">${priceStr}</span><span style="font-size:0.8rem; font-weight:700;" class="${isGainer ? 'up' : 'down'}">${chgStr}</span></div>
           </div>`;
       }).join('');
   };
-  renderMovers(gainers, 'top-gainers-list', true);
-  renderMovers(losers, 'top-losers-list', false);
+  renderMovers(gainers, 'top-gainers-list', true); renderMovers(losers, 'top-losers-list', false);
 
   if (news.length > 0) {
       const html = news.map(n => { 
@@ -1358,10 +1262,8 @@ function renderMarketWeather(data) {
 window.analyzeStock = async function() {
   const ticker = document.getElementById('ticker-input').value.trim().toUpperCase(); 
   if (!ticker) return;
-  
   showLoading();
-  const debugEl = document.getElementById('debug-analyze');
-  debugEl.style.display = 'none';
+  const debugEl = document.getElementById('debug-analyze'); debugEl.style.display = 'none';
 
   const cacheDoc = await getDoc(doc(db, 'ai_cache', ticker));
   if (cacheDoc.exists()) {
@@ -1372,15 +1274,12 @@ window.analyzeStock = async function() {
               const liveRes = await fetch(`${NETLIFY_API_URL}?action=live_data&ticker=${ticker}`);
               const liveData = await liveRes.json();
               if (liveData.success) {
-                  cached.price = liveData.price;
-                  cached.changePercentage = liveData.changePercentage;
-                  cached.chartData = liveData.chartData;
-                  hideLoading();
-                  State.currentData = cached; // 💡 תוקן: מאפשר עכשיו לשמור בתיק מניות שנטענו מהזיכרון!
+                  cached.price = liveData.price; cached.changePercentage = liveData.changePercentage; cached.chartData = liveData.chartData;
+                  hideLoading(); State.currentData = cached; 
                   renderResults(cached, cached.analysis, cached.chartData, cached.tickerNews || []);
                   return;
               }
-          } catch(e) { console.warn("Live update failed"); }
+          } catch(e) {}
       }
   }
 
@@ -1388,26 +1287,17 @@ window.analyzeStock = async function() {
   try {
       const response = await fetch(`${NETLIFY_API_URL}?action=analyze&ticker=${ticker}`);
       const data = await response.json();
-      
       if (data.success) {
           State.currentData = data;
           if (data.isDataComplete) {
               await setDoc(doc(db, 'ai_cache', ticker), { ticker, data, lastUpdated: Date.now() });
               if (data.analysis && data.analysis.scores && data.analysis.scores.overall >= 70) {
-                  await setDoc(doc(db, 'ai_setups', ticker), {
-                      ticker, score: data.analysis.scores.overall, rating: data.analysis.rating || 'קנייה',
-                      intrinsicValue: data.analysis.long_term?.intrinsic_value || '', lastUpdated: Date.now()
-                  });
+                  await setDoc(doc(db, 'ai_setups', ticker), { ticker, score: data.analysis.scores.overall, rating: data.analysis.rating || 'קנייה', intrinsicValue: data.analysis.long_term?.intrinsic_value || '', lastUpdated: Date.now() });
               }
           }
-          hideLoading();
-          renderResults(data, data.analysis, data.chartData, data.tickerNews || []);
+          hideLoading(); renderResults(data, data.analysis, data.chartData, data.tickerNews || []);
       }
-  } catch (error) { 
-      hideLoading();
-      debugEl.style.display = 'block';
-      debugEl.textContent = "שגיאה בחיבור לשרת הניתוח.";
-  }
+  } catch (error) { hideLoading(); debugEl.style.display = 'block'; debugEl.textContent = "שגיאה בחיבור לשרת הניתוח."; }
 };
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -1416,11 +1306,7 @@ function setLoadingText(t) { safeText('loading-text', t); }
 function hideLoading() { const lo = document.getElementById('loading'); if(lo) lo.classList.remove('active'); }
 async function animateLoadingSteps(steps) { const container = document.getElementById('loading-steps'); if(!container) return; container.innerHTML = ''; for (let i = 0; i < steps.length; i++) { await sleep(400); const prev = container.querySelector('.loading-step:not(.done)'); if (prev) { prev.classList.add('done'); prev.textContent = '✓ ' + prev.textContent; } setLoadingText(steps[i]); const el = document.createElement('div'); el.className = 'loading-step'; el.textContent = steps[i]; container.appendChild(el); if (container.children.length > 5) container.removeChild(container.firstChild); } }
 
-let tvChart = null;
-let candleSeries = null;
-let ma50Series = null;
-let ma200Series = null;
-let volumeSeries = null; 
+let tvChart = null; let candleSeries = null; let ma50Series = null; let ma200Series = null; let volumeSeries = null; 
 
 window.setChartPeriod = function(months, btn) { 
     document.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active')); 
@@ -1429,34 +1315,24 @@ window.setChartPeriod = function(months, btn) {
     renderChart(window.currentChartData, months, State.currentData); 
 };
 
+// 💡 התיקון בגרף: כל התוויות (Labels) וטקסטים מרחפים בתוך הגרף הוסרו לחלוטין.
 function renderChart(historyData, months, fullDataObj) {
     window.currentChartData = historyData; 
     const container = document.getElementById('stockChart');
     if(!container) return;
     if(!historyData || !Array.isArray(historyData)) return;
 
-    let cutoffDate = new Date();
-    cutoffDate.setMonth(cutoffDate.getMonth() - months);
-    
+    let cutoffDate = new Date(); cutoffDate.setMonth(cutoffDate.getMonth() - months);
     const filteredData = historyData.filter(d => new Date(d.date) >= cutoffDate || months === 999);
     if(filteredData.length === 0) return;
 
     const candles = filteredData.map(d => ({ time: d.date, open: d.open, high: d.high, low: d.low, close: d.close }));
     const ma50Line = filteredData.filter(d => d.ma50 !== null).map(d => ({ time: d.date, value: d.ma50 }));
     const ma200Line = filteredData.filter(d => d.ma200 !== null).map(d => ({ time: d.date, value: d.ma200 }));
-    
-    const volumes = filteredData.map(d => ({ 
-        time: d.date, 
-        value: d.volume, 
-        color: d.close >= d.open ? 'rgba(48, 209, 88, 0.35)' : 'rgba(255, 69, 58, 0.35)' 
-    }));
+    const volumes = filteredData.map(d => ({ time: d.date, value: d.volume, color: d.close >= d.open ? 'rgba(48, 209, 88, 0.35)' : 'rgba(255, 69, 58, 0.35)' }));
 
     const legendHtml = container.querySelector('.chart-legend-overlay')?.outerHTML || '';
-
-    if (tvChart) {
-        tvChart.remove();
-        tvChart = null;
-    }
+    if (tvChart) { tvChart.remove(); tvChart = null; }
 
     tvChart = LightweightCharts.createChart(container, {
         layout: { background: { type: 'solid', color: 'transparent' }, textColor: '#86868b' },
@@ -1465,93 +1341,51 @@ function renderChart(historyData, months, fullDataObj) {
         timeScale: { borderVisible: false, fixLeftEdge: true, fixRightEdge: true },
         crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
     });
-    
-    if (legendHtml) {
-        container.insertAdjacentHTML('beforeend', legendHtml);
-    }
+    if (legendHtml) container.insertAdjacentHTML('beforeend', legendHtml);
 
     new ResizeObserver(entries => {
         if (entries.length === 0 || entries[0].target !== container) return;
-        const newRect = entries[0].contentRect;
-        tvChart.applyOptions({ height: newRect.height, width: newRect.width });
+        tvChart.applyOptions({ height: entries[0].contentRect.height, width: entries[0].contentRect.width });
     }).observe(container);
 
-    volumeSeries = tvChart.addHistogramSeries({
-        color: '#26a69a',
-        priceFormat: { type: 'volume' },
-        priceScaleId: '', 
-        scaleMargins: { top: 0.85, bottom: 0 },
-    });
+    volumeSeries = tvChart.addHistogramSeries({ color: '#26a69a', priceFormat: { type: 'volume' }, priceScaleId: '', scaleMargins: { top: 0.85, bottom: 0 } });
     volumeSeries.setData(volumes);
 
-    candleSeries = tvChart.addCandlestickSeries({
-        upColor: '#30d158', downColor: '#ff453a', borderVisible: false,
-        wickUpColor: '#30d158', wickDownColor: '#ff453a'
-    });
+    candleSeries = tvChart.addCandlestickSeries({ upColor: '#30d158', downColor: '#ff453a', borderVisible: false, wickUpColor: '#30d158', wickDownColor: '#ff453a' });
     candleSeries.setData(candles);
 
-    // 💡 התיקון: הסרנו את התכונה "title" כך שאין יותר טקסט שרוכב על הגרף ומלכלך אותו!
-    if (ma50Line.length > 0) {
-        ma50Series = tvChart.addLineSeries({ color: '#0a84ff', lineWidth: 1.5 });
-        ma50Series.setData(ma50Line);
-    }
-    if (ma200Line.length > 0) {
-        ma200Series = tvChart.addLineSeries({ color: '#bf5af2', lineWidth: 1.5 });
-        ma200Series.setData(ma200Line);
-    }
+    if (ma50Line.length > 0) { ma50Series = tvChart.addLineSeries({ color: '#0a84ff', lineWidth: 1.5 }); ma50Series.setData(ma50Line); }
+    if (ma200Line.length > 0) { ma200Series = tvChart.addLineSeries({ color: '#bf5af2', lineWidth: 1.5 }); ma200Series.setData(ma200Line); }
 
     if (fullDataObj && fullDataObj.keyLevels && fullDataObj.keyLevels.length > 0) {
         fullDataObj.keyLevels.forEach(level => {
             if(typeof level.price !== 'number') return;
-            const isRes = level.type.includes('התנגדות');
             candleSeries.createPriceLine({
-                price: level.price,
-                color: isRes ? 'rgba(255, 69, 58, 0.4)' : 'rgba(48, 209, 88, 0.4)',
-                lineWidth: 1,
-                lineStyle: LightweightCharts.LineStyle.Dotted,
-                axisLabelVisible: true
+                price: level.price, color: level.type.includes('התנגדות') ? 'rgba(255, 69, 58, 0.4)' : 'rgba(48, 209, 88, 0.4)',
+                lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dotted, axisLabelVisible: false
             });
         });
     }
 
     if (fullDataObj && fullDataObj.patternLines && fullDataObj.patternLines.length > 0) {
         fullDataObj.patternLines.forEach(lineDef => {
-            const trendSeries = tvChart.addLineSeries({
-                color: lineDef.color, lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid,
-                lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false
-            });
-            trendSeries.setData([
-                { time: lineDef.start.time, value: lineDef.start.value },
-                { time: lineDef.end.time, value: lineDef.end.value }
-            ]);
+            const trendSeries = tvChart.addLineSeries({ color: lineDef.color, lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false });
+            trendSeries.setData([ { time: lineDef.start.time, value: lineDef.start.value }, { time: lineDef.end.time, value: lineDef.end.value } ]);
         });
     }
 
     if (fullDataObj && fullDataObj.analysis && fullDataObj.analysis.short_term) {
         const sTerm = fullDataObj.analysis.short_term;
         const currentPrice = fullDataObj.price;
-        
-        const tPriceStr = sTerm.target_price;
-        const sLossStr = sTerm.stop_loss;
-        
-        if (tPriceStr && currentPrice > 0) {
-            const tPrice = Number(String(tPriceStr).replace(/[^0-9.]/g, ''));
-            if (!isNaN(tPrice) && tPrice > 0) {
-                candleSeries.createPriceLine({
-                    price: tPrice, color: '#30d158', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid, axisLabelVisible: true
-                });
-            }
+        if (sTerm.target_price && currentPrice > 0) {
+            const tPrice = Number(String(sTerm.target_price).replace(/[^0-9.]/g, ''));
+            if (!isNaN(tPrice) && tPrice > 0) candleSeries.createPriceLine({ price: tPrice, color: '#30d158', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid, axisLabelVisible: false });
         }
-        if (sLossStr && currentPrice > 0) {
-            const sLoss = Number(String(sLossStr).replace(/[^0-9.]/g, ''));
-            if (!isNaN(sLoss) && sLoss > 0) {
-                candleSeries.createPriceLine({
-                    price: sLoss, color: '#ff453a', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid, axisLabelVisible: true
-                });
-            }
+        if (sTerm.stop_loss && currentPrice > 0) {
+            const sLoss = Number(String(sTerm.stop_loss).replace(/[^0-9.]/g, ''));
+            if (!isNaN(sLoss) && sLoss > 0) candleSeries.createPriceLine({ price: sLoss, color: '#ff453a', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid, axisLabelVisible: false });
         }
     }
-
     tvChart.timeScale().fitContent();
 }
 
@@ -1561,14 +1395,9 @@ function renderScores(scores) {
   const cols = document.createElement('div'); cols.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:10px 32px;';
   items.forEach(item => { const v = typeof scores[item.key] === 'number' ? scores[item.key] : 0; cols.innerHTML += `<div class="score-bar-wrap"><span class="score-bar-label">${item.label}</span><div class="score-bar-track"><div class="score-bar-fill" style="width:0%;background:${item.color};border-radius:3px;" data-target="${v}"></div></div><span class="score-bar-val" style="color:${item.color}">${v}</span></div>`; });
   
-  safeHTML('ai-scores', ''); 
-  const scoreEl = document.getElementById('ai-scores');
-  if(scoreEl) scoreEl.appendChild(cols);
-  
+  safeHTML('ai-scores', ''); const scoreEl = document.getElementById('ai-scores'); if(scoreEl) scoreEl.appendChild(cols);
   const overall = typeof scores.overall === 'number' ? scores.overall : Math.round(((scores.growth||50) + (scores.value||50) + (scores.momentum||50) + (scores.quality||50)) / 4);
-  const circle = document.getElementById('ai-score-circle'); 
-  if(circle) circle.style.setProperty('--score', overall); 
-  safeText('ai-score-text', overall);
+  const circle = document.getElementById('ai-score-circle'); if(circle) circle.style.setProperty('--score', overall); safeText('ai-score-text', overall);
   
   let scoreTitle = "סביר", scoreColor = "var(--gold)"; 
   if (overall >= 80) { scoreTitle = "מצוין (Strong Buy)"; scoreColor = "var(--green)"; } 
@@ -1576,50 +1405,37 @@ function renderScores(scores) {
   else if (overall <= 40) { scoreTitle = "שלילי (Sell)"; scoreColor = "var(--red)"; }
   
   safeText('ai-score-title', `ציון משוקלל: ${scoreTitle}`); 
-  const titleEl = document.getElementById('ai-score-title');
-  if(titleEl) titleEl.style.color = scoreColor; 
+  const titleEl = document.getElementById('ai-score-title'); if(titleEl) titleEl.style.color = scoreColor; 
   if(circle) circle.style.background = `conic-gradient(${scoreColor} calc(var(--score) * 1%), rgba(255,255,255,0.05) 0)`;
-  
   requestAnimationFrame(() => { requestAnimationFrame(() => { document.querySelectorAll('.score-bar-fill').forEach(el => { el.style.width = el.dataset.target + '%'; }); }); });
 }
 
 function renderResults(data, analysis, historyData, newsData) {
   const isUp = typeof data.changePercentage === 'number' && data.changePercentage >= 0; 
-  safeText('res-ticker', `${data.ticker || 'N/A'} · ${data.sector || 'N/A'}`); 
-  safeText('res-name', data.name || 'N/A'); 
-  
-  const p = typeof data.price === 'number' ? data.price : 0;
-  safeText('res-price', `$${p.toFixed(2)}`);
+  safeText('res-ticker', `${data.ticker || 'N/A'} · ${data.sector || 'N/A'}`); safeText('res-name', data.name || 'N/A'); 
+  const p = typeof data.price === 'number' ? data.price : 0; safeText('res-price', `$${p.toFixed(2)}`);
   
   const chEl = document.getElementById('res-change'); 
   if (chEl) {
       const cp = typeof data.changePercentage === 'number' ? data.changePercentage : 0;
-      chEl.textContent = `${cp >= 0 ? '+' : ''}${cp.toFixed(2)}%  (${cp >= 0 ? '▲' : '▼'} היום)`; 
-      chEl.className = `stock-change ${cp >= 0 ? 'up' : 'down'}`;
+      chEl.textContent = `${cp >= 0 ? '+' : ''}${cp.toFixed(2)}%  (${cp >= 0 ? '▲' : '▼'} היום)`; chEl.className = `stock-change ${cp >= 0 ? 'up' : 'down'}`;
   }
-  
   const btnWatch = document.getElementById('btn-add-watch-results'); 
   if (btnWatch) {
-      if(State.watchlist.includes(data.ticker)) { btnWatch.textContent = '✓'; btnWatch.classList.add('active'); } 
-      else { btnWatch.textContent = '📌'; btnWatch.classList.remove('active'); }
+      if(State.watchlist.includes(data.ticker)) { btnWatch.textContent = '✓'; btnWatch.classList.add('active'); } else { btnWatch.textContent = '📌'; btnWatch.classList.remove('active'); }
   }
-  
-  renderChart(historyData, 6, data); 
-  document.querySelectorAll('.chart-btn').forEach((b,i) => b.classList.toggle('active', i===1));
+  renderChart(historyData, 6, data); document.querySelectorAll('.chart-btn').forEach((b,i) => b.classList.toggle('active', i===1));
 
   const rangeLow = typeof data.fiftyTwoWeekLow === 'number' ? data.fiftyTwoWeekLow : 0;
   const rangeHigh = typeof data.fiftyTwoWeekHigh === 'number' ? data.fiftyTwoWeekHigh : 100;
   const currentPos = Math.max(0, Math.min(100, ((p - rangeLow) / (Math.max(rangeHigh - rangeLow, 1))) * 100));
   
-  // 💡 התיקון לדוח הרבעוני: אם קיים, נציג נתון חיובי או שלילי בצורה בטוחה
-  let earningsText = 'לא זמין';
-  let earningsGood = false;
-  let earningsBad = false;
-  if (data.latestEarnings && data.latestEarnings.surprisePercent !== null && data.latestEarnings.surprisePercent !== undefined) {
+  // 💡 התיקון לדוח הרבעוני: המידע יוצג בבירור בממשק
+  let earningsText = 'לא זמין'; let earningsGood = false; let earningsBad = false;
+  if (data.latestEarnings && typeof data.latestEarnings.surprisePercent === 'number') {
       const sp = data.latestEarnings.surprisePercent;
       earningsText = sp > 0 ? `+${sp.toFixed(1)}% (הכה תחזיות)` : `${sp.toFixed(1)}% (אכזב)`;
-      earningsGood = sp > 0;
-      earningsBad = sp < 0;
+      earningsGood = sp > 0; earningsBad = sp < 0;
   }
   
   const fundRows = [ 
