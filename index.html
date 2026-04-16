@@ -584,18 +584,11 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
     
     <div class="results-grid" style="align-items: start;">
         <div class="card">
-            <div class="card-title" style="color:var(--blue)">🥧 התיק הקהילתי</div>
-            <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:15px;">התפלגות המניות המועדפות על המשתמשים שלנו</p>
-            <div id="community-portfolio-list" style="display:flex; flex-direction:column; gap:12px; min-height: 200px;">
-                 טוען נתוני קהילה...
-            </div>
-        </div>
-        <div class="card">
-            <!-- 💡 שינוי שם ל"תיק חוכמת הכריש" -->
-            <div class="card-title" style="color:var(--gold)">🦈 תיק חוכמת הכריש (AI Top Picks)</div>
-            <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:15px;">תיק וירטואלי אוטומטי המאגד רק את המניות שקיבלו ציוני AI חריגים (מעל 70).</p>
+            <!-- 💡 שינוי שם ל"תיק הכריש" ותצוגה וירטואלית -->
+            <div class="card-title" style="color:var(--gold)">🦈 התיק האישי של הכריש</div>
+            <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:15px;">תיק השקעות וירטואלי שה-AI בונה לעצמו בזמן אמת, מבוסס על המניות החזקות ביותר שהוא ניתח (ציון 75 ומעלה).</p>
             <div id="top-setups-list" style="display:flex; flex-direction:column; gap:10px; min-height: 200px;">
-                 טוען המלצות AI...
+                 טוען את תיק הכריש...
             </div>
         </div>
     </div>
@@ -1147,32 +1140,26 @@ window.loadCommunityData = async function() {
         let setups = []; setupsSnap.forEach(d => setups.push(d.data()));
         setups.sort((a,b) => b.score - a.score);
         
-        if(setups.length === 0) {
-            setupsContainer.innerHTML = '<p style="color:var(--text-secondary)">המערכת מתחממת. חברות יופיעו כאן בקרוב.</p>';
+        // 💡 שינוי התצוגה לתיק הכריש הוירטואלי
+        const sharkPortfolio = setups.filter(s => s.score >= 75).slice(0, 6);
+        if (sharkPortfolio.length === 0) {
+            setupsContainer.innerHTML = '<p style="color:var(--text-secondary)">הכריש עדיין לא מצא מניות שראויות לתיק שלו. (נדרש ציון 75+).</p>';
         } else {
+            const allocation = Math.floor(100 / sharkPortfolio.length);
             let sHtml = '';
-            setups.slice(0, 10).forEach((item, index) => {
-                const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index+1}`;
-                const entryStr = item.entryPrice ? `כניסה: $${item.entryPrice}` : '';
-                const stopStr = item.stopLoss ? `סטופ: $${item.stopLoss}` : '';
-                const targetStr = item.targetPrice ? `יעד: $${item.targetPrice}` : '';
-                const levelsHtml = (entryStr || stopStr || targetStr) ? `<div style="margin-top:10px; display:flex; gap:12px; font-size:0.8rem; font-weight:800; color:var(--text); background:rgba(0,0,0,0.3); padding:8px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.05); width:fit-content; flex-wrap:wrap;"><span style="color:var(--blue); direction:ltr;">${entryStr}</span> <span style="color:var(--red); direction:ltr;">${stopStr}</span> <span style="color:var(--green); direction:ltr;">${targetStr}</span></div>` : '';
-                const expHtml = item.expectation ? `<div style="margin-top:10px; font-size:0.85rem; color:var(--text-secondary); line-height:1.5;"><b>צפי הכריש:</b> ${item.expectation}</div>` : '';
-
+            sharkPortfolio.forEach((item, index) => {
                 sHtml += `
-                <div style="background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); padding:20px; border-radius:16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:flex-start; cursor:pointer; transition:var(--transition); flex-wrap:wrap; gap:12px;" onclick="goToAnalysis('${item.ticker}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--glass-border)'">
-                    <div style="display:flex; align-items:flex-start; gap:16px; flex:1; min-width:280px;">
-                        <div style="font-size:1.6rem; font-weight:bold; width:30px; text-align:center; padding-top:2px;">${medal}</div>
-                        <div style="flex:1;">
+                <div style="background:linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); border:1px solid var(--glass-border); padding:20px; border-radius:16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:var(--transition); flex-wrap:wrap; gap:12px;" onclick="window.goToAnalysis('${item.ticker}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--glass-border)'">
+                    <div style="display:flex; align-items:center; gap:16px;">
+                        <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(10,132,255,0.15); color: var(--blue); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 900;">${allocation}%</div>
+                        <div>
                             <div style="font-weight:900; font-size:1.3rem; direction:ltr; text-align:left; color:var(--text);">${item.ticker}</div>
-                            <div style="font-size:0.8rem; font-weight:700; color:var(--gold); margin-top:2px;">${item.pattern || 'ללא תבנית'}</div>
-                            ${levelsHtml}
-                            ${expHtml}
+                            <div style="font-size:0.85rem; font-weight:700; color:var(--gold); margin-top:2px;">ציון AI: ${item.score}</div>
                         </div>
                     </div>
-                    <div style="text-align:right; min-width:90px; padding-top:2px;">
-                        <div style="font-size:1.6rem; font-weight:900; color:var(--green);">${item.score} <span style="font-size:0.8rem; color:var(--text-secondary);">AI</span></div>
-                        <div style="font-size:0.9rem; font-weight:800; color:var(--blue); margin-top:6px; padding:4px 12px; background:rgba(10,132,255,0.1); border-radius:8px; display:inline-block;">${item.rating || 'קנייה'}</div>
+                    <div style="text-align:right;">
+                        <div style="font-size:1rem; font-weight:800; color:var(--green); direction:ltr;">${item.intrinsicValue ? 'Target: $'+item.intrinsicValue : ''}</div>
+                        <div style="font-size:0.85rem; font-weight:800; color:var(--blue); margin-top:4px; padding:4px 12px; background:rgba(255,255,255,0.05); border-radius:6px; display:inline-block;">${item.rating || 'קנייה חזקה'}</div>
                     </div>
                 </div>`;
             });
@@ -1522,7 +1509,7 @@ function renderChart(historyData, months, fullDataObj) {
                 color: isRes ? 'rgba(255, 69, 58, 0.4)' : 'rgba(48, 209, 88, 0.4)',
                 lineWidth: 1,
                 lineStyle: LightweightCharts.LineStyle.Dotted,
-                axisLabelVisible: true // מציג רק את המחיר בסקאלה, בלי טקסט מסורבל
+                axisLabelVisible: true
             });
         });
     }
@@ -1624,11 +1611,16 @@ function renderResults(data, analysis, historyData, newsData) {
   const rangeHigh = typeof data.fiftyTwoWeekHigh === 'number' ? data.fiftyTwoWeekHigh : 100;
   const currentPos = Math.max(0, Math.min(100, ((p - rangeLow) / (Math.max(rangeHigh - rangeLow, 1))) * 100));
   
-  // 💡 התיקון לדוח הרבעוני: המידע נמשך עכשיו מהאובייקט החדש שהוספנו בשרת
-  const earningsText = data.latestEarnings && typeof data.latestEarnings.surprisePercent === 'number' ? 
-    (data.latestEarnings.surprisePercent > 0 ? `+${data.latestEarnings.surprisePercent.toFixed(1)}% (הכה תחזיות)` : `${data.latestEarnings.surprisePercent.toFixed(1)}% (אכזב)`) : 'לא זמין';
-  const earningsGood = data.latestEarnings && typeof data.latestEarnings.surprisePercent === 'number' && data.latestEarnings.surprisePercent > 0;
-  const earningsBad = data.latestEarnings && typeof data.latestEarnings.surprisePercent === 'number' && data.latestEarnings.surprisePercent < 0;
+  // 💡 התיקון לדוח הרבעוני: אם קיים, נציג נתון חיובי או שלילי בצורה בטוחה
+  let earningsText = 'לא זמין';
+  let earningsGood = false;
+  let earningsBad = false;
+  if (data.latestEarnings && data.latestEarnings.surprisePercent !== null && data.latestEarnings.surprisePercent !== undefined) {
+      const sp = data.latestEarnings.surprisePercent;
+      earningsText = sp > 0 ? `+${sp.toFixed(1)}% (הכה תחזיות)` : `${sp.toFixed(1)}% (אכזב)`;
+      earningsGood = sp > 0;
+      earningsBad = sp < 0;
+  }
   
   const fundRows = [ 
       { label: 'שווי שוק', val: formatNumberShort(data.marketCap), tag: 'M.CAP', isTag: false }, 
