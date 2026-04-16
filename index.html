@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FinShark | כריש פיננסי - AI Market Analysis</title>
-<link rel="icon" href="data:,\">
+<link rel="icon" href="data:,">
 <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
@@ -145,10 +145,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .up { color: var(--green); } .down { color: var(--red); }
 
 .mt-32 { margin-top: 32px; }
-.loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); z-index: 300; align-items: center; justify-content: center; flex-direction: column; gap: 24px; }
-.loading-overlay.active { display: flex; }
-.spinner-ring { width: 64px; height: 64px; border: 2.5px solid rgba(255,255,255,0.06); border-top-color: var(--blue); border-right-color: rgba(10,132,255,0.3); border-radius: 50%; animation: spin 0.85s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
 .loading-text { font-size: 0.95rem; color: var(--text-secondary); animation: textPulse 1.6s ease-in-out infinite; font-weight: 500; }
 @keyframes textPulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
 .loading-steps { display: flex; flex-direction: column; gap: 6px; }
@@ -241,7 +237,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 
 .debug-box { background: rgba(255,69,58,0.1); border: 1px solid var(--red); color: #fff; padding: 15px; border-radius: 10px; margin: 15px 0; font-family: monospace; font-size: 13px; text-align: left; direction: ltr; white-space: pre-wrap; word-break: break-all; }
 
-.portfolio-card { background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; transition: var(--transition); }
+.portfolio-card { background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; transition: var(--transition); cursor: pointer; }
 .portfolio-card:hover { border-color: var(--blue); }
 .port-sym { font-size: 1.2rem; font-weight: 900; color: var(--text); direction: ltr; }
 .port-qty { font-size: 0.8rem; color: var(--text-secondary); }
@@ -265,6 +261,40 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 /* 💡 מודל הודעת העדכון החדש */
 #modal-update .modal { background: linear-gradient(180deg, rgba(20,20,25,0.98) 0%, rgba(10,10,15,0.98) 100%); border: 1px solid rgba(10,132,255,0.3); box-shadow: 0 32px 80px rgba(10,132,255,0.15); }
 .new-badge { display: inline-block; background: rgba(10,132,255,0.15); color: var(--blue); padding: 4px 12px; border-radius: 980px; font-size: 0.75rem; font-weight: 800; margin-bottom: 12px; border: 1px solid rgba(10,132,255,0.3); letter-spacing: 0.05em; }
+
+/* --- HUD Loading Animation (Sonar) --- */
+.loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); z-index: 300; align-items: center; justify-content: center; flex-direction: column; gap: 24px; }
+.loading-overlay.active { display: flex; }
+.sonar-wrapper { position: relative; width: 120px; height: 120px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px;}
+.sonar-shark { font-size: 3rem; z-index: 2; position: relative; animation: floatShark 3s ease-in-out infinite; }
+.sonar-ring { position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 2px solid var(--blue); opacity: 0; animation: sonarPulse 2s cubic-bezier(0.1, 0.5, 0.1, 1) infinite; }
+.sonar-ring:nth-child(2) { animation-delay: 0.6s; border-color: var(--gold); }
+.sonar-ring:nth-child(3) { animation-delay: 1.2s; border-color: var(--green); }
+@keyframes sonarPulse { 0% { transform: scale(0.5); opacity: 0.8; border-width: 4px; } 100% { transform: scale(2.5); opacity: 0; border-width: 1px; } }
+@keyframes floatShark { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-10px) rotate(-5deg); } }
+
+/* --- Chart Legend --- */
+.chart-legend-overlay { position: absolute; top: 10px; left: 10px; z-index: 5; background: rgba(10,10,15,0.85); border: 1px solid var(--glass-border); border-radius: 8px; padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 12px; backdrop-filter: blur(8px); }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); }
+.legend-color { width: 12px; height: 12px; border-radius: 3px; }
+
+/* --- Hybrid Portfolio Tabs --- */
+.portfolio-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; }
+.port-tab { padding: 10px 20px; font-size: 1rem; font-weight: 700; color: var(--text-secondary); cursor: pointer; border-radius: 10px; transition: var(--transition); }
+.port-tab.active { background: var(--blue-dim); color: var(--blue); }
+.port-tab:hover:not(.active) { color: var(--text); background: var(--glass); }
+
+/* --- Onboarding Modal (Carousel) --- */
+#onboarding-modal .modal { padding: 0; overflow: hidden; max-width: 500px;}
+.onboarding-slider { display: flex; width: 500%; transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+.onboarding-slide { width: 20%; padding: 40px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.ob-icon { font-size: 4rem; margin-bottom: 20px; }
+.ob-title { font-size: 1.6rem; font-weight: 800; margin-bottom: 12px; color: var(--text); }
+.ob-desc { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 30px; }
+.ob-dots { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
+.ob-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--glass-border); transition: var(--transition); }
+.ob-dot.active { background: var(--blue); width: 24px; border-radius: 4px; }
+.ob-controls { padding: 20px 40px; background: rgba(0,0,0,0.2); border-top: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; }
 
 @media (max-width: 768px) {
   nav { padding: 12px 16px; flex-wrap: wrap; height: auto; min-height: 68px; gap: 12px; justify-content: space-between; }
@@ -302,6 +332,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   .data-value { font-size: 0.85rem; }
   .range-bar-wrap { width: 100px; }
   .modal { padding: 32px 20px; width: 92%; }
+  .onboarding-slide { padding: 20px; }
 }
 
 @media (max-width: 480px) {
@@ -316,9 +347,55 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 
 <div class="aurora"><div class="aurora-blob"></div><div class="aurora-blob"></div><div class="aurora-blob"></div></div>
 
+<!-- 💡 מסך פתיחה חדש (Onboarding Carousel) -->
+<div class="modal-overlay" id="onboarding-modal">
+  <div class="modal">
+    <div class="onboarding-slider" id="ob-slider">
+      <div class="onboarding-slide">
+        <div class="ob-icon">🦈</div>
+        <div class="ob-title">ברוכים הבאים ל-FinShark</div>
+        <div class="ob-desc">הפלטפורמה המתקדמת בישראל לניתוח מניות בעזרת בינה מלאכותית (AI). בואו נעשה סיור קצר כדי שתפיקו את המקסימום.</div>
+      </div>
+      <div class="onboarding-slide">
+        <div class="ob-icon">📊</div>
+        <div class="ob-title">הפסיקה הכפולה (Dual Verdict)</div>
+        <div class="ob-desc">כל מניה מנותחת תמיד משתי זוויות במקביל: השקעת ערך לטווח ארוך (על בסיס פונדמנטלי) ומסחר סווינג לטווח קצר (על בסיס גרפים וממוצעים).</div>
+      </div>
+      <div class="onboarding-slide">
+        <div class="ob-icon">💼</div>
+        <div class="ob-title">התיק ההיברידי שלך</div>
+        <div class="ob-desc">באזור "תיק השקעות" תוכלו גם להתאמן על כסף וירטואלי באפס סיכון, וגם לעקוב אחרי המניות האמיתיות שלכם מאזור "התיק האישי".</div>
+      </div>
+      <div class="onboarding-slide">
+        <div class="ob-icon">🎓</div>
+        <div class="ob-title">אקדמיית הכריש</div>
+        <div class="ob-desc">אל תסחרו על עיוור! האקדמיה שלנו כוללת מצגות ופודקאסטים שילמדו אתכם איך לקרוא את השוק, לנהל סיכונים ולהשתמש נכון בכלי ה-AI.</div>
+      </div>
+      <div class="onboarding-slide">
+        <div class="ob-icon">👥</div>
+        <div class="ob-title">חוכמת ההמונים</div>
+        <div class="ob-desc">בלשונית "קהילה" תוכלו לראות אילו מניות קיבלו את ציוני ה-AI הגבוהים ביותר, ומהן המניות המועדפות על שאר המשתמשים. צאו לצוד!</div>
+      </div>
+    </div>
+    <div class="ob-dots" id="ob-dots">
+      <div class="ob-dot active"></div><div class="ob-dot"></div><div class="ob-dot"></div><div class="ob-dot"></div><div class="ob-dot"></div>
+    </div>
+    <div class="ob-controls">
+      <button class="btn btn-ghost" onclick="closeOnboarding()">דלג</button>
+      <button class="btn btn-primary" id="ob-next-btn" onclick="nextOnboardingSlide()">הבא ←</button>
+    </div>
+  </div>
+</div>
+
+<!-- 💡 אנימציית טעינה חדשה (Sonar) -->
 <div class="loading-overlay" id="loading">
-  <div class="spinner-ring"></div>
-  <div class="loading-text" id="loading-text">טוען...</div>
+  <div class="sonar-wrapper">
+    <div class="sonar-ring"></div>
+    <div class="sonar-ring"></div>
+    <div class="sonar-ring"></div>
+    <div class="sonar-shark">🦈</div>
+  </div>
+  <div class="loading-text" id="loading-text">הכריש סורק את המים...</div>
   <div class="loading-steps" id="loading-steps"></div>
 </div>
 
@@ -337,24 +414,35 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   </div>
 </div>
 
-<!-- מודל מסחר וירטואלי -->
+<!-- 💡 מודל מסחר היברידי חדש (וירטואלי / אמיתי) -->
 <div class="modal-overlay" id="modal-trade">
   <div class="modal" style="position:relative">
     <button class="modal-close" onclick="document.getElementById('modal-trade').classList.remove('active')">✕</button>
-    <h2>💼 מסחר וירטואלי</h2>
+    <h2 id="trade-modal-title">💼 מסחר וירטואלי</h2>
     <p style="color:var(--text-secondary); margin-bottom:20px;">מחיר נוכחי: <span id="trade-price" style="font-weight:bold; color:var(--text); direction:ltr;">$0.00</span></p>
-    <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:15px; text-align:right;">יתרת מזומן: <span id="trade-cash" style="direction:ltr;"></span></p>
     
-    <input type="number" class="input-field" id="trade-shares" placeholder="כמות מניות..." min="1" step="1" style="text-align:center; direction:ltr;" oninput="updateTradeTotal()" />
+    <div id="trade-virtual-info">
+        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:15px; text-align:right;">יתרת מזומן וירטואלית: <span id="trade-cash" style="direction:ltr;"></span></p>
+    </div>
+
+    <input type="number" class="input-field" id="trade-shares" placeholder="כמות מניות..." min="0" step="1" style="text-align:center; direction:ltr;" oninput="updateTradeTotal()" />
+    
+    <div id="trade-real-price-input" style="display:none;">
+        <input type="number" class="input-field" id="trade-avg-price" placeholder="מחיר קנייה ממוצע ($)..." min="0.01" step="0.01" style="text-align:center; direction:ltr;" oninput="updateTradeTotal()" />
+    </div>
+
     <div style="display:flex; justify-content:space-between; margin-bottom:20px; font-weight:800; font-size:1.1rem;">
-        <span>סה"כ לתשלום:</span>
+        <span>סה"כ שווי:</span>
         <span id="trade-total" style="direction:ltr; color:var(--blue);">$0.00</span>
     </div>
     
-    <p style="font-size:0.75rem; color:var(--gold); margin-bottom:10px; font-weight:600;">* הפעולה מתבצעת בתיק הוירטואלי בלבד ואינה כרוכה בכסף אמיתי</p>
-    <div style="display:flex; gap:10px;">
+    <div id="trade-actions-virtual" style="display:flex; gap:10px;">
         <button class="btn btn-primary" style="flex:1; padding:12px;" onclick="executeTrade('buy')">קנה (וירטואלי)</button>
         <button class="btn btn-danger" style="flex:1; padding:12px;" onclick="executeTrade('sell')">מכור (וירטואלי)</button>
+    </div>
+    <div id="trade-actions-real" style="display:none;">
+        <button class="btn btn-primary" style="width:100%; padding:12px;" onclick="executeRealTrade()">עדכן החזקה אמיתית</button>
+        <p style="font-size:0.75rem; color:var(--gold); margin-top:10px;">* שים 0 בכמות כדי למחוק את המניה מהתיק האישי</p>
     </div>
     <p id="trade-error" style="color:var(--red); font-size:0.85rem; margin-top:15px; display:none;"></p>
   </div>
@@ -385,8 +473,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   <div class="nav-center" id="nav-center">
     <button class="nav-tab active" id="nav-market" onclick="switchTab('market',this)">🌐 שוק</button>
     <button class="nav-tab" id="nav-shark" onclick="switchTab('shark',this)">🦈 ניתוח <span class="lock-icon" id="lock-shark">🔒</span></button>
-    <button class="nav-tab" id="nav-portfolio" onclick="switchTab('portfolio',this)">💼 תיק וירטואלי <span class="lock-icon" id="lock-port">🔒</span></button>
-    <!-- 💡 לשונית האקדמיה -->
+    <button class="nav-tab" id="nav-portfolio" onclick="switchTab('portfolio',this)">💼 תיק השקעות <span class="lock-icon" id="lock-port">🔒</span></button>
     <button class="nav-tab" id="nav-academy" onclick="switchTab('academy',this)">🎓 אקדמיה <span class="lock-icon" id="lock-acad">🔒</span></button>
     <button class="nav-tab" id="nav-community" onclick="switchTab('community',this)">👥 קהילה <span class="lock-icon" id="lock-comm">🔒</span></button>
     <button class="nav-tab" id="nav-watch" onclick="switchTab('watchlist',this)">📌 מעקב <span class="lock-icon" id="lock-watch">🔒</span></button>
@@ -439,16 +526,22 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
     </div>
   </div>
 
+  <!-- 💡 אזור התיק ההיברידי החדש -->
   <div id="section-portfolio" class="section">
-    <div class="section-title">💼 תיק השקעות וירטואלי</div>
-    <div class="section-subtitle">קנה ומכור מניות וירטואלית על בסיס ניתוחי הכריש. בחן את האסטרטגיה שלך באפס סיכון!</div>
+    <div class="section-title">💼 תיק השקעות שלך</div>
+    <div class="section-subtitle">נהל סימולציות וירטואליות או עקוב אחרי התיק האמיתי שלך מול הבורסה.</div>
     
-    <div class="market-stats">
+    <div class="portfolio-tabs">
+        <div class="port-tab active" id="tab-virt-port" onclick="switchPortfolioType('virtual')">🎮 זירת אימונים (וירטואלי)</div>
+        <div class="port-tab" id="tab-real-port" onclick="switchPortfolioType('real')">🏦 מעקב תיק אישי (אמיתי)</div>
+    </div>
+
+    <div class="market-stats" id="port-stats-container">
         <div class="stat-card" style="background:rgba(10,132,255,0.05); border-color:rgba(10,132,255,0.2);">
-            <div class="stat-label">שווי תיק כולל</div>
-            <div class="stat-value" id="port-total" style="color:var(--blue)">$100,000.00</div>
+            <div class="stat-label">שווי תיק מניות</div>
+            <div class="stat-value" id="port-total" style="color:var(--blue)">$0.00</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" id="port-cash-card">
             <div class="stat-label">מזומן פנוי</div>
             <div class="stat-value" id="port-cash">$100,000.00</div>
         </div>
@@ -459,7 +552,10 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
     </div>
 
     <div class="card">
-        <div class="card-title">📊 פוזיציות פתוחות</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+            <div class="card-title" style="margin:0;">📊 פוזיציות פתוחות</div>
+            <button class="btn btn-ghost" onclick="window.switchTab('shark', document.getElementById('nav-shark'))" style="font-size:0.75rem; padding: 5px 12px;">+ חפש מניה להוספה</button>
+        </div>
         <div id="portfolio-positions-list">טוען נתונים...</div>
     </div>
   </div>
@@ -527,7 +623,8 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
           <div class="stock-full-name" id="res-name"></div>
         </div>
         <div class="header-actions">
-          <button class="btn-trade" onclick="openBuyModal()">🛒 מסחר וירטואלי</button>
+          <button class="btn-trade" onclick="openBuyModal('virtual')">🎮 קנייה וירטואלית</button>
+          <button class="btn btn-ghost" onclick="openBuyModal('real')" style="border-color:var(--gold); color:var(--gold);">🏦 לתיק האישי</button>
           <button class="icon-btn tooltip-wrap" data-tip="הצבע לתיק חוכמת ההמונים" id="btn-vote-crowd" onclick="voteForCrowd()">👥</button>
           <button class="icon-btn tooltip-wrap" data-tip="הוסף לרשימת מעקב" id="btn-add-watch-results" onclick="addToWatchlistFromResults()">📌</button>
         </div>
@@ -548,7 +645,15 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
               <button class="chart-btn" onclick="setChartPeriod(999,this)">ALL</button>
             </div>
           </div>
-          <div class="chart-container" id="stockChart"></div>
+          <div class="chart-container" id="stockChart">
+              <!-- 💡 מקרא הגרף הצף -->
+              <div class="chart-legend-overlay">
+                  <div class="legend-item"><div class="legend-color" style="background:#0a84ff;"></div> MA 50</div>
+                  <div class="legend-item"><div class="legend-color" style="background:#bf5af2;"></div> MA 200</div>
+                  <div class="legend-item"><div class="legend-color" style="background:rgba(255, 69, 58, 0.6);"></div> התנגדות</div>
+                  <div class="legend-item"><div class="legend-color" style="background:rgba(48, 209, 88, 0.6);"></div> תמיכה</div>
+              </div>
+          </div>
         </div>
 
         <div class="card">
@@ -611,7 +716,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
     <div class="watchlist-grid" id="watchlist-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px;"></div>
   </div>
 
-  <!-- 💡 אזור לובי האקדמיה -->
   <div id="section-academy" class="section">
     <div class="hero-badge" style="background: rgba(191,90,242,0.15); color: var(--purple); border-color: rgba(191,90,242,0.3);">✦ FinShark Masterclass</div>
     <div class="section-title">🎓 אקדמיית הכריש</div>
@@ -710,7 +814,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, onSnapshot, upd
 const firebaseConfig = { apiKey: "AIzaSyBU77J3Nu8xh0_a1GLM9jcnWJmhZq8QHH4", authDomain: "finshark-b9f2f.firebaseapp.com", projectId: "finshark-b9f2f", storageBucket: "finshark-b9f2f.firebasestorage.app", messagingSenderId: "1096467959013", appId: "1:1096467959013:web:737d0d49c475032657d80c", measurementId: "G-SDHLCKEW0K" };
 const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
-const State = { currentUser: null, currentTab: 'market', watchlist: [], currentData: null }; window.State = State; let authMode = 'login';
+const State = { currentUser: null, currentTab: 'market', portfolioMode: 'virtual', watchlist: [], currentData: null }; window.State = State; let authMode = 'login';
 let NETLIFY_API_URL = "/api/analyze";
 if (['blob:', 'file:', 'data:'].includes(window.location.protocol) || window.location.hostname === "localhost") {
   NETLIFY_API_URL = "http://localhost:8888/api/analyze"; 
@@ -732,10 +836,26 @@ function formatNumberShort(num) {
     return sign + absNum.toLocaleString(); 
 }
 
-// 💡 פונקציות לשליטה במודל העדכון החדש
+/* --- 💡 Onboarding Logic --- */
+let obCurrentSlide = 0;
+window.closeOnboarding = function() {
+    document.getElementById('onboarding-modal').classList.remove('active');
+    localStorage.setItem('finshark_onboarding_seen', 'true');
+};
+window.nextOnboardingSlide = function() {
+    if (obCurrentSlide < 4) {
+        obCurrentSlide++;
+        document.getElementById('ob-slider').style.transform = `translateX(${obCurrentSlide * 20}%)`;
+        document.querySelectorAll('.ob-dot').forEach((d,i) => d.classList.toggle('active', i===obCurrentSlide));
+        if(obCurrentSlide === 4) document.getElementById('ob-next-btn').textContent = "יאללה מתחילים! 🦈";
+    } else {
+        closeOnboarding();
+    }
+};
+
 window.closeUpdateModal = function() {
     document.getElementById('modal-update').classList.remove('active');
-    localStorage.setItem('finshark_academy_update_seen', 'true'); // זוכר שהמשתמש כבר סגר את זה
+    localStorage.setItem('finshark_academy_update_seen', 'true');
 };
 
 window.goToAcademyFromModal = function() {
@@ -746,20 +866,40 @@ window.goToAcademyFromModal = function() {
 window.addEventListener('DOMContentLoaded', () => { 
     loadMarketWeather(); 
     
-    // 💡 בדיקה: האם להקפיץ את מודל העדכון?
-    if (!localStorage.getItem('finshark_academy_update_seen')) {
-        setTimeout(() => {
-            document.getElementById('modal-update').classList.add('active');
-        }, 1500); // קופץ שנייה וחצי אחרי עליית האתר
+    // Check Onboarding first, then Update Modal
+    if (!localStorage.getItem('finshark_onboarding_seen')) {
+        setTimeout(() => document.getElementById('onboarding-modal').classList.add('active'), 1000);
+    } else if (!localStorage.getItem('finshark_academy_update_seen')) {
+        setTimeout(() => document.getElementById('modal-update').classList.add('active'), 1500);
     }
 });
 
-window.openBuyModal = function() {
-    if (!State.currentData || !State.currentUser) return;
+/* --- 💡 Hybrid Portfolio Logic --- */
+window.switchPortfolioType = function(mode) {
+    State.portfolioMode = mode;
+    document.getElementById('tab-virt-port').classList.toggle('active', mode==='virtual');
+    document.getElementById('tab-real-port').classList.toggle('active', mode==='real');
+    document.getElementById('port-cash-card').style.display = mode === 'virtual' ? 'block' : 'none';
+    renderPortfolio();
+};
+
+window.openBuyModal = function(mode = 'virtual') {
+    if (!State.currentData || !State.currentUser) { window.openLogin(); return; }
+    State.portfolioMode = mode;
     const p = State.currentData.price;
+    document.getElementById('trade-modal-title').textContent = mode === 'virtual' ? "💼 מסחר וירטואלי" : "🏦 מעקב תיק אישי";
+    
     safeText('trade-price', `$${p.toFixed(2)}`);
     safeText('trade-cash', `$${(State.currentUser.balance || 0).toLocaleString()}`);
+    
+    document.getElementById('trade-virtual-info').style.display = mode === 'virtual' ? 'block' : 'none';
+    document.getElementById('trade-actions-virtual').style.display = mode === 'virtual' ? 'flex' : 'none';
+    
+    document.getElementById('trade-real-price-input').style.display = mode === 'real' ? 'block' : 'none';
+    document.getElementById('trade-actions-real').style.display = mode === 'real' ? 'block' : 'none';
+    
     document.getElementById('trade-shares').value = '';
+    document.getElementById('trade-avg-price').value = p.toFixed(2);
     safeText('trade-total', '$0.00');
     document.getElementById('trade-error').style.display = 'none';
     document.getElementById('modal-trade').classList.add('active');
@@ -767,8 +907,34 @@ window.openBuyModal = function() {
 
 window.updateTradeTotal = function() {
     const qty = parseInt(document.getElementById('trade-shares').value) || 0;
-    const p = State.currentData.price;
+    const p = State.portfolioMode === 'real' ? (parseFloat(document.getElementById('trade-avg-price').value) || State.currentData.price) : State.currentData.price;
     safeText('trade-total', `$${(qty * p).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`);
+};
+
+window.executeRealTrade = async function() {
+    if(!State.currentUser) return;
+    const qty = parseInt(document.getElementById('trade-shares').value) || 0;
+    const avgPrice = parseFloat(document.getElementById('trade-avg-price').value) || 0;
+    const ticker = State.currentData.ticker;
+    const errEl = document.getElementById('trade-error');
+
+    if(qty < 0) { errEl.textContent = 'כמות לא חוקית'; errEl.style.display = 'block'; return; }
+
+    let realPortfolio = State.currentUser.realPortfolio || {};
+    if (qty === 0) {
+        delete realPortfolio[ticker]; // Delete position if qty is 0
+    } else {
+        realPortfolio[ticker] = { shares: qty, avgPrice: avgPrice };
+    }
+
+    try {
+        await updateDoc(doc(db, 'users', State.currentUser.uid), { realPortfolio: realPortfolio });
+        document.getElementById('modal-trade').classList.remove('active');
+        alert("התיק האישי עודכן בהצלחה!");
+        if (State.currentTab === 'portfolio') renderPortfolio();
+    } catch(e) {
+        errEl.textContent = 'שגיאת שרת. נסה שוב.'; errEl.style.display = 'block';
+    }
 };
 
 window.executeTrade = async function(type) {
@@ -804,6 +970,7 @@ window.executeTrade = async function(type) {
         await updateDoc(doc(db, 'users', State.currentUser.uid), { balance: currentBalance, portfolio: portfolio });
         document.getElementById('modal-trade').classList.remove('active');
         alert('הפעולה בוצעה בהצלחה!');
+        if (State.currentTab === 'portfolio') renderPortfolio();
     } catch (e) {
         errEl.textContent = 'שגיאת שרת. נסה שוב.'; errEl.style.display = 'block';
     }
@@ -812,14 +979,16 @@ window.executeTrade = async function(type) {
 window.renderPortfolio = async function() {
     if(!State.currentUser) return;
     const listEl = document.getElementById('portfolio-positions-list');
-    const cash = State.currentUser.balance || 100000;
-    safeText('port-cash', `$${cash.toLocaleString(undefined, {minimumFractionDigits:2})}`);
+    const isVirtual = State.portfolioMode === 'virtual';
     
-    const portfolio = State.currentUser.portfolio || {};
-    const tickers = Object.keys(portfolio);
+    const activePort = isVirtual ? (State.currentUser.portfolio || {}) : (State.currentUser.realPortfolio || {});
+    const tickers = Object.keys(activePort);
+    const cash = isVirtual ? (State.currentUser.balance || 100000) : 0;
+    
+    if(isVirtual) safeText('port-cash', `$${cash.toLocaleString(undefined, {minimumFractionDigits:2})}`);
     
     if(tickers.length === 0) {
-        listEl.innerHTML = '<p style="color:var(--text-secondary); text-align:center; padding:30px;">התיק שלך ריק. חפש מניות וקנה אותן לתיק.</p>';
+        listEl.innerHTML = `<p style="color:var(--text-secondary); text-align:center; padding:30px;">התיק ה${isVirtual?'וירטואלי':'אמיתי'} שלך ריק. חפש מניות ו${isVirtual?'קנה':'הוסף'} אותן.</p>`;
         safeText('port-total', `$${cash.toLocaleString(undefined, {minimumFractionDigits:2})}`);
         safeText('port-pnl', `$0.00 (0.00%)`);
         return;
@@ -832,7 +1001,7 @@ window.renderPortfolio = async function() {
     let html = '';
 
     for (let t of tickers) {
-        const pos = portfolio[t];
+        const pos = activePort[t];
         try {
             const liveRes = await fetch(`${NETLIFY_API_URL}?action=live_data&ticker=${t}`);
             const data = await liveRes.json();
@@ -850,7 +1019,7 @@ window.renderPortfolio = async function() {
             <div class="portfolio-card" onclick="goToAnalysis('${t}')">
                 <div>
                     <div class="port-sym">${t}</div>
-                    <div class="port-qty">${pos.shares} מניות • קנייה: $${pos.avgPrice.toFixed(2)}</div>
+                    <div class="port-qty">${pos.shares} מניות • ${isVirtual?'קנייה':'ממוצע'}: $${pos.avgPrice.toFixed(2)}</div>
                 </div>
                 <div style="text-align:right;">
                     <div style="font-size:1.1rem; font-weight:800; direction:ltr;">$${currPrice.toFixed(2)}</div>
@@ -863,10 +1032,10 @@ window.renderPortfolio = async function() {
     }
     
     const totalEquity = cash + totalStockValue;
-    const totalPnl = totalEquity - 100000; 
-    const totalPnlPct = (totalPnl / 100000) * 100;
+    const totalPnl = isVirtual ? (totalEquity - 100000) : (totalStockValue - totalInvested); 
+    const totalPnlPct = isVirtual ? ((totalPnl / 100000) * 100) : (totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0);
 
-    safeText('port-total', `$${totalEquity.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`);
+    safeText('port-total', `$${totalStockValue.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`);
     
     const pnlEl = document.getElementById('port-pnl');
     pnlEl.textContent = `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} (${totalPnlPct.toFixed(2)}%)`;
@@ -890,7 +1059,7 @@ window.handleAuth = async function() {
         const isAdmin = email === 'admin@finshark.com'; 
         await setDoc(doc(db, 'users', user.uid), { 
             email: email, role: isAdmin ? 'admin' : 'user', status: isAdmin ? 'approved' : 'pending', 
-            watchlist: ['AAPL', 'MSFT'], analysisCount: 0, restrictedUntil: null, balance: 100000, portfolio: {}
+            watchlist: ['AAPL', 'MSFT'], analysisCount: 0, restrictedUntil: null, balance: 100000, portfolio: {}, realPortfolio: {}
         }); 
     } else { await signInWithEmailAndPassword(auth, email, pass); }
     emailEl.value = ''; passEl.value = ''; window.closeLogin();
@@ -904,7 +1073,7 @@ onAuthStateChanged(auth, async (user) => {
       if (docSnap.exists()) {
         const userData = docSnap.data();
         if (userData.balance === undefined) {
-            await updateDoc(doc(db, 'users', user.uid), { balance: 100000, portfolio: {} });
+            await updateDoc(doc(db, 'users', user.uid), { balance: 100000, portfolio: {}, realPortfolio: {} });
         }
         State.currentUser = { uid: user.uid, ...userData };
         State.watchlist = userData.watchlist || [];
@@ -1074,7 +1243,6 @@ function renderApp() {
   const btnLogin = document.getElementById('btn-login'); if(btnLogin) btnLogin.style.display = isLoggedIn ? 'none' : '';
   const btnLogout = document.getElementById('btn-logout'); if(btnLogout) btnLogout.style.display = isLoggedIn ? '' : 'none';
   
-  // 💡 פתיחת מנעולים ב-NAV כולל אקדמיה
   ['lock-shark', 'lock-watch', 'lock-comm', 'lock-port', 'lock-acad'].forEach(id => {
       const lock = document.getElementById(id);
       if (lock) lock.style.display = (isApproved || isAdmin) ? 'none' : 'inline';
@@ -1217,6 +1385,7 @@ window.analyzeStock = async function() {
       const data = await response.json();
       
       if (data.success) {
+          State.currentData = data;
           if (data.isDataComplete) {
               await setDoc(doc(db, 'ai_cache', ticker), { ticker, data, lastUpdated: Date.now() });
               if (data.analysis && data.analysis.scores && data.analysis.scores.overall >= 70) {
@@ -1256,6 +1425,7 @@ window.setChartPeriod = function(months, btn) {
 };
 
 function renderChart(historyData, months, fullDataObj) {
+    window.currentChartData = historyData; // Save for filtering
     const container = document.getElementById('stockChart');
     if(!container) return;
     if(!historyData || !Array.isArray(historyData)) return;
@@ -1276,6 +1446,9 @@ function renderChart(historyData, months, fullDataObj) {
         color: d.close >= d.open ? 'rgba(48, 209, 88, 0.35)' : 'rgba(255, 69, 58, 0.35)' 
     }));
 
+    // Save the legend HTML before destroying chart
+    const legendHtml = container.querySelector('.chart-legend-overlay')?.outerHTML || '';
+
     if (tvChart) {
         tvChart.remove();
         tvChart = null;
@@ -1288,6 +1461,11 @@ function renderChart(historyData, months, fullDataObj) {
         timeScale: { borderVisible: false, fixLeftEdge: true, fixRightEdge: true },
         crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
     });
+    
+    // Re-inject legend
+    if (legendHtml) {
+        container.insertAdjacentHTML('beforeend', legendHtml);
+    }
 
     new ResizeObserver(entries => {
         if (entries.length === 0 || entries[0].target !== container) return;
@@ -1557,7 +1735,7 @@ function renderResults(data, analysis, historyData, newsData) {
                     <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:var(--blue)">${lTerm.accumulation_zone || 'N/A'}</span>
                 </div>
                 <div class="split-data-item" style="display:flex; flex-direction:column;">
-                    <span class="split-data-lbl" style="font-size:0.65rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:2px;">יעד לטווח ארוך</span>
+                    <span class="split-data-lbl" style="font-size:0.65rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:2px;">יעד ממוצע 12M</span>
                     <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:var(--green)">$${lTerm.price_target || 'N/A'}</span>
                 </div>
             </div>
@@ -1569,15 +1747,15 @@ function renderResults(data, analysis, historyData, newsData) {
             <div class="split-data-grid" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; background:rgba(255,255,255,0.02); padding:12px; border-radius:10px;">
                 <div class="split-data-item" style="display:flex; flex-direction:column;">
                     <span class="split-data-lbl" style="font-size:0.65rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:2px;">כניסה</span>
-                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:var(--blue)">$${sTerm.entry_price || 'N/A'}</span>
+                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:var(--blue)">${sTerm.entry_price || 'N/A'}</span>
                 </div>
                 <div class="split-data-item" style="display:flex; flex-direction:column;">
                     <span class="split-data-lbl" style="font-size:0.65rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:2px;">יעד פריצה</span>
-                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:var(--green)">$${sTerm.target_price || 'N/A'}</span>
+                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:var(--green)">${sTerm.target_price || 'N/A'}</span>
                 </div>
                 <div class="split-data-item" style="display:flex; flex-direction:column;">
                     <span class="split-data-lbl" style="font-size:0.65rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:2px;">סטופ לוס</span>
-                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:var(--red)">$${sTerm.stop_loss || 'N/A'}</span>
+                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:var(--red)">${sTerm.stop_loss || 'N/A'}</span>
                 </div>
             </div>
         </div>
@@ -1589,9 +1767,8 @@ function renderResults(data, analysis, historyData, newsData) {
     </div>
     
     <div style="background: linear-gradient(135deg, rgba(255,214,10,0.1), rgba(255,214,10,0.02)); border: 1px solid rgba(255,214,10,0.3); padding: 24px; border-radius: 16px; text-align: center; box-shadow: 0 8px 32px rgba(255,214,10,0.06); margin-top:20px;">
-         <div style="font-size: 0.85rem; color: var(--gold); font-weight: 800; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em;">🎯 יעד ממוצע בוול סטריט (12 חודשים)</div>
-         <div style="font-size: 2.8rem; font-weight: 900; color: #fff; direction:ltr; line-height: 1; margin-bottom: 4px;">$${lTerm.price_target || "N/A"}</div>
-         <div style="font-size: 1.05rem; font-weight: 800; color: ${parseFloat(upside) >= 0 ? 'var(--green)' : 'var(--red)'}; margin-top: 10px; direction:ltr;">${parseFloat(upside) >= 0 ? '▲ פוטנציאל אפסייד:' : '▼ דאונסייד:'} ${parseFloat(upside) >= 0 ? '+' : ''}${upside}%</div>
+         <div style="font-size: 0.85rem; color: var(--gold); font-weight: 800; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em;">🎯 פוטנציאל רווח (מול תחזית 12 חודשים)</div>
+         <div style="font-size: 1.05rem; font-weight: 800; color: ${parseFloat(upside) >= 0 ? 'var(--green)' : 'var(--red)'}; direction:ltr;">${parseFloat(upside) >= 0 ? '▲ אפסייד:' : '▼ דאונסייד:'} ${parseFloat(upside) >= 0 ? '+' : ''}${upside}%</div>
     </div>`);
 
   if (Array.isArray(newsData) && newsData.length > 0) { 
