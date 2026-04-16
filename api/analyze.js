@@ -192,7 +192,6 @@ module.exports = async function(req, res) {
         const finnhubKey = process.env.FINNHUB_API_KEY;
         if (!apiKey || !finnhubKey) return res.status(500).json({ success: false, message: "Missing API Keys" });
 
-        // מטפל בבקשת שוק כללית ללא צורך בטיקר
         if (action === 'market' || (!ticker && action !== 'analyze')) {
             const [spy, qqq, dia, iwm, xlk, xlv, xlf, xle, xly, xli, newsData, topGainers, topLosers] = await Promise.all([
                 fetchFinnhub('quote', 'symbol=SPY'), fetchFinnhub('quote', 'symbol=QQQ'), fetchFinnhub('quote', 'symbol=DIA'), fetchFinnhub('quote', 'symbol=IWM'), 
@@ -332,14 +331,7 @@ module.exports = async function(req, res) {
           "scores": {"overall": 80, "growth":80, "value":80, "momentum":80, "quality":80}, "rating": "קנייה חזקה / קנייה / החזקה / מכירה" 
         }`;
 
-        // 💡 התיקון לקריסת ה-AI: הוספת application/json מבטיחה שה-API תמיד יחזיר אובייקט חוקי, ללא טקסט עודף
-        const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ 
-                contents: [{ parts: [{ text: prompt }] }], 
-                generationConfig: { temperature: 0.2, responseMimeType: "application/json" } 
-            })
-        });
-
+        // 💡 שינוי קריטי: responseMimeType="application/json" מונע הזיות ומכריח את ה-AI להחזיר תמיד אובייקט חוקי
         let aiVerdict = { 
             news_sentiment: "אין מידע.",
             technical: "שגיאת שרת בקריאת הטכני.",
@@ -347,13 +339,21 @@ module.exports = async function(req, res) {
             short_term: { summary: "שגיאת AI.", entry_price: "", target_price: "", stop_loss: "" },
             scores: { overall: 50 }, rating: "החזקה" 
         };
-        
-        if (aiResponse.ok) {
-            const aiData = await aiResponse.json();
+
+        for (let i = 0; i < 2; i++) { // מנגנון ניסיון חוזר שקט במקרה של ניתוק גוגל
             try {
-                // המודל כעת מחזיר תמיד JSON תקין
-                aiVerdict = JSON.parse(aiData.candidates[0].content.parts[0].text);
-            } catch (e) { console.error("JSON parse failed"); }
+                const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ 
+                        contents: [{ parts: [{ text: prompt }] }], 
+                        generationConfig: { temperature: 0.1, responseMimeType: "application/json" } 
+                    })
+                });
+                if (aiResponse.ok) {
+                    const aiData = await aiResponse.json();
+                    aiVerdict = JSON.parse(aiData.candidates[0].content.parts[0].text);
+                    break; // הצליח!
+                }
+            } catch (e) { console.error("AI Attempt failed"); }
         }
 
         return res.status(200).json({
@@ -361,7 +361,7 @@ module.exports = async function(req, res) {
             price: currPrice, changePercentage: Number(quote?.dp || 0),
             ma50: lastPoint.ma50, ma200: lastPoint.ma200, volume: Number(quote?.v || lastPoint.volume || 0),
             pattern: patternObj.text, patternLines: patternObj.lines, rsi: rsiVal, keyLevels, ...fundamentals,
-            latestEarnings: (Array.isArray(earningsData) && earningsData.length > 0) ? earningsData[0] : null, // 💡 נוסף למען דוחות רבעוניים בממשק
+            latestEarnings: (Array.isArray(earningsData) && earningsData.length > 0) ? earningsData[0] : null,
             tickerNews: (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 5),
             insiderTransactions: insiders.slice(0, 6), insiderSentiment: insiderSentiment,
             analysis: aiVerdict, chartData: chartPoints
