@@ -145,6 +145,17 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .up { color: var(--green); } .down { color: var(--red); }
 
 .mt-32 { margin-top: 32px; }
+.loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); z-index: 300; align-items: center; justify-content: center; flex-direction: column; gap: 24px; }
+.loading-overlay.active { display: flex; }
+/* --- HUD Loading Animation (Sonar) --- */
+.sonar-wrapper { position: relative; width: 120px; height: 120px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px;}
+.sonar-shark { font-size: 3rem; z-index: 2; position: relative; animation: floatShark 3s ease-in-out infinite; }
+.sonar-ring { position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 2px solid var(--blue); opacity: 0; animation: sonarPulse 2s cubic-bezier(0.1, 0.5, 0.1, 1) infinite; }
+.sonar-ring:nth-child(2) { animation-delay: 0.6s; border-color: var(--gold); }
+.sonar-ring:nth-child(3) { animation-delay: 1.2s; border-color: var(--green); }
+@keyframes sonarPulse { 0% { transform: scale(0.5); opacity: 0.8; border-width: 4px; } 100% { transform: scale(2.5); opacity: 0; border-width: 1px; } }
+@keyframes floatShark { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-10px) rotate(-5deg); } }
+
 .loading-text { font-size: 0.95rem; color: var(--text-secondary); animation: textPulse 1.6s ease-in-out infinite; font-weight: 500; }
 @keyframes textPulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
 .loading-steps { display: flex; flex-direction: column; gap: 6px; }
@@ -171,6 +182,9 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .chart-btn:hover:not(.active) { color: var(--text); }
 .chart-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 16px; }
 .chart-container { height: 350px; position: relative; width: 100%; direction: ltr; }
+.chart-legend-overlay { position: absolute; top: 10px; left: 10px; z-index: 5; background: rgba(10,10,15,0.85); border: 1px solid var(--glass-border); border-radius: 8px; padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 12px; backdrop-filter: blur(8px); }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); }
+.legend-color { width: 12px; height: 12px; border-radius: 3px; }
 .card-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); margin-bottom: 20px; }
 .data-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
 .data-row:last-child { border-bottom: none; }
@@ -237,7 +251,13 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 
 .debug-box { background: rgba(255,69,58,0.1); border: 1px solid var(--red); color: #fff; padding: 15px; border-radius: 10px; margin: 15px 0; font-family: monospace; font-size: 13px; text-align: left; direction: ltr; white-space: pre-wrap; word-break: break-all; }
 
-.portfolio-card { background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; transition: var(--transition); cursor: pointer; }
+/* 💡 עיצוב טאבים לתיק היברידי */
+.portfolio-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; }
+.port-tab { padding: 10px 20px; font-size: 1rem; font-weight: 700; color: var(--text-secondary); cursor: pointer; border-radius: 10px; transition: var(--transition); }
+.port-tab.active { background: var(--blue-dim); color: var(--blue); }
+.port-tab:hover:not(.active) { color: var(--text); background: var(--glass); }
+
+.portfolio-card { background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; transition: var(--transition); cursor: pointer;}
 .portfolio-card:hover { border-color: var(--blue); }
 .port-sym { font-size: 1.2rem; font-weight: 900; color: var(--text); direction: ltr; }
 .port-qty { font-size: 0.8rem; color: var(--text-secondary); }
@@ -245,7 +265,19 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .btn-trade { padding: 8px 24px; font-size: 0.9rem; border-radius: 12px; background: rgba(10,132,255,0.1); color: var(--blue); border: 1px solid rgba(10,132,255,0.3); transition: var(--transition); cursor:pointer;}
 .btn-trade:hover { background: var(--blue); color: #fff; }
 
-/* 💡 סגנונות ללובי האקדמיה */
+/* 💡 עיצוב מודל אונבורדינג חדש */
+#onboarding-modal .modal { padding: 0; overflow: hidden; max-width: 500px;}
+.onboarding-slider { display: flex; width: 500%; transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+.onboarding-slide { width: 20%; padding: 40px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.ob-icon { font-size: 4rem; margin-bottom: 20px; }
+.ob-title { font-size: 1.6rem; font-weight: 800; margin-bottom: 12px; color: var(--text); }
+.ob-desc { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 30px; }
+.ob-dots { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
+.ob-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--glass-border); transition: var(--transition); }
+.ob-dot.active { background: var(--blue); width: 24px; border-radius: 4px; }
+.ob-controls { padding: 20px 40px; background: rgba(0,0,0,0.2); border-top: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; }
+
+
 .academy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-top: 20px; }
 .course-card { background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 20px; padding: 28px; transition: var(--transition); display: flex; flex-direction: column; gap: 16px; position: relative; overflow: hidden; }
 .course-card:hover { border-color: rgba(10,132,255,0.3); transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.4); }
@@ -258,43 +290,8 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 .course-audio::-webkit-media-controls-panel { background-color: rgba(255,255,255,0.1); }
 .course-audio::-webkit-media-controls-current-time-display, .course-audio::-webkit-media-controls-time-remaining-display { color: #f5f5f7; }
 
-/* 💡 מודל הודעת העדכון החדש */
 #modal-update .modal { background: linear-gradient(180deg, rgba(20,20,25,0.98) 0%, rgba(10,10,15,0.98) 100%); border: 1px solid rgba(10,132,255,0.3); box-shadow: 0 32px 80px rgba(10,132,255,0.15); }
 .new-badge { display: inline-block; background: rgba(10,132,255,0.15); color: var(--blue); padding: 4px 12px; border-radius: 980px; font-size: 0.75rem; font-weight: 800; margin-bottom: 12px; border: 1px solid rgba(10,132,255,0.3); letter-spacing: 0.05em; }
-
-/* --- HUD Loading Animation (Sonar) --- */
-.loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); z-index: 300; align-items: center; justify-content: center; flex-direction: column; gap: 24px; }
-.loading-overlay.active { display: flex; }
-.sonar-wrapper { position: relative; width: 120px; height: 120px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px;}
-.sonar-shark { font-size: 3rem; z-index: 2; position: relative; animation: floatShark 3s ease-in-out infinite; }
-.sonar-ring { position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 2px solid var(--blue); opacity: 0; animation: sonarPulse 2s cubic-bezier(0.1, 0.5, 0.1, 1) infinite; }
-.sonar-ring:nth-child(2) { animation-delay: 0.6s; border-color: var(--gold); }
-.sonar-ring:nth-child(3) { animation-delay: 1.2s; border-color: var(--green); }
-@keyframes sonarPulse { 0% { transform: scale(0.5); opacity: 0.8; border-width: 4px; } 100% { transform: scale(2.5); opacity: 0; border-width: 1px; } }
-@keyframes floatShark { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-10px) rotate(-5deg); } }
-
-/* --- Chart Legend --- */
-.chart-legend-overlay { position: absolute; top: 10px; left: 10px; z-index: 5; background: rgba(10,10,15,0.85); border: 1px solid var(--glass-border); border-radius: 8px; padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 12px; backdrop-filter: blur(8px); }
-.legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); }
-.legend-color { width: 12px; height: 12px; border-radius: 3px; }
-
-/* --- Hybrid Portfolio Tabs --- */
-.portfolio-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; }
-.port-tab { padding: 10px 20px; font-size: 1rem; font-weight: 700; color: var(--text-secondary); cursor: pointer; border-radius: 10px; transition: var(--transition); }
-.port-tab.active { background: var(--blue-dim); color: var(--blue); }
-.port-tab:hover:not(.active) { color: var(--text); background: var(--glass); }
-
-/* --- Onboarding Modal (Carousel) --- */
-#onboarding-modal .modal { padding: 0; overflow: hidden; max-width: 500px;}
-.onboarding-slider { display: flex; width: 500%; transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
-.onboarding-slide { width: 20%; padding: 40px; display: flex; flex-direction: column; align-items: center; text-align: center; }
-.ob-icon { font-size: 4rem; margin-bottom: 20px; }
-.ob-title { font-size: 1.6rem; font-weight: 800; margin-bottom: 12px; color: var(--text); }
-.ob-desc { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 30px; }
-.ob-dots { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
-.ob-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--glass-border); transition: var(--transition); }
-.ob-dot.active { background: var(--blue); width: 24px; border-radius: 4px; }
-.ob-controls { padding: 20px 40px; background: rgba(0,0,0,0.2); border-top: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; }
 
 @media (max-width: 768px) {
   nav { padding: 12px 16px; flex-wrap: wrap; height: auto; min-height: 68px; gap: 12px; justify-content: space-between; }
@@ -334,7 +331,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   .modal { padding: 32px 20px; width: 92%; }
   .onboarding-slide { padding: 20px; }
 }
-
 @media (max-width: 480px) {
   .market-stats { grid-template-columns: repeat(2, 1fr); }
   .heatmap-grid { grid-template-columns: repeat(2, 1fr); }
@@ -347,7 +343,19 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 
 <div class="aurora"><div class="aurora-blob"></div><div class="aurora-blob"></div><div class="aurora-blob"></div></div>
 
-<!-- 💡 מסך פתיחה חדש (Onboarding Carousel) -->
+<!-- 💡 סונאר כריש (טעינה חכמה) -->
+<div class="loading-overlay" id="loading">
+  <div class="sonar-wrapper">
+    <div class="sonar-ring"></div>
+    <div class="sonar-ring"></div>
+    <div class="sonar-ring"></div>
+    <div class="sonar-shark">🦈</div>
+  </div>
+  <div class="loading-text" id="loading-text">הכריש מנתח את המים...</div>
+  <div class="loading-steps" id="loading-steps"></div>
+</div>
+
+<!-- 💡 מסך הפתיחה (קרוסלה - אונבורדינג) -->
 <div class="modal-overlay" id="onboarding-modal">
   <div class="modal">
     <div class="onboarding-slider" id="ob-slider">
@@ -373,8 +381,8 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
       </div>
       <div class="onboarding-slide">
         <div class="ob-icon">👥</div>
-        <div class="ob-title">חוכמת ההמונים</div>
-        <div class="ob-desc">בלשונית "קהילה" תוכלו לראות אילו מניות קיבלו את ציוני ה-AI הגבוהים ביותר, ומהן המניות המועדפות על שאר המשתמשים. צאו לצוד!</div>
+        <div class="ob-title">חוכמת הכריש וההמונים</div>
+        <div class="ob-desc">בלשונית "קהילה" תוכלו לעקוב אחרי התיק האוטומטי שה-AI ממליץ עליו, ומהן המניות המועדפות על שאר המשתמשים. צאו לצוד!</div>
       </div>
     </div>
     <div class="ob-dots" id="ob-dots">
@@ -387,19 +395,6 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   </div>
 </div>
 
-<!-- 💡 אנימציית טעינה חדשה (Sonar) -->
-<div class="loading-overlay" id="loading">
-  <div class="sonar-wrapper">
-    <div class="sonar-ring"></div>
-    <div class="sonar-ring"></div>
-    <div class="sonar-ring"></div>
-    <div class="sonar-shark">🦈</div>
-  </div>
-  <div class="loading-text" id="loading-text">הכריש סורק את המים...</div>
-  <div class="loading-steps" id="loading-steps"></div>
-</div>
-
-<!-- 💡 מודל הודעת עדכון (קופץ אוטומטית פעם אחת) -->
 <div class="modal-overlay" id="modal-update">
   <div class="modal" style="position:relative;">
     <button class="modal-close" onclick="closeUpdateModal()">✕</button>
@@ -414,7 +409,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   </div>
 </div>
 
-<!-- 💡 מודל מסחר היברידי חדש (וירטואלי / אמיתי) -->
+<!-- 💡 מודל התיק ההיברידי החדש -->
 <div class="modal-overlay" id="modal-trade">
   <div class="modal" style="position:relative">
     <button class="modal-close" onclick="document.getElementById('modal-trade').classList.remove('active')">✕</button>
@@ -422,9 +417,9 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
     <p style="color:var(--text-secondary); margin-bottom:20px;">מחיר נוכחי: <span id="trade-price" style="font-weight:bold; color:var(--text); direction:ltr;">$0.00</span></p>
     
     <div id="trade-virtual-info">
-        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:15px; text-align:right;">יתרת מזומן וירטואלית: <span id="trade-cash" style="direction:ltr;"></span></p>
+        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:15px; text-align:right;">יתרת מזומן: <span id="trade-cash" style="direction:ltr;"></span></p>
     </div>
-
+    
     <input type="number" class="input-field" id="trade-shares" placeholder="כמות מניות..." min="0" step="1" style="text-align:center; direction:ltr;" oninput="updateTradeTotal()" />
     
     <div id="trade-real-price-input" style="display:none;">
@@ -441,14 +436,13 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
         <button class="btn btn-danger" style="flex:1; padding:12px;" onclick="executeTrade('sell')">מכור (וירטואלי)</button>
     </div>
     <div id="trade-actions-real" style="display:none;">
-        <button class="btn btn-primary" style="width:100%; padding:12px;" onclick="executeRealTrade()">עדכן החזקה אמיתית</button>
+        <button class="btn btn-primary" style="width:100%; padding:12px;" onclick="executeRealTrade()">שמור למעקב בתיק אישי</button>
         <p style="font-size:0.75rem; color:var(--gold); margin-top:10px;">* שים 0 בכמות כדי למחוק את המניה מהתיק האישי</p>
     </div>
     <p id="trade-error" style="color:var(--red); font-size:0.85rem; margin-top:15px; display:none;"></p>
   </div>
 </div>
 
-<!-- מודל התחברות -->
 <div class="modal-overlay" id="modal-login">
   <div class="modal" style="position:relative">
     <button class="modal-close" onclick="closeLogin()">✕</button>
@@ -529,7 +523,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   <!-- 💡 אזור התיק ההיברידי החדש -->
   <div id="section-portfolio" class="section">
     <div class="section-title">💼 תיק השקעות שלך</div>
-    <div class="section-subtitle">נהל סימולציות וירטואליות או עקוב אחרי התיק האמיתי שלך מול הבורסה.</div>
+    <div class="section-subtitle">נהל סימולציות וירטואליות או עקוב אחרי התיק האמיתי שלך מהבנק.</div>
     
     <div class="portfolio-tabs">
         <div class="port-tab active" id="tab-virt-port" onclick="switchPortfolioType('virtual')">🎮 זירת אימונים (וירטואלי)</div>
@@ -538,7 +532,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 
     <div class="market-stats" id="port-stats-container">
         <div class="stat-card" style="background:rgba(10,132,255,0.05); border-color:rgba(10,132,255,0.2);">
-            <div class="stat-label">שווי תיק מניות</div>
+            <div class="stat-label">שווי מניות</div>
             <div class="stat-value" id="port-total" style="color:var(--blue)">$0.00</div>
         </div>
         <div class="stat-card" id="port-cash-card">
@@ -546,7 +540,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
             <div class="stat-value" id="port-cash">$100,000.00</div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">רווח / הפסד (P/L)</div>
+            <div class="stat-label">רווח / הפסד פתוח (P/L)</div>
             <div class="stat-value" id="port-pnl" style="color:var(--text-secondary)">$0.00</div>
         </div>
     </div>
@@ -570,26 +564,38 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
   <div id="section-admin" class="section">
     <div class="section-title" style="color:var(--gold)">⚙️ פאנל מנהל מערכת</div>
     <div class="section-subtitle">ניהול משתמשים והרשאות גישה למערכת בענן</div>
+    
+    <!-- 💡 מנגנון מחיקת קאש למנהלים -->
+    <div style="margin-top: 30px; margin-bottom:30px; padding: 20px; background: rgba(255,69,58,0.1); border: 1px solid var(--red); border-radius: 12px;">
+        <h3 style="color: var(--red); margin-bottom: 10px;">מחיקת זיכרון (Cache) ליישור קו</h3>
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 15px;">כדי להכריח את הכריש לנתח מניה מחדש ולא למשוך נתונים ישנים מהזיכרון.</p>
+        <div style="display:flex; gap:10px;">
+            <input type="text" id="admin-cache-input" class="input-field" placeholder="הזן סימול (למשל AAPL)" style="margin:0; width: 250px; direction:ltr;">
+            <button class="btn btn-danger" onclick="adminClearCache()">מחק זיכרון לסימול</button>
+        </div>
+    </div>
+
     <div class="admin-grid" id="admin-users-list"></div>
   </div>
 
   <div id="section-community" class="section">
-    <div class="section-title">👥 קהילה וסט-אפים חמים</div>
-    <div class="section-subtitle">גלו אילו מניות הקהילה אוהבת ואילו מניות קיבלו את הציון הגבוה ביותר מה-AI</div>
+    <div class="section-title">👥 קהילה וחוכמת הכריש</div>
+    <div class="section-subtitle">עקבו אחרי תיק המניות הקהילתי ואחרי התיק החכם שה-AI שלנו מרכיב.</div>
     
     <div class="results-grid" style="align-items: start;">
         <div class="card">
-            <div class="card-title" style="color:var(--blue)">🥧 תיק חוכמת ההמונים</div>
+            <div class="card-title" style="color:var(--blue)">🥧 התיק הקהילתי</div>
             <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:15px;">התפלגות המניות המועדפות על המשתמשים שלנו</p>
             <div id="community-portfolio-list" style="display:flex; flex-direction:column; gap:12px; min-height: 200px;">
                  טוען נתוני קהילה...
             </div>
         </div>
         <div class="card">
-            <div class="card-title" style="color:var(--gold)">🔥 טופ סט-אפים (המלצות ה-AI)</div>
-            <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:15px;">המניות שקיבלו את ציוני ה-AI הגבוהים ביותר כולל רמות מסחר</p>
+            <!-- 💡 שינוי שם ל"תיק חוכמת הכריש" -->
+            <div class="card-title" style="color:var(--gold)">🦈 תיק חוכמת הכריש (AI Top Picks)</div>
+            <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:15px;">תיק וירטואלי אוטומטי המאגד רק את המניות שקיבלו ציוני AI חריגים (מעל 70).</p>
             <div id="top-setups-list" style="display:flex; flex-direction:column; gap:10px; min-height: 200px;">
-                 טוען סט-אפים...
+                 טוען המלצות AI...
             </div>
         </div>
     </div>
@@ -623,8 +629,8 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
           <div class="stock-full-name" id="res-name"></div>
         </div>
         <div class="header-actions">
-          <button class="btn-trade" onclick="openBuyModal('virtual')">🎮 קנייה וירטואלית</button>
-          <button class="btn btn-ghost" onclick="openBuyModal('real')" style="border-color:var(--gold); color:var(--gold);">🏦 לתיק האישי</button>
+          <button class="btn-trade" onclick="openBuyModal('virtual')">🎮 לתיק הוירטואלי</button>
+          <button class="btn btn-ghost" onclick="openBuyModal('real')" style="border-color:var(--gold); color:var(--gold);">🏦 הוסף לתיק מעקב</button>
           <button class="icon-btn tooltip-wrap" data-tip="הצבע לתיק חוכמת ההמונים" id="btn-vote-crowd" onclick="voteForCrowd()">👥</button>
           <button class="icon-btn tooltip-wrap" data-tip="הוסף לרשימת מעקב" id="btn-add-watch-results" onclick="addToWatchlistFromResults()">📌</button>
         </div>
@@ -650,8 +656,8 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
               <div class="chart-legend-overlay">
                   <div class="legend-item"><div class="legend-color" style="background:#0a84ff;"></div> MA 50</div>
                   <div class="legend-item"><div class="legend-color" style="background:#bf5af2;"></div> MA 200</div>
-                  <div class="legend-item"><div class="legend-color" style="background:rgba(255, 69, 58, 0.6);"></div> התנגדות</div>
-                  <div class="legend-item"><div class="legend-color" style="background:rgba(48, 209, 88, 0.6);"></div> תמיכה</div>
+                  <div class="legend-item"><div class="legend-color" style="background:rgba(255, 69, 58, 0.6);"></div> התנגדות / יעד רווח</div>
+                  <div class="legend-item"><div class="legend-color" style="background:rgba(48, 209, 88, 0.6);"></div> תמיכה / סטופ</div>
               </div>
           </div>
         </div>
@@ -716,6 +722,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
     <div class="watchlist-grid" id="watchlist-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px;"></div>
   </div>
 
+  <!-- אזור לובי האקדמיה -->
   <div id="section-academy" class="section">
     <div class="hero-badge" style="background: rgba(191,90,242,0.15); color: var(--purple); border-color: rgba(191,90,242,0.3);">✦ FinShark Masterclass</div>
     <div class="section-title">🎓 אקדמיית הכריש</div>
@@ -809,7 +816,7 @@ main { position: relative; z-index: 1; padding-top: 88px; max-width: 1240px; mar
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, getDocs, collection, onSnapshot, updateDoc, arrayUnion, arrayRemove, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, getDocs, collection, onSnapshot, updateDoc, arrayUnion, arrayRemove, increment, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 const firebaseConfig = { apiKey: "AIzaSyBU77J3Nu8xh0_a1GLM9jcnWJmhZq8QHH4", authDomain: "finshark-b9f2f.firebaseapp.com", projectId: "finshark-b9f2f", storageBucket: "finshark-b9f2f.firebasestorage.app", messagingSenderId: "1096467959013", appId: "1:1096467959013:web:737d0d49c475032657d80c", measurementId: "G-SDHLCKEW0K" };
 const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
@@ -840,7 +847,7 @@ function formatNumberShort(num) {
 let obCurrentSlide = 0;
 window.closeOnboarding = function() {
     document.getElementById('onboarding-modal').classList.remove('active');
-    localStorage.setItem('finshark_onboarding_seen', 'true');
+    localStorage.setItem('finshark_onb_v3', 'true'); // מפתח חדש כדי להכריח הופעה
 };
 window.nextOnboardingSlide = function() {
     if (obCurrentSlide < 4) {
@@ -866,8 +873,7 @@ window.goToAcademyFromModal = function() {
 window.addEventListener('DOMContentLoaded', () => { 
     loadMarketWeather(); 
     
-    // Check Onboarding first, then Update Modal
-    if (!localStorage.getItem('finshark_onboarding_seen')) {
+    if (!localStorage.getItem('finshark_onb_v3')) {
         setTimeout(() => document.getElementById('onboarding-modal').classList.add('active'), 1000);
     } else if (!localStorage.getItem('finshark_academy_update_seen')) {
         setTimeout(() => document.getElementById('modal-update').classList.add('active'), 1500);
@@ -922,7 +928,7 @@ window.executeRealTrade = async function() {
 
     let realPortfolio = State.currentUser.realPortfolio || {};
     if (qty === 0) {
-        delete realPortfolio[ticker]; // Delete position if qty is 0
+        delete realPortfolio[ticker]; 
     } else {
         realPortfolio[ticker] = { shares: qty, avgPrice: avgPrice };
     }
@@ -1198,6 +1204,17 @@ window.approveUser = async function(uid) { await updateDoc(doc(db, 'users', uid)
 window.revokeUser = async function(uid) { await updateDoc(doc(db, 'users', uid), { status: 'pending' }); };
 window.removeRestriction = async function(uid) { await updateDoc(doc(db, 'users', uid), { restrictedUntil: null, analysisCount: 0 }); };
 
+// 💡 פונקציה חדשה למנהל - מחיקת קאש
+window.adminClearCache = async function() {
+    const t = document.getElementById('admin-cache-input').value.trim().toUpperCase();
+    if(!t) return;
+    try {
+        await deleteDoc(doc(db, 'ai_cache', t));
+        alert('הזיכרון נמחק בהצלחה! בניתוח הבא המניה תנותח מחדש לחלוטין.');
+        document.getElementById('admin-cache-input').value = '';
+    } catch(e) { alert('שגיאה במחיקה'); }
+};
+
 window.addWatchlistItem = async function() { const inputEl = document.getElementById('watch-input'); if(!inputEl) return; const val = inputEl.value.trim().toUpperCase(); if (!val || !State.currentUser) return; inputEl.value = ''; await updateDoc(doc(db, 'users', State.currentUser.uid), { watchlist: arrayUnion(val) }); };
 window.removeFromWatchlist = async function(ticker) { if(!State.currentUser) return; await updateDoc(doc(db, 'users', State.currentUser.uid), { watchlist: arrayRemove(ticker) }); };
 window.addToWatchlistFromResults = async function() { const ticker = State.currentData?.ticker; if (!ticker || !State.currentUser) return; await updateDoc(doc(db, 'users', State.currentUser.uid), { watchlist: arrayUnion(ticker) }); const btn = document.getElementById('btn-add-watch-results'); if(btn){btn.classList.add('active'); btn.textContent = '✓'; setTimeout(() => { btn.classList.remove('active'); btn.textContent = '📌'; }, 1500);} };
@@ -1372,6 +1389,7 @@ window.analyzeStock = async function() {
                   cached.changePercentage = liveData.changePercentage;
                   cached.chartData = liveData.chartData;
                   hideLoading();
+                  State.currentData = cached; // 💡 תוקן: מאפשר עכשיו לשמור בתיק מניות שנטענו מהזיכרון!
                   renderResults(cached, cached.analysis, cached.chartData, cached.tickerNews || []);
                   return;
               }
@@ -1425,7 +1443,7 @@ window.setChartPeriod = function(months, btn) {
 };
 
 function renderChart(historyData, months, fullDataObj) {
-    window.currentChartData = historyData; // Save for filtering
+    window.currentChartData = historyData; 
     const container = document.getElementById('stockChart');
     if(!container) return;
     if(!historyData || !Array.isArray(historyData)) return;
@@ -1446,7 +1464,6 @@ function renderChart(historyData, months, fullDataObj) {
         color: d.close >= d.open ? 'rgba(48, 209, 88, 0.35)' : 'rgba(255, 69, 58, 0.35)' 
     }));
 
-    // Save the legend HTML before destroying chart
     const legendHtml = container.querySelector('.chart-legend-overlay')?.outerHTML || '';
 
     if (tvChart) {
@@ -1462,7 +1479,6 @@ function renderChart(historyData, months, fullDataObj) {
         crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
     });
     
-    // Re-inject legend
     if (legendHtml) {
         container.insertAdjacentHTML('beforeend', legendHtml);
     }
@@ -1487,12 +1503,13 @@ function renderChart(historyData, months, fullDataObj) {
     });
     candleSeries.setData(candles);
 
+    // 💡 התיקון: הסרנו את התכונה "title" כך שאין יותר טקסט שרוכב על הגרף ומלכלך אותו!
     if (ma50Line.length > 0) {
-        ma50Series = tvChart.addLineSeries({ color: '#0a84ff', lineWidth: 1.5, title: 'MA 50' });
+        ma50Series = tvChart.addLineSeries({ color: '#0a84ff', lineWidth: 1.5 });
         ma50Series.setData(ma50Line);
     }
     if (ma200Line.length > 0) {
-        ma200Series = tvChart.addLineSeries({ color: '#bf5af2', lineWidth: 1.5, title: 'MA 200' });
+        ma200Series = tvChart.addLineSeries({ color: '#bf5af2', lineWidth: 1.5 });
         ma200Series.setData(ma200Line);
     }
 
@@ -1505,8 +1522,7 @@ function renderChart(historyData, months, fullDataObj) {
                 color: isRes ? 'rgba(255, 69, 58, 0.4)' : 'rgba(48, 209, 88, 0.4)',
                 lineWidth: 1,
                 lineStyle: LightweightCharts.LineStyle.Dotted,
-                axisLabelVisible: true,
-                title: level.type,
+                axisLabelVisible: true // מציג רק את המחיר בסקאלה, בלי טקסט מסורבל
             });
         });
     }
@@ -1535,7 +1551,7 @@ function renderChart(historyData, months, fullDataObj) {
             const tPrice = Number(String(tPriceStr).replace(/[^0-9.]/g, ''));
             if (!isNaN(tPrice) && tPrice > 0) {
                 candleSeries.createPriceLine({
-                    price: tPrice, color: '#30d158', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid, axisLabelVisible: true, title: '🎯 יעד AI'
+                    price: tPrice, color: '#30d158', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid, axisLabelVisible: true
                 });
             }
         }
@@ -1543,7 +1559,7 @@ function renderChart(historyData, months, fullDataObj) {
             const sLoss = Number(String(sLossStr).replace(/[^0-9.]/g, ''));
             if (!isNaN(sLoss) && sLoss > 0) {
                 candleSeries.createPriceLine({
-                    price: sLoss, color: '#ff453a', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid, axisLabelVisible: true, title: '🛑 סטופ AI'
+                    price: sLoss, color: '#ff453a', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid, axisLabelVisible: true
                 });
             }
         }
@@ -1608,8 +1624,9 @@ function renderResults(data, analysis, historyData, newsData) {
   const rangeHigh = typeof data.fiftyTwoWeekHigh === 'number' ? data.fiftyTwoWeekHigh : 100;
   const currentPos = Math.max(0, Math.min(100, ((p - rangeLow) / (Math.max(rangeHigh - rangeLow, 1))) * 100));
   
+  // 💡 התיקון לדוח הרבעוני: המידע נמשך עכשיו מהאובייקט החדש שהוספנו בשרת
   const earningsText = data.latestEarnings && typeof data.latestEarnings.surprisePercent === 'number' ? 
-    (data.latestEarnings.surprisePercent > 0 ? `+${data.latestEarnings.surprisePercent.toFixed(1)}% (הכה תחזיות)` : `${data.latestEarnings.surprisePercent.toFixed(1)}% (פספס)`) : 'לא זמין';
+    (data.latestEarnings.surprisePercent > 0 ? `+${data.latestEarnings.surprisePercent.toFixed(1)}% (הכה תחזיות)` : `${data.latestEarnings.surprisePercent.toFixed(1)}% (אכזב)`) : 'לא זמין';
   const earningsGood = data.latestEarnings && typeof data.latestEarnings.surprisePercent === 'number' && data.latestEarnings.surprisePercent > 0;
   const earningsBad = data.latestEarnings && typeof data.latestEarnings.surprisePercent === 'number' && data.latestEarnings.surprisePercent < 0;
   
