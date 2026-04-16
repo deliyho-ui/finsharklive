@@ -175,6 +175,7 @@ module.exports = async function(req, res) {
         const finnhubKey = process.env.FINNHUB_API_KEY;
         if (!apiKey || !finnhubKey) return res.status(500).json({ success: false, message: "Missing API Keys" });
 
+        // --- תיקון JSON MODE עבור תיק הכריש ---
         if (action === 'shark_portfolio') {
             const prompt = `You are "FinShark", an elite Wall Street AI hedge fund manager. 
             Construct a 5-stock model portfolio for today's market environment. 
@@ -188,18 +189,29 @@ module.exports = async function(req, res) {
 
             try {
                 const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ 
                         contents: [{ parts: [{ text: prompt }] }], 
-                        generationConfig: { temperature: 0.7 },
+                        generationConfig: { 
+                            temperature: 0.7,
+                            responseMimeType: "application/json" // כופה על המודל להחזיר JSON נקי
+                        },
                         safetySettings: [{ category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }]
                     })
                 });
+                
+                if (!aiRes.ok) throw new Error("Gemini API returned an error");
+                
                 const aiData = await aiRes.json();
-                let text = aiData.candidates[0].content.parts[0].text;
-                const match = text.match(/\[[\s\S]*\]/);
-                if(match) return res.status(200).json({ success: true, portfolio: JSON.parse(match[0]) });
-                throw new Error("Format failed");
+                if (aiData.candidates && aiData.candidates[0].content) {
+                    let text = aiData.candidates[0].content.parts[0].text;
+                    return res.status(200).json({ success: true, portfolio: JSON.parse(text) });
+                } else {
+                    throw new Error("Empty response from Gemini");
+                }
             } catch (e) {
+                console.error("Shark Portfolio Error:", e.message);
                 // Fallback תיק למקרה שה-AI נופל כדי שהאתר לא ייתקע
                 return res.status(200).json({ success: true, portfolio: [
                     {"ticker": "NVDA", "weight": 30, "role": "מנוע צמיחה ומומנטום", "reason": "שליטה בתחום הבינה המלאכותית"},
@@ -345,27 +357,39 @@ module.exports = async function(req, res) {
         };
         
         let success = false;
+        
+        // --- תיקון JSON MODE עבור כפתור הניתוח ---
         for (let i = 0; i < 2; i++) {
             if (success) break;
             try {
                 const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ 
                         contents: [{ parts: [{ text: prompt }] }], 
-                        generationConfig: { temperature: 0.1 },
+                        generationConfig: { 
+                            temperature: 0.1,
+                            responseMimeType: "application/json" // כופה על המודל להחזיר JSON נקי
+                        },
                         safetySettings: [{ category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }]
                     })
                 });
 
                 if (aiResponse.ok) {
                     const aiData = await aiResponse.json();
-                    let text = aiData.candidates[0].content.parts[0].text;
-                    const match = text.match(/\{[\s\S]*\}/);
-                    if (match) { 
-                        aiVerdict = JSON.parse(match[0]); 
+                    if (aiData.candidates && aiData.candidates[0].content) {
+                        let text = aiData.candidates[0].content.parts[0].text;
+                        aiVerdict = JSON.parse(text); 
                         success = true; 
                     }
+                } else {
+                    const errorText = await aiResponse.text();
+                    console.error("Gemini API error:", errorText);
                 }
-            } catch (e) { await new Promise(res => setTimeout(res, 1000)); }
+            } catch (e) { 
+                console.error("Parse/Fetch error:", e.message);
+                await new Promise(res => setTimeout(res, 1000)); 
+            }
         }
 
         return res.status(200).json({
@@ -378,5 +402,8 @@ module.exports = async function(req, res) {
             insiderTransactions: insiders.slice(0, 6), insiderSentiment: insiderSentiment,
             analysis: aiVerdict, chartData: chartPoints
         });
-    } catch (error) { return res.status(500).json({ success: false, message: error.message }); }
+    } catch (error) { 
+        console.error("Global Catch Error:", error);
+        return res.status(500).json({ success: false, message: error.message }); 
+    }
 };
