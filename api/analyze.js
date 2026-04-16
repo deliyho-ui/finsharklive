@@ -161,6 +161,16 @@ function sanitizeValue(val) {
     return Number(val);
 }
 
+// פונקציית עזר למיפוי סקטור לתעודת סל כדי למדוד עוצמה יחסית
+function getSectorETF(sectorName) {
+    const map = {
+        "Technology": "XLK", "Healthcare": "XLV", "Financials": "XLF", 
+        "Consumer Cyclical": "XLY", "Industrials": "XLI", "Energy": "XLE", 
+        "Consumer Defensive": "XLP", "Utilities": "XLU", "Real Estate": "XLRE", "Basic Materials": "XLB"
+    };
+    return map[sectorName] || "SPY"; 
+}
+
 module.exports = async function(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -175,7 +185,6 @@ module.exports = async function(req, res) {
         const finnhubKey = process.env.FINNHUB_API_KEY;
         if (!apiKey || !finnhubKey) return res.status(500).json({ success: false, message: "Missing API Keys" });
 
-        // --- תיקון JSON MODE עבור תיק הכריש ---
         if (action === 'shark_portfolio') {
             const prompt = `You are "FinShark", an elite Wall Street AI hedge fund manager. 
             Construct a 5-stock model portfolio for today's market environment. 
@@ -195,7 +204,7 @@ module.exports = async function(req, res) {
                         contents: [{ parts: [{ text: prompt }] }], 
                         generationConfig: { 
                             temperature: 0.7,
-                            responseMimeType: "application/json" // כופה על המודל להחזיר JSON נקי
+                            responseMimeType: "application/json"
                         },
                         safetySettings: [{ category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }]
                     })
@@ -212,7 +221,6 @@ module.exports = async function(req, res) {
                 }
             } catch (e) {
                 console.error("Shark Portfolio Error:", e.message);
-                // Fallback תיק למקרה שה-AI נופל כדי שהאתר לא ייתקע
                 return res.status(200).json({ success: true, portfolio: [
                     {"ticker": "NVDA", "weight": 30, "role": "מנוע צמיחה ומומנטום", "reason": "שליטה בתחום הבינה המלאכותית"},
                     {"ticker": "PLTR", "weight": 20, "role": "חדשנות דאטה", "reason": "חוזים ממשלתיים חזקים"},
@@ -257,7 +265,6 @@ module.exports = async function(req, res) {
 
         if (!ticker) return res.status(400).json({ success: false, message: "Missing ticker symbol" });
 
-        // הגנת TSMC/מניות שגויות
         const [quote, chartPoints] = await Promise.all([
             fetchFinnhub('quote', `symbol=${ticker}`),
             fetchYahooData(ticker, '2y', '1d')
@@ -318,78 +325,93 @@ module.exports = async function(req, res) {
         const patternObj = detectAllPatterns(chartPoints);
         const rsiVal = calculateRSI(chartPoints.map(p=>p.close));
         const isDataComplete = true; 
-        const recentNews = (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 3).map(n => n.headline).join(" | ");
         const currPrice = Number(quote.c);
 
-        let latestEarningStr = "אין נתוני דוח אחרון";
-        if (Array.isArray(earningsData) && earningsData.length > 0 && earningsData[0].surprisePercent !== null) {
-            latestEarningStr = `דוח אחרון: הפתעה של ${earningsData[0].surprisePercent}% ביחס לתחזיות.`;
+        // --- הכנת נתונים מתקדמים ל-AI (עוצמה יחסית וחדשות) ---
+        const sectorETF = getSectorETF(profile?.finnhubIndustry);
+        const [spyQuote, sectorQuote] = await Promise.all([
+            fetchFinnhub('quote', 'symbol=SPY'),
+            fetchFinnhub('quote', `symbol=${sectorETF}`)
+        ]);
+        const marketContext = `ה-S&P 500 (SPY) השתנה היום ב-${spyQuote?.dp?.toFixed(2) || 0}%. סקטור ה-${profile?.finnhubIndustry || 'כללי'} (${sectorETF}) השתנה ב-${sectorQuote?.dp?.toFixed(2) || 0}%.`;
+
+        let earningsStreak = "אין מספיק נתונים על דוחות עבר.";
+        if (Array.isArray(earningsData) && earningsData.length >= 3) {
+            const recent = earningsData.slice(0,3).map(e => e.surprisePercent > 0 ? '✅' : '❌').join(' ');
+            earningsStreak = `רצף הפתעות ב-3 רבעונים אחרונים: ${recent} (הדוח האחרון: ${earningsData[0].surprisePercent || 0}%).`;
         }
+        const recentNews = (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 3).map(n => n.headline).join(" | ");
 
-        const prompt = `אתה "הכריש" - מנתח מניות בכיר וסוחר סווינג.
-        נתח את המניה ${ticker}. מחיר נוכחי: $${currPrice}.
-        
-        נתונים טכניים (חובה לבסס עליהם יעד וסטופ, אל תמציא מספרים):
-        - תבניות: ${patternObj.text}
-        - תמיכה/התנגדות: ${levelsPrompt || 'לא זוהו מובהקות'}
-        - RSI: ${rsiVal.toFixed(1)}
-        
-        נתונים פונדמנטליים: P/E: ${fundamentals.peRatio || 'N/A'}. 
-        דוח רווח אחרון: ${latestEarningStr}.
-        חדשות: ${recentNews || 'אין חדשות'}
-        
-        חובה: החזר אך ורק מבנה JSON תקין בעברית לפי המבנה הבא (ללא שום מילה, סימן או הערה לפני או אחרי הסוגריים המסולסלים):
-        { 
-          "identity": "תיאור עסקי קצר של החברה", 
-          "technical": "תיאור קריאת הגרף והמומנטום",
-          "news_sentiment": "חיובי / שלילי / ניטרלי",
-          "long_term": { "summary": "מסקנה ארוכת טווח", "intrinsic_value": "150", "accumulation_zone": "120 - 130", "price_target": "160" },
-          "short_term": { "summary": "מסקנה לסווינג", "entry_price": "${currPrice}", "target_price": "מספר נקי מבוסס התנגדות", "stop_loss": "מספר נקי מבוסס תמיכה מתחת למחיר" },
-          "pros": ["חוזקה 1", "חוזקה 2"], "cons": ["סיכון 1", "סיכון 2"], 
-          "scores": {"overall": 80, "growth":80, "value":80, "momentum":80, "quality":80}, "rating": "קנייה חזקה" 
-        }`;
+        // --- פרומפט הכריש המשודרג ---
+        const prompt = `אתה "FinShark" - אנליסט מניות סווינג בכיר בוול סטריט. הסגנון שלך הוא חד, מקצועי, ישיר ומעט ציני.
+המניה: ${ticker} ($${currPrice}).
+מצב השוק היום: ${marketContext}
+חדשות אחרונות על המניה: ${recentNews || 'אין חדשות מיוחדות'}
 
+נתונים קריטיים שחובה להצליב:
+- ממוצעים: מניה ב-$${currPrice}, בעוד ש-MA50 הוא $${lastPoint.ma50} ו-MA200 הוא $${lastPoint.ma200}.
+- מומנטום: RSI עומד על ${rsiVal.toFixed(1)}.
+- תבנית בגרף: ${patternObj.text}.
+- תמיכה/התנגדות קרובות: ${levelsPrompt || 'לא זוהו'}.
+- פונדמנטל: מכפיל רווח P/E ${fundamentals.peRatio || 'N/A'}, צמיחת הכנסות ${fundamentals.revenueGrowth || 'N/A'}%.
+- היסטוריית דוחות: ${earningsStreak}
+
+הנחיות טון ושפה (חובה!):
+1. אל תשתמש במילים רובוטיות כמו "חשוב לציין", "לסיכום", "ניתן לראות ש..." או "ניכר כי".
+2. כתוב בגובה העיניים כמו סוחר רחוב מוול סטריט. השתמש במונחים כמו "מומנטום שורטיסטי", "נקודת איסוף", "תמחור מנופח" או "מפגינה עוצמה יחסית".
+3. היה נחרץ! במקום לכתוב "המניה עשויה לעלות", כתוב "המניה יושבת על תמיכת ברזל ויש לה פוטנציאל פריצה".
+4. בצע הצלבה: חובה להתייחס לאיך החדשות של המניה והמצב של השוק/הסקטור משפיעים על הפוזיציה. האם החדשות תומכות בגרף או סותרות אותו?
+
+החזר JSON בלבד, בעברית, ללא הערות, לפי המבנה הבא:
+{
+  "internal_logic": "משפט אחד לעצמך באנגלית שאומר האם המניה קנייה או מכירה ולמה בהתבסס על החדשות והגרף (זה משפר את הדיוק שלך).",
+  "identity": "תיאור עסקי קצר ותמציתי של החברה",
+  "technical": "ניתוח הגרף והמומנטום בסגנון סוחר סווינג מקצועי - חובה לשלב התייחסות למצב השוק והחדשות האחרונות שצוינו",
+  "long_term": { "summary": "מסקנת ערך להשקעה ארוכה", "intrinsic_value": "150", "accumulation_zone": "120 - 130", "price_target": "160" },
+  "short_term": { "summary": "תוכנית מסחר לסווינג (קצרה ופרקטית)", "entry_price": "${currPrice}", "target_price": "יעד (מספר נקי מבוסס התנגדות)", "stop_loss": "סטופ קשיח מתחת לתמיכה" },
+  "pros": ["נקודת זכות 1", "נקודת זכות 2"], 
+  "cons": ["נקודת תורפה 1", "נקודת תורפה 2"], 
+  "scores": {"overall": 80, "growth":80, "value":80, "momentum":80, "quality":80}, 
+  "rating": "קנייה / החזקה / מכירה" 
+}`;
+
+        // Fallback למקרה של תקלה ב-API (חוסך ניסיונות חוזרים שעולים כסף)
         let aiVerdict = { 
-            news_sentiment: "אין מידע.", technical: "לא הצלחנו לייצר קריאה.",
-            long_term: { summary: "שגיאת AI בשרת.", intrinsic_value: "", accumulation_zone: "", price_target: "" },
-            short_term: { summary: "שגיאת AI בשרת.", entry_price: "", target_price: "", stop_loss: "" },
-            scores: { overall: 50 }, rating: "המתנה", pros: ["שגיאה"], cons: ["שגיאה"], identity: "שגיאה בניתוח"
+            isError: true,
+            identity: "שגיאה בשרת הכריש, לא ניתן לנתח את המניה כרגע.", 
+            technical: "יכול להיות שהמכסה של ה-API הסתיימה או שיש תקלת רשת. אנא נסה שוב מאוחר יותר.",
+            long_term: { summary: "לא זמין", intrinsic_value: "N/A", accumulation_zone: "N/A", price_target: "N/A" },
+            short_term: { summary: "לא זמין", entry_price: "N/A", target_price: "N/A", stop_loss: "N/A" },
+            scores: null, rating: "שגיאה", pros: ["שגיאה"], cons: ["שגיאה"]
         };
         
-        let success = false;
-        
-        // --- תיקון JSON MODE עבור כפתור הניתוח ---
-        for (let i = 0; i < 2; i++) {
-            if (success) break;
-            try {
-                const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ 
-                        contents: [{ parts: [{ text: prompt }] }], 
-                        generationConfig: { 
-                            temperature: 0.1,
-                            responseMimeType: "application/json" // כופה על המודל להחזיר JSON נקי
-                        },
-                        safetySettings: [{ category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }]
-                    })
-                });
+        try {
+            // קריאה בודדת ללא לולאות Retry למניעת בזבוז
+            const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ 
+                    contents: [{ parts: [{ text: prompt }] }], 
+                    generationConfig: { 
+                        temperature: 0.1, // טמפרטורה נמוכה ליציבות JSON
+                        responseMimeType: "application/json" 
+                    },
+                    safetySettings: [{ category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }]
+                })
+            });
 
-                if (aiResponse.ok) {
-                    const aiData = await aiResponse.json();
-                    if (aiData.candidates && aiData.candidates[0].content) {
-                        let text = aiData.candidates[0].content.parts[0].text;
-                        aiVerdict = JSON.parse(text); 
-                        success = true; 
-                    }
-                } else {
-                    const errorText = await aiResponse.text();
-                    console.error("Gemini API error:", errorText);
+            if (aiResponse.ok) {
+                const aiData = await aiResponse.json();
+                if (aiData.candidates && aiData.candidates[0].content) {
+                    let text = aiData.candidates[0].content.parts[0].text;
+                    aiVerdict = JSON.parse(text); 
+                    aiVerdict.isError = false;
                 }
-            } catch (e) { 
-                console.error("Parse/Fetch error:", e.message);
-                await new Promise(res => setTimeout(res, 1000)); 
+            } else {
+                console.error("Gemini API error status:", aiResponse.status);
             }
+        } catch (e) { 
+            console.error("Gemini Fetch error:", e.message);
         }
 
         return res.status(200).json({
