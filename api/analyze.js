@@ -192,8 +192,8 @@ module.exports = async function(req, res) {
         const finnhubKey = process.env.FINNHUB_API_KEY;
         if (!apiKey || !finnhubKey) return res.status(500).json({ success: false, message: "Missing API Keys" });
 
-        // 1. קריאה לנתוני שוק כלליים (לא דורשת סימול מניה)
-        if (action === 'market') {
+        // מטפל בבקשת שוק כללית ללא צורך בטיקר
+        if (action === 'market' || (!ticker && action !== 'analyze')) {
             const [spy, qqq, dia, iwm, xlk, xlv, xlf, xle, xly, xli, newsData, topGainers, topLosers] = await Promise.all([
                 fetchFinnhub('quote', 'symbol=SPY'), fetchFinnhub('quote', 'symbol=QQQ'), fetchFinnhub('quote', 'symbol=DIA'), fetchFinnhub('quote', 'symbol=IWM'), 
                 fetchFinnhub('quote', 'symbol=XLK'), fetchFinnhub('quote', 'symbol=XLV'), fetchFinnhub('quote', 'symbol=XLF'), fetchFinnhub('quote', 'symbol=XLE'), 
@@ -225,12 +225,10 @@ module.exports = async function(req, res) {
             });
         }
 
-        // הגנת חסימה - כל פעולה מנקודה זו והלאה מחייבת סימול מניה חוקי
         if (!ticker) {
             return res.status(400).json({ success: false, message: "Missing ticker symbol" });
         }
 
-        // 2. קריאת נתונים חיים (עבור התיק הוירטואלי)
         if (action === 'live_data') {
             const [quote, chartPoints, profile, metricsData] = await Promise.all([
                 fetchFinnhub('quote', `symbol=${ticker}`),
@@ -253,7 +251,6 @@ module.exports = async function(req, res) {
             });
         }
 
-        // 3. ניתוח חכם מלא
         const today = new Date().toISOString().split('T')[0];
         const lastMonth = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
@@ -269,7 +266,6 @@ module.exports = async function(req, res) {
 
         const m = metricsData?.metric || {};
         
-        // תיקון Market Cap
         const rawMarketCap = sanitizeValue(profile?.marketCapitalization || m?.marketCapitalization);
         const fundamentals = {
             marketCap: rawMarketCap !== null ? rawMarketCap * 1000000 : null,
@@ -309,81 +305,44 @@ module.exports = async function(req, res) {
             latestEarningStr = `Latest Earning Surprise: ${latest.surprisePercent}% vs estimates.`;
         }
 
-        // --- WALL STREET ELITE PROMPT (English processing, strictly Hebrew JSON output) ---
-        const prompt = `You are "FinShark", an elite algorithmic and fundamental trading AI designed to outperform top Wall Street analysts. 
-        You combine the value investing logic of Warren Buffett with the precise technical swing trading execution of Paul Tudor Jones.
+        const prompt = `אתה "הכריש" - מנתח מניות בכיר וסוחר סווינג.
+        נתח את ${ticker}. המחיר הנוכחי הוא: $${currPrice}.
         
-        Analyze the following data for ${ticker} (${profile?.name || ticker}). Current Price: $${currPrice}.
+        זיהוי טכני שבוצע (קריטי לסווינג):
+        - תבניות בגרף: ${patternsDetected}
+        - רמות תמיכה והתנגדות היסטוריות אמיתיות שזוהו: ${levelsPrompt || 'לא זוהו מובהקות'}
+        - ממוצעים: נע 50 ב-$${lastPoint.ma50}, נע 200 ב-$${lastPoint.ma200}.
         
-        [TECHNICAL DATA]
-        - RSI (14): ${rsiVal.toFixed(2)} (Above 70=Overbought, Below 30=Oversold)
-        - 50-day MA: $${lastPoint.ma50 || 'N/A'}, 200-day MA: $${lastPoint.ma200 || 'N/A'}
-        - Detected Pattern: ${patternsDetected}
-        - Algorithmic Key Levels: ${levelsPrompt}
+        הנחיות חובה לכתיבת מסקנות לסוחרי סווינג (טווח קצר):
+        1. 'stop_loss' (עצירת הפסד): חייב להיות מבוסס על 'תמיכה קרובה' קיימת מהרמות שסופקו לך למעלה. *אסור בשום אופן להמציא מספר שרחוק מהמחיר הנוכחי*.
+        2. 'target_price' (יעד מחיר קרוב): חייב להיות מבוסס על 'התנגדות קרובה' שסופקה לך מעל המחיר הנוכחי. 
         
-        [FUNDAMENTAL DATA]
-        - Industry: ${profile?.finnhubIndustry || 'N/A'}
-        - P/E Ratio: ${fundamentals.peRatio || 'N/A'}
-        - 52-Week High/Low: $${fundamentals.fiftyTwoWeekHigh || 'N/A'} / $${fundamentals.fiftyTwoWeekLow || 'N/A'}
-        - Earnings: ${latestEarningStr}
-        - Recent News: ${recentNews || 'None'}
+        הנחיות חובה למשקיעי ערך (טווח ארוך):
+        1. התייחס לפונדמנטלס: P/E: ${fundamentals.peRatio || 'N/A'}, צמיחה: ${fundamentals.revenueGrowth || 'N/A'}%.
+        2. התחשב בחדשות אחרונות: ${recentNews || 'אין מידע מיוחד'}.
         
-        YOUR DIRECTIVES (BE BRUTALLY HONEST):
-        1. SHORT-TERM (Swing Trade - 1 to 4 weeks):
-           - Evaluate momentum based on RSI and Moving Averages.
-           - TARGET: Must be the closest exact Resistance level provided. If none, project a logical target based on recent highs.
-           - STOP LOSS: Must be the closest Support level provided OR exactly -3% from entry. 
-           - Rule: Do NOT recommend a "Buy" if Stop Loss distance is larger than Target distance (Bad Risk/Reward).
-        
-        2. LONG-TERM (Value Investing - 1 to 3 years):
-           - Evaluate P/E, industry standing, and earnings surprise. Is the company fundamentally strong or overvalued?
-           - INTRINSIC VALUE: Estimate a fair price.
-           - ACCUMULATION ZONE: Define a price range ($XX - $XX) where it's historically safe to buy.
-           - PRICE TARGET: A 12-month price target (Number only).
-        
-        3. OVERALL RATING: Choose ONE: "קנייה חזקה" (Strong Buy), "קנייה" (Buy), "המתנה" (Hold), or "מכירה" (Sell). 
-        
-        OUTPUT FORMAT: 
-        You MUST return ONLY a valid JSON object. 
-        Write detailed, insightful paragraphs (3-4 sentences) for the "summary" fields.
-        ALL text values MUST be in professional, flawless Hebrew (except numbers/tickers). 
-        DO NOT wrap the output in markdown blocks like \`\`\`json. Return RAW JSON only.
-        
-        {
-          "identity": "תיאור קצר ומדויק של החברה (עד 2 משפטים)",
-          "news_sentiment": "חיובי / שלילי / ניטרלי",
+        החזר JSON בלבד בעברית בפורמט הבא בדיוק: 
+        { 
+          "identity": "תיאור עסקי קצר על החברה", 
           "technical": "תיאור קריאת הגרף והמומנטום מנקודת המבט שלך",
-          "long_term": {
-            "summary": "ניתוח עומק פונדמנטלי למשקיעי טווח ארוך.",
-            "intrinsic_value": "$XX.XX",
-            "accumulation_zone": "$XX - $XX",
-            "price_target": "150"
-          },
-          "short_term": {
-            "summary": "ניתוח טכני וסווינג לטווח קצר (ימים עד שבועות). התייחס ליחס סיכוי/סיכון.",
-            "entry_price": "$XX.XX",
-            "target_price": "$XX.XX",
-            "stop_loss": "$XX.XX"
-          },
-          "pros": ["חוזקה 1", "חוזקה 2"],
-          "cons": ["סיכון 1", "סיכון 2"],
-          "scores": {
-            "overall": 80,
-            "growth": 85,
-            "value": 70,
-            "momentum": 90,
-            "quality": 88
-          },
-          "rating": "קנייה חזקה"
+          "news_sentiment": "השפעת החדשות (חיובי/שלילי/ניטרלי)",
+          "long_term": { "summary": "מסקנה למשקיעי ערך", "intrinsic_value": "שווי הוגן מוערך (עם $)", "accumulation_zone": "טווח איסוף", "price_target": "יעד מחיר 12 חודשים (מספר נקי)" },
+          "short_term": { "summary": "מסקנה לסוחרי סווינג", "entry_price": "מחיר כניסה טכני", "target_price": "יעד קרוב לפריצה (מספר נקי מבוסס התנגדות)", "stop_loss": "סטופ לוס (מספר נקי הגיוני מתחת למחיר הנוכחי)" },
+          "pros": ["חוזקה 1", "חוזקה 2"], "cons": ["סיכון 1", "סיכון 2"], 
+          "scores": {"overall": 80, "growth":80, "value":80, "momentum":80, "quality":80}, "rating": "קנייה חזקה / קנייה / החזקה / מכירה" 
         }`;
 
+        // 💡 התיקון לקריסת ה-AI: הוספת application/json מבטיחה שה-API תמיד יחזיר אובייקט חוקי, ללא טקסט עודף
         const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.15 } })
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ 
+                contents: [{ parts: [{ text: prompt }] }], 
+                generationConfig: { temperature: 0.2, responseMimeType: "application/json" } 
+            })
         });
 
         let aiVerdict = { 
             news_sentiment: "אין מידע.",
-            technical: "לא הצלחנו לייצר קריאה מדויקת עקב חוסר בנתונים.",
+            technical: "שגיאת שרת בקריאת הטכני.",
             long_term: { summary: "שגיאת AI.", intrinsic_value: "", accumulation_zone: "", price_target: "" },
             short_term: { summary: "שגיאת AI.", entry_price: "", target_price: "", stop_loss: "" },
             scores: { overall: 50 }, rating: "החזקה" 
@@ -392,16 +351,9 @@ module.exports = async function(req, res) {
         if (aiResponse.ok) {
             const aiData = await aiResponse.json();
             try {
-                let text = aiData.candidates[0].content.parts[0].text;
-                text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-                const startIndex = text.indexOf('{');
-                const endIndex = text.lastIndexOf('}');
-                if (startIndex !== -1 && endIndex !== -1) {
-                    aiVerdict = JSON.parse(text.substring(startIndex, endIndex + 1));
-                }
-            } catch (e) {
-                console.error("AI JSON Parse Error");
-            }
+                // המודל כעת מחזיר תמיד JSON תקין
+                aiVerdict = JSON.parse(aiData.candidates[0].content.parts[0].text);
+            } catch (e) { console.error("JSON parse failed"); }
         }
 
         return res.status(200).json({
@@ -409,6 +361,7 @@ module.exports = async function(req, res) {
             price: currPrice, changePercentage: Number(quote?.dp || 0),
             ma50: lastPoint.ma50, ma200: lastPoint.ma200, volume: Number(quote?.v || lastPoint.volume || 0),
             pattern: patternObj.text, patternLines: patternObj.lines, rsi: rsiVal, keyLevels, ...fundamentals,
+            latestEarnings: (Array.isArray(earningsData) && earningsData.length > 0) ? earningsData[0] : null, // 💡 נוסף למען דוחות רבעוניים בממשק
             tickerNews: (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 5),
             insiderTransactions: insiders.slice(0, 6), insiderSentiment: insiderSentiment,
             analysis: aiVerdict, chartData: chartPoints
