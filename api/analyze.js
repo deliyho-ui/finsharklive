@@ -39,6 +39,27 @@ async function fetchYahooData(ticker, range = "2y", interval = "1d", p50 = 50, p
     } catch (e) { return []; }
 }
 
+async function fetchYahooQuote(ticker) {
+    try {
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`;
+        const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+        const data = await res.json();
+        if (!data?.chart?.result?.[0]) return null;
+        const result = data.chart.result[0];
+        const quotes = result.indicators.quote[0] || {};
+        const meta = result.meta || {};
+        const closePrice = quotes.close ? quotes.close[quotes.close.length - 1] : meta.regularMarketPrice;
+        const prevClose = meta.chartPreviousClose;
+        if (!closePrice) return null;
+        return {
+            c: closePrice,
+            dp: prevClose ? ((closePrice - prevClose) / prevClose) * 100 : 0
+        };
+    } catch (e) {
+        return null;
+    }
+}
+
 async function fetchYahooScreener(scrId) {
     try {
         const url = `https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=false&lang=en-US&region=US&scrIds=${scrId}&count=5`;
@@ -171,6 +192,16 @@ function getSectorETF(sectorName) {
     return map[sectorName] || "SPY"; 
 }
 
+function calculateRelativeStrength(stockPoints, spyPoints) {
+    if (!stockPoints || !spyPoints || stockPoints.length < 21 || spyPoints.length < 21) return 0;
+    
+    const stockReturn = (stockPoints[stockPoints.length - 1].close - stockPoints[stockPoints.length - 21].close) / stockPoints[stockPoints.length - 21].close;
+    const spyReturn = (spyPoints[spyPoints.length - 1].close - spyPoints[spyPoints.length - 21].close) / spyPoints[spyPoints.length - 21].close;
+    
+    return ((stockReturn - spyReturn) * 100).toFixed(2);
+}
+
+
 module.exports = async function(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -265,38 +296,49 @@ module.exports = async function(req, res) {
 
         if (!ticker) return res.status(400).json({ success: false, message: "Missing ticker symbol" });
 
-        const [quote, chartPoints] = await Promise.all([
-            fetchFinnhub('quote', `symbol=${ticker}`),
-            fetchYahooData(ticker, '2y', '1d')
-        ]);
-
-        if (!quote || quote.c === 0 || chartPoints.length < 10) {
-            return res.status(404).json({ success: false, message: `הסימול ${ticker} לא נמצא, או שאין מספיק נתוני מסחר עבורו.` });
-        }
-
+        // -- שינוי 1: קריאה נכונה וחסכונית ל- live_data ---
         if (action === 'live_data') {
-            const [profile, metricsData] = await Promise.all([
-                fetchFinnhub('stock/profile2', `symbol=${ticker}`), fetchFinnhub('stock/metric', `symbol=${ticker}&metric=all`)
-            ]);
-            const lastChartPoint = chartPoints[chartPoints.length - 1];
-            const m = metricsData?.metric || {};
+            const quote = await fetchYahooQuote(ticker);
+            if (!quote) return res.status(404).json({ success: false, message: "לא ניתן למשוך מחיר למניה זו" });
+            
+            // אנחנו שולפים chartData מ-Yahoo רק כדי לעדכן ממוצעים וכו', זה לא עולה קריאות Finnhub
+            const chartPoints = await fetchYahooData(ticker, '2y', '1d');
+            const lastChartPoint = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1] : {};
             const patternObj = detectAllPatterns(chartPoints);
-            const rawMarketCap = sanitizeValue(profile?.marketCapitalization || m?.marketCapitalization);
+            
             return res.status(200).json({
                 success: true, ticker, price: Number(quote.c), changePercentage: Number(quote.dp),
-                ma50: lastChartPoint.ma50 || null, ma200: lastChartPoint.ma200 || null, volume: Number(quote.v || lastChartPoint.volume || 0), 
+                ma50: lastChartPoint.ma50 || null, ma200: lastChartPoint.ma200 || null, volume: Number(lastChartPoint.volume || 0), 
                 pattern: patternObj.text, patternLines: patternObj.lines, rsi: calculateRSI(chartPoints.map(p=>p.close)),
-                peRatio: sanitizeValue(m?.peBasicExclExtraTTM || m?.peExclExtraAnnual), chartData: chartPoints, marketCap: rawMarketCap !== null ? rawMarketCap * 1000000 : null
+                chartData: chartPoints 
             });
+        }
+
+        // --- התחלת תהליך ניתוח מלא ---
+        // הבאת נתוני מסחר מ-Yahoo (יומי ושבועי) ומ-Finnhub 
+        const [quote, chartPointsDaily, chartPointsWeekly, spyPointsDaily, vixQuote, tnxQuote] = await Promise.all([
+            fetchFinnhub('quote', `symbol=${ticker}`),
+            fetchYahooData(ticker, '2y', '1d'),
+            fetchYahooData(ticker, '2y', '1wk', 50, 200), // משיכת גרף שבועי
+            fetchYahooData('SPY', '2y', '1d'),            // SPY לחישוב עוצמה יחסית
+            fetchYahooQuote('^VIX'),                      // מדד הפחד
+            fetchYahooQuote('^TNX')                       // תשואות אג"ח 10 שנים
+        ]);
+
+        if (!quote || quote.c === 0 || chartPointsDaily.length < 10) {
+            return res.status(404).json({ success: false, message: `הסימול ${ticker} לא נמצא, או שאין מספיק נתוני מסחר עבורו.` });
         }
 
         const today = new Date().toISOString().split('T')[0];
         const lastMonth = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-        const [profile, metricsData, earningsData, tickerNews, insiderData] = await Promise.all([
+        // הבאת נתונים פונדמנטליים, חדשות, והמלצות אנליסטים מ-Finnhub
+        const [profile, metricsData, earningsData, tickerNews, insiderData, recommendationData, priceTargetData] = await Promise.all([
             fetchFinnhub('stock/profile2', `symbol=${ticker}`), fetchFinnhub('stock/metric', `symbol=${ticker}&metric=all`),
             fetchFinnhub('stock/earnings', `symbol=${ticker}`), fetchFinnhub('company-news', `symbol=${ticker}&from=${lastMonth}&to=${today}`),
-            fetchFinnhub('insider-transactions', `symbol=${ticker}`)
+            fetchFinnhub('insider-transactions', `symbol=${ticker}`),
+            fetchFinnhub('stock/recommendation', `symbol=${ticker}`),   // קונצנזוס המלצות
+            fetchFinnhub('stock/price-target', `symbol=${ticker}`)     // מחירי יעד אנליסטים
         ]);
 
         const m = metricsData?.metric || {};
@@ -319,55 +361,78 @@ module.exports = async function(req, res) {
         insiders.slice(0, 15).forEach(t => netInsiderShares += (t.change || 0));
         const insiderSentiment = netInsiderShares > 0 ? 'חיובי (קניות)' : netInsiderShares < 0 ? 'שלילי (מכירות)' : 'ניטרלי';
 
-        const lastPoint = chartPoints[chartPoints.length - 1];
-        const keyLevels = extractKeyLevels(chartPoints);
+        // נתונים טכניים (יומי ושבועי)
+        const lastPointDaily = chartPointsDaily[chartPointsDaily.length - 1];
+        const lastPointWeekly = chartPointsWeekly.length > 0 ? chartPointsWeekly[chartPointsWeekly.length - 1] : {};
+        const keyLevels = extractKeyLevels(chartPointsDaily);
         const levelsPrompt = keyLevels.map(l => `${l.type}: $${l.price.toFixed(2)}`).join(', ');
-        const patternObj = detectAllPatterns(chartPoints);
-        const rsiVal = calculateRSI(chartPoints.map(p=>p.close));
+        const patternObj = detectAllPatterns(chartPointsDaily);
+        const rsiVal = calculateRSI(chartPointsDaily.map(p=>p.close));
+        const relativeStrength = calculateRelativeStrength(chartPointsDaily, spyPointsDaily); // חישוב RS
         const isDataComplete = true; 
         const currPrice = Number(quote.c);
 
+        // מאקרו ושוק
         const sectorETF = getSectorETF(profile?.finnhubIndustry);
-        const [spyQuote, sectorQuote] = await Promise.all([
-            fetchFinnhub('quote', 'symbol=SPY'),
-            fetchFinnhub('quote', `symbol=${sectorETF}`)
+        const [spyQuoteLive, sectorQuoteLive] = await Promise.all([
+            fetchYahooQuote('SPY'),
+            fetchYahooQuote(sectorETF)
         ]);
-        const marketContext = `ה-S&P 500 (SPY) השתנה היום ב-${spyQuote?.dp?.toFixed(2) || 0}%. סקטור ה-${profile?.finnhubIndustry || 'כללי'} (${sectorETF}) השתנה ב-${sectorQuote?.dp?.toFixed(2) || 0}%.`;
+        
+        const vixVal = vixQuote?.c ? vixQuote.c.toFixed(2) : 'N/A';
+        const tnxVal = tnxQuote?.c ? tnxQuote.c.toFixed(2) : 'N/A';
+        
+        const marketContext = `תשואת אג"ח 10 שנים: ${tnxVal}%. מדד הפחד (VIX): ${vixVal}. ה-S&P 500 השתנה היום ב-${spyQuoteLive?.dp?.toFixed(2) || 0}%. סקטור ה-${profile?.finnhubIndustry || 'כללי'} (${sectorETF}) השתנה ב-${sectorQuoteLive?.dp?.toFixed(2) || 0}%. עוצמה יחסית של המניה מול SPY בחודש האחרון: ${relativeStrength > 0 ? '+' : ''}${relativeStrength}%.`;
 
+        // דוחות עבר
         let earningsStreak = "אין מספיק נתונים על דוחות עבר.";
         if (Array.isArray(earningsData) && earningsData.length >= 3) {
             const recent = earningsData.slice(0,3).map(e => e.surprisePercent > 0 ? '✅' : '❌').join(' ');
             earningsStreak = `רצף הפתעות ב-3 רבעונים אחרונים: ${recent} (הדוח האחרון: ${earningsData[0].surprisePercent || 0}%).`;
         }
+        
         const recentNews = (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 3).map(n => n.headline).join(" | ");
 
-        // --- פרומפט משודרג עם הפרדה נוקשה בגרף ויעדים אופטימיים ---
-        const prompt = `אתה "FinShark" - אנליסט מניות וסוחר סווינג בכיר בוול סטריט.
+        // המלצות אנליסטים (קונצנזוס)
+        let analystConsensus = "אין נתוני אנליסטים זמינים.";
+        if (Array.isArray(recommendationData) && recommendationData.length > 0) {
+            const rec = recommendationData[0];
+            analystConsensus = `${rec.buy + rec.strongBuy} המלצות קנייה, ${rec.hold} החזקה, ${rec.sell + rec.strongSell} מכירה.`;
+        }
+        if (priceTargetData && priceTargetData.targetMedian) {
+            analystConsensus += ` יעד מחיר חציוני: $${priceTargetData.targetMedian.toFixed(2)} (גבוה: $${priceTargetData.targetHigh.toFixed(2)}, נמוך: $${priceTargetData.targetLow.toFixed(2)}).`;
+        }
+
+        // --- הפרומפט החדש עם ה-Scratchpad ---
+        const prompt = `אתה "FinShark" - אנליסט מניות וסוחר בכיר בוול סטריט.
         המניה: ${ticker} ($${currPrice}).
-        מצב השוק היום: ${marketContext}
+        מצב השוק ומאקרו: ${marketContext}
+        קונצנזוס וול-סטריט: ${analystConsensus}
         חדשות אחרונות: ${recentNews || 'אין חדשות מיוחדות'}
 
         נתונים טכניים (חובה לבסס עליהם את ניתוח הגרף):
-        - ממוצעים: מניה ב-$${currPrice}, בעוד ש-MA50 הוא $${lastPoint.ma50} ו-MA200 הוא $${lastPoint.ma200}.
-        - מומנטום: RSI עומד על ${rsiVal.toFixed(1)}.
-        - תבנית בגרף: ${patternObj.text}.
+        - גרף יומי: מניה ב-$${currPrice}, MA50 הוא $${lastPointDaily.ma50} ו-MA200 הוא $${lastPointDaily.ma200}.
+        - גרף שבועי (מגמה ארוכה): MA50 שבועי הוא $${lastPointWeekly.ma50 || 'N/A'}, MA200 שבועי הוא $${lastPointWeekly.ma200 || 'N/A'}.
+        - מומנטום ותבניות: RSI עומד על ${rsiVal.toFixed(1)}. תבנית שזוהתה בגרף היומי: ${patternObj.text}.
         - תמיכה/התנגדות קרובות: ${levelsPrompt || 'לא זוהו'}.
         
         פונדמנטלס: P/E: ${fundamentals.peRatio || 'N/A'}, צמיחת הכנסות: ${fundamentals.revenueGrowth || 'N/A'}%. ${earningsStreak}
 
-        הנחיות קריטיות לדיוק:
-        1. קריאת הגרף (technical): מיועד נטו לניתוח טכני טהור! נתח תבניות, ווליום, פריצות, ממוצעים ותמיכה/התנגדות בדיוק כמו צ'ארטיסט מקצועי. חל איסור מוחלט להזכיר חדשות, פונדמנטלס או דוחות בשדה זה.
-        2. פסיקת הכריש (summary): את החדשות, הדוחות, והמאקרו תשלב אך ורק בשדות ה-summary של הטווח הארוך והקצר.
-        3. יעדי מחיר (price_target): אל תהיה שמרן מדי! אנליסטים מתמחרים צמיחה עתידית. אם החברה בצמיחה או במומנטום חיובי, חשב יעד 12 חודשים המגלם אופטימיות של וול-סטריט (אפסייד משמעותי במידה ויש הצדקה), ולא רק יעד טכני קרוב.
+        הנחיות קריטיות לדיוק ולוגיקה:
+        1. לפני שאתה פוסק, השתמש בשדה "ai_scratchpad" כדי "לחשוב בקול רם". נתח את הפער בין המגמה היומית לשבועית, בדוק אם התמחור יקר/זול, ושקלל את מצב המאקרו ואת הקונצנזוס.
+        2. קריאת הגרף (technical): מיועד נטו לניתוח טכני טהור! חל איסור מוחלט להזכיר חדשות, פונדמנטלס או דוחות בשדה זה.
+        3. יעדי מחיר (price_target): התייחס לקונצנזוס וול-סטריט, אבל אל תהיה שמרן מדי! אם החברה בצמיחה, קבע יעד אופטימי שמגלם פוטנציאל ל-12 חודשים.
 
         החזר JSON בלבד, בעברית, ללא הערות, לפי המבנה הבא:
         {
-          "internal_logic": "משפט באנגלית על החלטת הדירוג שלך",
-          "identity": "תיאור עסקי קצר ותמציתי של החברה",
-          "technical": "ניתוח טכני טהור של הגרף בסגנון סוחר סווינג (ללא פונדמנטלס או חדשות!)",
-          "long_term": { "summary": "מסקנת ערך להשקעה ארוכה (כאן המקום לשלב חדשות ופונדמנטלס)", "intrinsic_value": "הערכת שווי הוגן כמספר נקי", "accumulation_zone": "טווח איסוף כמספרים", "price_target": "יעד אנליסטים אופטימי וריאלי ל-12M כמספר נקי" },
-          "short_term": { "summary": "תוכנית מסחר לסווינג", "entry_price": "${currPrice}", "target_price": "יעד רווח טכני", "stop_loss": "סטופ לוס" },
+          "ai_scratchpad": "חשוב כאן בקצרה צעד אחר צעד על כיוון המניה לפני מתן הפסיקה (2-3 משפטים)",
+          "internal_logic": "משפט על החלטת הדירוג שלך",
+          "identity": "תיאור עסקי קצר של החברה",
+          "technical": "ניתוח טכני טהור של הגרף בסגנון סוחר סווינג",
+          "long_term": { "summary": "מסקנת ערך להשקעה ארוכה", "intrinsic_value": "הערכת שווי הוגן", "accumulation_zone": "טווח איסוף", "price_target": "יעד 12M" },
+          "short_term": { "summary": "תוכנית מסחר לסווינג קצר", "entry_price": "${currPrice}", "target_price": "יעד טכני קרוב", "stop_loss": "סטופ לוס" },
           "pros": ["נקודת זכות 1", "נקודת זכות 2"], "cons": ["נקודת תורפה 1", "נקודת תורפה 2"], 
+          "news_sentiment_score": 8,
           "scores": {"overall": 80, "growth":80, "value":80, "momentum":80, "quality":80}, 
           "rating": "קנייה / החזקה / מכירה" 
         }`;
@@ -378,7 +443,7 @@ module.exports = async function(req, res) {
             technical: "יכול להיות שהמכסה של ה-API הסתיימה או שיש תקלת רשת. אנא נסה שוב מאוחר יותר.",
             long_term: { summary: "לא זמין", intrinsic_value: "N/A", accumulation_zone: "N/A", price_target: "N/A" },
             short_term: { summary: "לא זמין", entry_price: "N/A", target_price: "N/A", stop_loss: "N/A" },
-            scores: null, rating: "שגיאה", pros: ["שגיאה"], cons: ["שגיאה"]
+            scores: null, rating: "שגיאה", pros: ["שגיאה"], cons: ["שגיאה"], news_sentiment_score: 5
         };
         
         try {
@@ -412,12 +477,12 @@ module.exports = async function(req, res) {
         return res.status(200).json({
             success: true, isDataComplete, ticker, name: profile?.name || ticker, industry: profile?.finnhubIndustry || "N/A", sector: profile?.finnhubIndustry || "N/A",
             price: currPrice, changePercentage: Number(quote.dp),
-            ma50: lastPoint.ma50, ma200: lastPoint.ma200, volume: Number(quote.v || lastPoint.volume || 0),
+            ma50: lastPointDaily.ma50, ma200: lastPointDaily.ma200, volume: Number(quote.v || lastPointDaily.volume || 0),
             pattern: patternObj.text, patternLines: patternObj.lines, rsi: rsiVal, keyLevels, ...fundamentals,
             latestEarnings: (Array.isArray(earningsData) && earningsData.length > 0) ? earningsData[0] : null,
             tickerNews: (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 5),
             insiderTransactions: insiders.slice(0, 6), insiderSentiment: insiderSentiment,
-            analysis: aiVerdict, chartData: chartPoints
+            analysis: aiVerdict, chartData: chartPointsDaily
         });
     } catch (error) { 
         console.error("Global Catch Error:", error);
