@@ -182,7 +182,6 @@ function calculateRelativeStrength(stockPoints, spyPoints) {
     return ((stockReturn - spyReturn) * 100).toFixed(2);
 }
 
-// שדרוג המערכת לקריאת JSON ללא קריסות
 function cleanJSON(text) {
     try {
         const start = text.indexOf('{');
@@ -205,7 +204,7 @@ module.exports = async function(req, res) {
         const action = req.query.action;
         
         const geminiKey = process.env.GEMINI_API_KEY;
-        const anthropicKey = process.env.ANTHROPIC_API_KEY; 
+        const anthropicKey = process.env.ANTHROPIC_API_KEY ? process.env.ANTHROPIC_API_KEY.trim() : null; 
         const finnhubKey = process.env.FINNHUB_API_KEY;
 
         if (!geminiKey || !finnhubKey) return res.status(500).json({ success: false, message: "Missing API Keys" });
@@ -350,7 +349,6 @@ module.exports = async function(req, res) {
           "rating": "קנייה / החזקה / מכירה" 
         }`;
 
-        // הוספנו בחזרה את הנעילה לג'מיני כדי שלא יקשקש טקסט מיותר מסביב ל-JSON
         const geminiPromise = fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify({ 
@@ -359,6 +357,7 @@ module.exports = async function(req, res) {
             })
         }).then(r => r.json());
 
+        // --- קריאה לקלוד עם תפיסת שגיאות משודרגת ---
         const claudePromise = anthropicKey ? fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: { 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
@@ -371,16 +370,27 @@ module.exports = async function(req, res) {
             })
         }).then(r => r.json()) : Promise.resolve(null);
 
-        const [geminiRes, claudeRes] = await Promise.all([geminiPromise, claudePromise].map(p => p.catch(e => null)));
+        // תופס שגיאות רשת פנימיות
+        const [geminiRes, claudeRes] = await Promise.all([geminiPromise, claudePromise].map(p => p.catch(e => ({ error: { message: e.message } }))));
 
         let geminiData = null;
         let claudeData = null;
+        let claudeDebugMsg = null; // משתנה שישמור את סיבת הקריסה של קלוד
 
         if (geminiRes && geminiRes.candidates && geminiRes.candidates[0].content) {
             geminiData = cleanJSON(geminiRes.candidates[0].content.parts[0].text);
         }
-        if (claudeRes && claudeRes.content && claudeRes.content[0].text) {
+        
+        // אבחון מדויק של קלוד:
+        if (!anthropicKey) {
+            claudeDebugMsg = "מפתח ANTHROPIC_API_KEY חסר ב-Vercel!";
+        } else if (claudeRes && claudeRes.content && claudeRes.content[0].text) {
             claudeData = cleanJSON(claudeRes.content[0].text);
+            if (!claudeData) claudeDebugMsg = "קלוד החזיר טקסט שאינו JSON תקין.";
+        } else if (claudeRes && claudeRes.error) {
+            claudeDebugMsg = `שגיאת הרשאות: ${claudeRes.error.message || JSON.stringify(claudeRes.error)}`;
+        } else if (!claudeRes) {
+            claudeDebugMsg = "אין תשובה מהשרת של קלוד.";
         }
 
         let finalVerdict = { isError: true, identity: "שגיאה בניתוח המניה.", technical: "לא התקבלו נתונים." };
@@ -431,7 +441,9 @@ module.exports = async function(req, res) {
                 rating: finalRating
             };
         } else if (geminiData) {
-            finalVerdict = { ...geminiData, isError: false, ai_scratchpad: `<span style="color:#0a84ff; font-weight:bold;">🔵 Gemini:</span> ${geminiData.ai_scratchpad}` };
+            // כאן המערכת תדפיס לך את השגיאה של קלוד ישירות למסך!
+            let debugHtml = claudeDebugMsg ? `<br><br><span style="color:var(--red); font-size:0.85em; font-weight:bold;">🔍 שגיאת אבחון (קלוד נכשל): ${claudeDebugMsg}</span>` : "";
+            finalVerdict = { ...geminiData, isError: false, ai_scratchpad: `<span style="color:#0a84ff; font-weight:bold;">🔵 Gemini:</span> ${geminiData.ai_scratchpad}${debugHtml}` };
         } else if (claudeData) {
             finalVerdict = { ...claudeData, isError: false, ai_scratchpad: `<span style="color:#e67e22; font-weight:bold;">🟠 Claude:</span> ${claudeData.ai_scratchpad}` };
         }
