@@ -51,13 +51,8 @@ async function fetchYahooQuote(ticker) {
         const closePrice = quotes.close ? quotes.close[quotes.close.length - 1] : meta.regularMarketPrice;
         const prevClose = meta.chartPreviousClose;
         if (!closePrice) return null;
-        return {
-            c: closePrice,
-            dp: prevClose ? ((closePrice - prevClose) / prevClose) * 100 : 0
-        };
-    } catch (e) {
-        return null;
-    }
+        return { c: closePrice, dp: prevClose ? ((closePrice - prevClose) / prevClose) * 100 : 0 };
+    } catch (e) { return null; }
 }
 
 async function fetchYahooScreener(scrId) {
@@ -120,8 +115,7 @@ function detectAllPatterns(chartPoints) {
     if (!chartPoints || chartPoints.length < 50) return { text: "אין מספיק נתונים", lines: [] };
     const last40 = chartPoints.slice(-40);
     const currentPrice = chartPoints[chartPoints.length - 1].close;
-    let patterns = [];
-    let lines = []; 
+    let patterns = []; let lines = []; 
 
     const curr = chartPoints[chartPoints.length - 1];
     const prev = chartPoints[chartPoints.length - 2];
@@ -157,20 +151,12 @@ function detectAllPatterns(chartPoints) {
 
     if (isRising && converge) {
         patterns.push("יתד עולה (Rising Wedge) 📐⬇️");
-        lines.push({ start: {time: max1.time, value: h1}, end: {time: max2.time, value: h2}, color: 'rgba(255, 69, 58, 0.6)' });
-        lines.push({ start: {time: min1.time, value: l1}, end: {time: min2.time, value: l2}, color: 'rgba(255, 69, 58, 0.6)' });
     } else if (isFalling && converge) {
         patterns.push("יתד יורד (Falling Wedge) 📐⬆️");
-        lines.push({ start: {time: max1.time, value: h1}, end: {time: max2.time, value: h2}, color: 'rgba(48, 209, 88, 0.6)' });
-        lines.push({ start: {time: min1.time, value: l1}, end: {time: min2.time, value: l2}, color: 'rgba(48, 209, 88, 0.6)' });
     } else if (isRising && !converge) {
         patterns.push("תעלה עולה (Ascending Channel) ↗️");
-        lines.push({ start: {time: max1.time, value: h1}, end: {time: max2.time, value: h2}, color: 'rgba(10, 132, 255, 0.6)' });
-        lines.push({ start: {time: min1.time, value: l1}, end: {time: min2.time, value: l2}, color: 'rgba(10, 132, 255, 0.6)' });
     } else if (isFalling && !converge) {
         patterns.push("תעלה יורדת (Descending Channel) ↘️");
-        lines.push({ start: {time: max1.time, value: h1}, end: {time: max2.time, value: h2}, color: 'rgba(10, 132, 255, 0.6)' });
-        lines.push({ start: {time: min1.time, value: l1}, end: {time: min2.time, value: l2}, color: 'rgba(10, 132, 255, 0.6)' });
     }
     
     const text = patterns.length === 0 ? "דשדוש (Consolidation) ↔️" : [...new Set(patterns)].join(" | ");
@@ -182,7 +168,6 @@ function sanitizeValue(val) {
     return Number(val);
 }
 
-// פונקציית עזר למיפוי סקטור לתעודת סל כדי למדוד עוצמה יחסית
 function getSectorETF(sectorName) {
     const map = {
         "Technology": "XLK", "Healthcare": "XLV", "Financials": "XLF", 
@@ -194,13 +179,18 @@ function getSectorETF(sectorName) {
 
 function calculateRelativeStrength(stockPoints, spyPoints) {
     if (!stockPoints || !spyPoints || stockPoints.length < 21 || spyPoints.length < 21) return 0;
-    
     const stockReturn = (stockPoints[stockPoints.length - 1].close - stockPoints[stockPoints.length - 21].close) / stockPoints[stockPoints.length - 21].close;
     const spyReturn = (spyPoints[spyPoints.length - 1].close - spyPoints[spyPoints.length - 21].close) / spyPoints[spyPoints.length - 21].close;
-    
     return ((stockReturn - spyReturn) * 100).toFixed(2);
 }
 
+// פונקציה שמנקה JSON מתשובות AI אם הן עטופות ב-Markdown
+function cleanJSON(text) {
+    try {
+        let cleanText = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+        return JSON.parse(cleanText);
+    } catch (e) { return null; }
+}
 
 module.exports = async function(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -212,56 +202,38 @@ module.exports = async function(req, res) {
         const ticker = (req.query.ticker || req.query.symbol || "").toUpperCase().trim();
         const action = req.query.action;
         
-        const apiKey = process.env.GEMINI_API_KEY;
+        const geminiKey = process.env.GEMINI_API_KEY;
+        const anthropicKey = process.env.ANTHROPIC_API_KEY; // המפתח החדש שהזנת
         const finnhubKey = process.env.FINNHUB_API_KEY;
-        if (!apiKey || !finnhubKey) return res.status(500).json({ success: false, message: "Missing API Keys" });
 
+        if (!geminiKey || !finnhubKey) return res.status(500).json({ success: false, message: "Missing API Keys" });
+
+        // --- אזור בניית תיק מניות כריש ---
         if (action === 'shark_portfolio') {
             const prompt = `You are "FinShark", an elite Wall Street AI hedge fund manager. 
             Construct a 5-stock model portfolio for today's market environment. 
             Choose real, highly traded US stocks. Balance it between Growth, Value, and Momentum.
             
-            Return ONLY a valid JSON array in Hebrew. Do not wrap in markdown blocks. Format exactly like this:
+            Return ONLY a valid JSON array in Hebrew. Format exactly like this:
             [
               {"ticker": "NVDA", "weight": 30, "role": "מנוע צמיחה ומומנטום", "reason": "מובילת שוק השבבים העולמית"},
               {"ticker": "AAPL", "weight": 20, "role": "עוגן ערך ויציבות", "reason": "תזרים מזומנים אדיר"}
             ]`;
 
             try {
-                const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ 
-                        contents: [{ parts: [{ text: prompt }] }], 
-                        generationConfig: { 
-                            temperature: 0.7,
-                            responseMimeType: "application/json"
-                        },
-                        safetySettings: [{ category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }]
-                    })
+                const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.7, responseMimeType: "application/json" }})
                 });
-                
-                if (!aiRes.ok) throw new Error("Gemini API returned an error");
-                
                 const aiData = await aiRes.json();
-                if (aiData.candidates && aiData.candidates[0].content) {
-                    let text = aiData.candidates[0].content.parts[0].text;
-                    return res.status(200).json({ success: true, portfolio: JSON.parse(text) });
-                } else {
-                    throw new Error("Empty response from Gemini");
-                }
+                let text = aiData.candidates[0].content.parts[0].text;
+                return res.status(200).json({ success: true, portfolio: JSON.parse(text) });
             } catch (e) {
-                console.error("Shark Portfolio Error:", e.message);
-                return res.status(200).json({ success: true, portfolio: [
-                    {"ticker": "NVDA", "weight": 30, "role": "מנוע צמיחה ומומנטום", "reason": "שליטה בתחום הבינה המלאכותית"},
-                    {"ticker": "PLTR", "weight": 20, "role": "חדשנות דאטה", "reason": "חוזים ממשלתיים חזקים"},
-                    {"ticker": "MSFT", "weight": 20, "role": "עוגן ויציבות", "reason": "תזרים יציב ומודל מנויים"},
-                    {"ticker": "CRWD", "weight": 15, "role": "סייבר", "reason": "ביקוש קשיח להגנת ענן"},
-                    {"ticker": "TSLA", "weight": 15, "role": "תנודתיות", "reason": "פוטנציאל למהלכים מהירים"}
-                ]});
+                return res.status(200).json({ success: true, portfolio: [{"ticker": "NVDA", "weight": 30, "role": "מנוע צמיחה ומומנטום", "reason": "שליטה ב-AI"}, {"ticker": "MSFT", "weight": 20, "role": "עוגן ויציבות", "reason": "תזרים יציב"}]});
             }
         }
 
+        // --- אזור מזג אוויר ונתוני שוק כלליים ---
         if (action === 'market' || (!ticker && action !== 'analyze')) {
             const [spy, qqq, dia, iwm, xlk, xlv, xlf, xle, xly, xli, newsData, topGainers, topLosers] = await Promise.all([
                 fetchFinnhub('quote', 'symbol=SPY'), fetchFinnhub('quote', 'symbol=QQQ'), fetchFinnhub('quote', 'symbol=DIA'), fetchFinnhub('quote', 'symbol=IWM'), 
@@ -271,218 +243,211 @@ module.exports = async function(req, res) {
             ]);
             return res.status(200).json({
                 success: true, marketData: {
-                    indexes: [
-                        { symbol: 'S&P 500', price: Number(spy?.c || 0), changesPercentage: Number(spy?.dp || 0) },
-                        { symbol: 'NASDAQ', price: Number(qqq?.c || 0), changesPercentage: Number(qqq?.dp || 0) },
-                        { symbol: 'DOW 30', price: Number(dia?.c || 0), changesPercentage: Number(dia?.dp || 0) },
-                        { symbol: 'RUSSELL 2000', price: Number(iwm?.c || 0), changesPercentage: Number(iwm?.dp || 0) }
-                    ],
-                    sectors: [
-                        { sector: "Technology", changesPercentage: String(xlk?.dp || "0") },
-                        { sector: "Healthcare", changesPercentage: String(xlv?.dp || "0") },
-                        { sector: "Financials", changesPercentage: String(xlf?.dp || "0") },
-                        { sector: "Industrials", changesPercentage: String(xli?.dp || "0") },
-                        { sector: "Consumer Cyclical", changesPercentage: String(xly?.dp || "0") },
-                        { sector: "Energy", changesPercentage: String(xle?.dp || "0") },
-                        { sector: "כללי", changesPercentage: String(spy?.dp || "0") }
-                    ],
+                    indexes: [{ symbol: 'S&P 500', price: spy?.c, changesPercentage: spy?.dp }, { symbol: 'NASDAQ', price: qqq?.c, changesPercentage: qqq?.dp }, { symbol: 'DOW 30', price: dia?.c, changesPercentage: dia?.dp }, { symbol: 'RUSSELL 2000', price: iwm?.c, changesPercentage: iwm?.dp }],
+                    sectors: [{ sector: "Technology", changesPercentage: String(xlk?.dp) }, { sector: "Healthcare", changesPercentage: String(xlv?.dp) }, { sector: "Financials", changesPercentage: String(xlf?.dp) }, { sector: "Industrials", changesPercentage: String(xli?.dp) }, { sector: "Consumer Cyclical", changesPercentage: String(xly?.dp) }, { sector: "Energy", changesPercentage: String(xle?.dp) }],
                     gainers: topGainers, losers: topLosers,
-                    news: (Array.isArray(newsData) ? newsData : []).slice(0, 5).map(item => ({
-                        title: item.headline || "ללא כותרת", url: item.url || "#", source: item.source || "שוק ההון", date: new Date(item.datetime * 1000).toISOString()
-                    }))
+                    news: (Array.isArray(newsData) ? newsData : []).slice(0, 5).map(item => ({ title: item.headline, url: item.url, source: item.source, date: new Date(item.datetime * 1000).toISOString() }))
                 }
             });
         }
 
         if (!ticker) return res.status(400).json({ success: false, message: "Missing ticker symbol" });
 
-        // -- שינוי 1: קריאה נכונה וחסכונית ל- live_data ---
+        // --- קריאה חסכונית (Cache) מול Yahoo ---
         if (action === 'live_data') {
             const quote = await fetchYahooQuote(ticker);
             if (!quote) return res.status(404).json({ success: false, message: "לא ניתן למשוך מחיר למניה זו" });
-            
-            // אנחנו שולפים chartData מ-Yahoo רק כדי לעדכן ממוצעים וכו', זה לא עולה קריאות Finnhub
             const chartPoints = await fetchYahooData(ticker, '2y', '1d');
             const lastChartPoint = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1] : {};
             const patternObj = detectAllPatterns(chartPoints);
-            
             return res.status(200).json({
                 success: true, ticker, price: Number(quote.c), changePercentage: Number(quote.dp),
                 ma50: lastChartPoint.ma50 || null, ma200: lastChartPoint.ma200 || null, volume: Number(lastChartPoint.volume || 0), 
-                pattern: patternObj.text, patternLines: patternObj.lines, rsi: calculateRSI(chartPoints.map(p=>p.close)),
-                chartData: chartPoints 
+                pattern: patternObj.text, patternLines: patternObj.lines, rsi: calculateRSI(chartPoints.map(p=>p.close)), chartData: chartPoints 
             });
         }
 
-        // --- התחלת תהליך ניתוח מלא ---
-        // הבאת נתוני מסחר מ-Yahoo (יומי ושבועי) ומ-Finnhub 
+        // --- התחלת תהליך ניתוח עומק (Analyze) ---
         const [quote, chartPointsDaily, chartPointsWeekly, spyPointsDaily, vixQuote, tnxQuote] = await Promise.all([
-            fetchFinnhub('quote', `symbol=${ticker}`),
-            fetchYahooData(ticker, '2y', '1d'),
-            fetchYahooData(ticker, '2y', '1wk', 50, 200), // משיכת גרף שבועי
-            fetchYahooData('SPY', '2y', '1d'),            // SPY לחישוב עוצמה יחסית
-            fetchYahooQuote('^VIX'),                      // מדד הפחד
-            fetchYahooQuote('^TNX')                       // תשואות אג"ח 10 שנים
+            fetchFinnhub('quote', `symbol=${ticker}`), fetchYahooData(ticker, '2y', '1d'), fetchYahooData(ticker, '2y', '1wk', 50, 200), fetchYahooData('SPY', '2y', '1d'), fetchYahooQuote('^VIX'), fetchYahooQuote('^TNX')
         ]);
 
-        if (!quote || quote.c === 0 || chartPointsDaily.length < 10) {
-            return res.status(404).json({ success: false, message: `הסימול ${ticker} לא נמצא, או שאין מספיק נתוני מסחר עבורו.` });
-        }
+        if (!quote || quote.c === 0 || chartPointsDaily.length < 10) return res.status(404).json({ success: false, message: `הסימול לא נמצא.` });
 
         const today = new Date().toISOString().split('T')[0];
         const lastMonth = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-        // הבאת נתונים פונדמנטליים, חדשות, והמלצות אנליסטים מ-Finnhub
         const [profile, metricsData, earningsData, tickerNews, insiderData, recommendationData, priceTargetData] = await Promise.all([
-            fetchFinnhub('stock/profile2', `symbol=${ticker}`), fetchFinnhub('stock/metric', `symbol=${ticker}&metric=all`),
-            fetchFinnhub('stock/earnings', `symbol=${ticker}`), fetchFinnhub('company-news', `symbol=${ticker}&from=${lastMonth}&to=${today}`),
-            fetchFinnhub('insider-transactions', `symbol=${ticker}`),
-            fetchFinnhub('stock/recommendation', `symbol=${ticker}`),   // קונצנזוס המלצות
-            fetchFinnhub('stock/price-target', `symbol=${ticker}`)     // מחירי יעד אנליסטים
+            fetchFinnhub('stock/profile2', `symbol=${ticker}`), fetchFinnhub('stock/metric', `symbol=${ticker}&metric=all`), fetchFinnhub('stock/earnings', `symbol=${ticker}`), fetchFinnhub('company-news', `symbol=${ticker}&from=${lastMonth}&to=${today}`), fetchFinnhub('insider-transactions', `symbol=${ticker}`), fetchFinnhub('stock/recommendation', `symbol=${ticker}`), fetchFinnhub('stock/price-target', `symbol=${ticker}`)
         ]);
 
         const m = metricsData?.metric || {};
         const rawMarketCap = sanitizeValue(profile?.marketCapitalization || m?.marketCapitalization);
         const fundamentals = {
-            marketCap: rawMarketCap !== null ? rawMarketCap * 1000000 : null,
-            fiftyTwoWeekHigh: sanitizeValue(m?.['52WeekHigh']), fiftyTwoWeekLow: sanitizeValue(m?.['52WeekLow']),
-            peRatio: sanitizeValue(m?.peBasicExclExtraTTM || m?.peExclExtraAnnual), pbRatio: sanitizeValue(m?.pbAnnual || m?.pbQuarterly),
-            psRatio: sanitizeValue(m?.psTTM || m?.psAnnual), eps: sanitizeValue(m?.epsTTM || m?.epsExclExtraItemsAnnual),
-            epsGrowth5Y: sanitizeValue(m?.epsGrowth5Y), roe: sanitizeValue(m?.roeTTM), roa: sanitizeValue(m?.roaTTM), 
-            roic: sanitizeValue(m?.roicTTM), debtToEquity: sanitizeValue(m?.totalDebtToEquityAnnual || m?.totalDebtToEquityQuarterly),
-            dividendYield: sanitizeValue(m?.dividendYieldIndicatedAnnual), revenueGrowth: sanitizeValue(m?.revenueGrowthTTMYoy || m?.revenueGrowth5Y),
-            grossMargin: sanitizeValue(m?.grossMarginTTM || m?.grossMarginAnnual), operatingMargin: sanitizeValue(m?.operatingMarginTTM || m?.operatingMarginAnnual), 
-            netMargin: sanitizeValue(m?.netProfitMarginTTM || m?.netMarginTTM), currentRatio: sanitizeValue(m?.currentRatioQuarterly || m?.currentRatioAnnual),
-            quickRatio: sanitizeValue(m?.quickRatioQuarterly || m?.quickRatioAnnual), beta: sanitizeValue(m?.beta)
+            marketCap: rawMarketCap !== null ? rawMarketCap * 1000000 : null, peRatio: sanitizeValue(m?.peBasicExclExtraTTM || m?.peExclExtraAnnual), pbRatio: sanitizeValue(m?.pbAnnual || m?.pbQuarterly), psRatio: sanitizeValue(m?.psTTM || m?.psAnnual), eps: sanitizeValue(m?.epsTTM || m?.epsExclExtraItemsAnnual), epsGrowth5Y: sanitizeValue(m?.epsGrowth5Y), roe: sanitizeValue(m?.roeTTM), roa: sanitizeValue(m?.roaTTM), roic: sanitizeValue(m?.roicTTM), debtToEquity: sanitizeValue(m?.totalDebtToEquityAnnual || m?.totalDebtToEquityQuarterly), dividendYield: sanitizeValue(m?.dividendYieldIndicatedAnnual), revenueGrowth: sanitizeValue(m?.revenueGrowthTTMYoy || m?.revenueGrowth5Y), grossMargin: sanitizeValue(m?.grossMarginTTM || m?.grossMarginAnnual), operatingMargin: sanitizeValue(m?.operatingMarginTTM || m?.operatingMarginAnnual), netMargin: sanitizeValue(m?.netProfitMarginTTM || m?.netMarginTTM), currentRatio: sanitizeValue(m?.currentRatioQuarterly || m?.currentRatioAnnual), quickRatio: sanitizeValue(m?.quickRatioQuarterly || m?.quickRatioAnnual), beta: sanitizeValue(m?.beta), fiftyTwoWeekHigh: sanitizeValue(m?.['52WeekHigh']), fiftyTwoWeekLow: sanitizeValue(m?.['52WeekLow'])
         };
 
         const insiders = Array.isArray(insiderData?.data) ? insiderData.data : [];
-        let netInsiderShares = 0;
-        insiders.slice(0, 15).forEach(t => netInsiderShares += (t.change || 0));
+        let netInsiderShares = 0; insiders.slice(0, 15).forEach(t => netInsiderShares += (t.change || 0));
         const insiderSentiment = netInsiderShares > 0 ? 'חיובי (קניות)' : netInsiderShares < 0 ? 'שלילי (מכירות)' : 'ניטרלי';
 
-        // נתונים טכניים (יומי ושבועי)
         const lastPointDaily = chartPointsDaily[chartPointsDaily.length - 1];
         const lastPointWeekly = chartPointsWeekly.length > 0 ? chartPointsWeekly[chartPointsWeekly.length - 1] : {};
         const keyLevels = extractKeyLevels(chartPointsDaily);
-        const levelsPrompt = keyLevels.map(l => `${l.type}: $${l.price.toFixed(2)}`).join(', ');
         const patternObj = detectAllPatterns(chartPointsDaily);
         const rsiVal = calculateRSI(chartPointsDaily.map(p=>p.close));
-        const relativeStrength = calculateRelativeStrength(chartPointsDaily, spyPointsDaily); // חישוב RS
-        const isDataComplete = true; 
+        const relativeStrength = calculateRelativeStrength(chartPointsDaily, spyPointsDaily);
         const currPrice = Number(quote.c);
-
-        // מאקרו ושוק
         const sectorETF = getSectorETF(profile?.finnhubIndustry);
-        const [spyQuoteLive, sectorQuoteLive] = await Promise.all([
-            fetchYahooQuote('SPY'),
-            fetchYahooQuote(sectorETF)
-        ]);
-        
-        const vixVal = vixQuote?.c ? vixQuote.c.toFixed(2) : 'N/A';
-        const tnxVal = tnxQuote?.c ? tnxQuote.c.toFixed(2) : 'N/A';
-        
-        const marketContext = `תשואת אג"ח 10 שנים: ${tnxVal}%. מדד הפחד (VIX): ${vixVal}. ה-S&P 500 השתנה היום ב-${spyQuoteLive?.dp?.toFixed(2) || 0}%. סקטור ה-${profile?.finnhubIndustry || 'כללי'} (${sectorETF}) השתנה ב-${sectorQuoteLive?.dp?.toFixed(2) || 0}%. עוצמה יחסית של המניה מול SPY בחודש האחרון: ${relativeStrength > 0 ? '+' : ''}${relativeStrength}%.`;
 
-        // דוחות עבר
         let earningsStreak = "אין מספיק נתונים על דוחות עבר.";
         if (Array.isArray(earningsData) && earningsData.length >= 3) {
             const recent = earningsData.slice(0,3).map(e => e.surprisePercent > 0 ? '✅' : '❌').join(' ');
-            earningsStreak = `רצף הפתעות ב-3 רבעונים אחרונים: ${recent} (הדוח האחרון: ${earningsData[0].surprisePercent || 0}%).`;
+            earningsStreak = `הפתעות ב-3 רבעונים אחרונים: ${recent}.`;
         }
         
-        const recentNews = (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 3).map(n => n.headline).join(" | ");
-
-        // המלצות אנליסטים (קונצנזוס)
-        let analystConsensus = "אין נתוני אנליסטים זמינים.";
+        let analystConsensus = "אין נתוני אנליסטים.";
         if (Array.isArray(recommendationData) && recommendationData.length > 0) {
             const rec = recommendationData[0];
             analystConsensus = `${rec.buy + rec.strongBuy} המלצות קנייה, ${rec.hold} החזקה, ${rec.sell + rec.strongSell} מכירה.`;
         }
-        if (priceTargetData && priceTargetData.targetMedian) {
-            analystConsensus += ` יעד מחיר חציוני: $${priceTargetData.targetMedian.toFixed(2)} (גבוה: $${priceTargetData.targetHigh.toFixed(2)}, נמוך: $${priceTargetData.targetLow.toFixed(2)}).`;
-        }
+        if (priceTargetData?.targetMedian) analystConsensus += ` יעד חציוני: $${priceTargetData.targetMedian.toFixed(2)}.`;
 
-        // --- הפרומפט החדש עם ה-Scratchpad ---
-        const prompt = `אתה "FinShark" - אנליסט מניות וסוחר בכיר בוול סטריט.
+        const marketContext = `אג"ח 10 שנים: ${tnxQuote?.c||'N/A'}%. VIX: ${vixQuote?.c||'N/A'}. עוצמה יחסית מול השוק בחודש האחרון: ${relativeStrength > 0 ? '+' : ''}${relativeStrength}%.`;
+        const recentNews = (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 3).map(n => n.headline).join(" | ");
+
+        // --- הפרומפט הסופי ---
+        const promptText = `אתה "FinShark" - אנליסט מניות וסוחר בכיר בוול סטריט.
         המניה: ${ticker} ($${currPrice}).
-        מצב השוק ומאקרו: ${marketContext}
-        קונצנזוס וול-סטריט: ${analystConsensus}
-        חדשות אחרונות: ${recentNews || 'אין חדשות מיוחדות'}
+        מאקרו: ${marketContext}
+        קונצנזוס: ${analystConsensus}
+        חדשות: ${recentNews || 'אין'}
 
-        נתונים טכניים (חובה לבסס עליהם את ניתוח הגרף):
-        - גרף יומי: מניה ב-$${currPrice}, MA50 הוא $${lastPointDaily.ma50} ו-MA200 הוא $${lastPointDaily.ma200}.
-        - גרף שבועי (מגמה ארוכה): MA50 שבועי הוא $${lastPointWeekly.ma50 || 'N/A'}, MA200 שבועי הוא $${lastPointWeekly.ma200 || 'N/A'}.
-        - מומנטום ותבניות: RSI עומד על ${rsiVal.toFixed(1)}. תבנית שזוהתה בגרף היומי: ${patternObj.text}.
-        - תמיכה/התנגדות קרובות: ${levelsPrompt || 'לא זוהו'}.
-        
-        פונדמנטלס: P/E: ${fundamentals.peRatio || 'N/A'}, צמיחת הכנסות: ${fundamentals.revenueGrowth || 'N/A'}%. ${earningsStreak}
+        נתונים טכניים (סווינג):
+        - יומי: מחיר $${currPrice}, MA50=$${lastPointDaily.ma50}, MA200=$${lastPointDaily.ma200}.
+        - שבועי: MA50=$${lastPointWeekly.ma50||'N/A'}, MA200=$${lastPointWeekly.ma200||'N/A'}.
+        - מומנטום: RSI=${rsiVal.toFixed(1)}. תבנית: ${patternObj.text}.
+        - פונדמנטלס: P/E=${fundamentals.peRatio || 'N/A'}, צמיחה=${fundamentals.revenueGrowth || 'N/A'}%. ${earningsStreak}
 
-        הנחיות קריטיות לדיוק ולוגיקה:
-        1. לפני שאתה פוסק, השתמש בשדה "ai_scratchpad" כדי "לחשוב בקול רם". נתח את הפער בין המגמה היומית לשבועית, בדוק אם התמחור יקר/זול, ושקלל את מצב המאקרו ואת הקונצנזוס.
-        2. קריאת הגרף (technical): מיועד נטו לניתוח טכני טהור! חל איסור מוחלט להזכיר חדשות, פונדמנטלס או דוחות בשדה זה.
-        3. יעדי מחיר (price_target): התייחס לקונצנזוס וול-סטריט, אבל אל תהיה שמרן מדי! אם החברה בצמיחה, קבע יעד אופטימי שמגלם פוטנציאל ל-12 חודשים.
+        הנחיות קריטיות:
+        1. חובה למלא ai_scratchpad עם מחשבות לוגיות מנומקות.
+        2. Technical מיועד רק לגרף ותבניות (ללא חדשות).
+        3. תהיה אופטימי ביעדי מחיר (Price Target) אם החברה בצמיחה.
 
-        החזר JSON בלבד, בעברית, ללא הערות, לפי המבנה הבא:
+        החזר אך ורק מבנה JSON תקין בעברית:
         {
-          "ai_scratchpad": "חשוב כאן בקצרה צעד אחר צעד על כיוון המניה לפני מתן הפסיקה (2-3 משפטים)",
-          "internal_logic": "משפט על החלטת הדירוג שלך",
+          "ai_scratchpad": "חשוב בקצרה צעד אחר צעד על כיוון המניה לפני הפסיקה (2-3 משפטים)",
+          "internal_logic": "משפט קצר על החלטת הדירוג",
           "identity": "תיאור עסקי קצר של החברה",
           "technical": "ניתוח טכני טהור של הגרף בסגנון סוחר סווינג",
-          "long_term": { "summary": "מסקנת ערך להשקעה ארוכה", "intrinsic_value": "הערכת שווי הוגן", "accumulation_zone": "טווח איסוף", "price_target": "יעד 12M" },
-          "short_term": { "summary": "תוכנית מסחר לסווינג קצר", "entry_price": "${currPrice}", "target_price": "יעד טכני קרוב", "stop_loss": "סטופ לוס" },
-          "pros": ["נקודת זכות 1", "נקודת זכות 2"], "cons": ["נקודת תורפה 1", "נקודת תורפה 2"], 
+          "long_term": { "summary": "מסקנת ערך ארוכה", "intrinsic_value": "שווי הוגן", "accumulation_zone": "טווח איסוף", "price_target": "יעד 12M" },
+          "short_term": { "summary": "תוכנית סווינג קצר", "entry_price": "${currPrice}", "target_price": "יעד טכני קרוב", "stop_loss": "סטופ לוס קרוב" },
+          "pros": ["זכות 1", "זכות 2"], "cons": ["סיכון 1", "סיכון 2"], 
           "news_sentiment_score": 8,
           "scores": {"overall": 80, "growth":80, "value":80, "momentum":80, "quality":80}, 
           "rating": "קנייה / החזקה / מכירה" 
         }`;
 
-        let aiVerdict = { 
-            isError: true,
-            identity: "שגיאה בשרת הכריש, לא ניתן לנתח את המניה כרגע.", 
-            technical: "יכול להיות שהמכסה של ה-API הסתיימה או שיש תקלת רשת. אנא נסה שוב מאוחר יותר.",
-            long_term: { summary: "לא זמין", intrinsic_value: "N/A", accumulation_zone: "N/A", price_target: "N/A" },
-            short_term: { summary: "לא זמין", entry_price: "N/A", target_price: "N/A", stop_loss: "N/A" },
-            scores: null, rating: "שגיאה", pros: ["שגיאה"], cons: ["שגיאה"], news_sentiment_score: 5
-        };
-        
-        try {
-            const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ 
-                    contents: [{ parts: [{ text: prompt }] }], 
-                    generationConfig: { 
-                        temperature: 0.1, 
-                        responseMimeType: "application/json" 
-                    },
-                    safetySettings: [{ category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }]
-                })
-            });
+        // --- קריאה לשני הכרישים במקביל (Promise.all) ---
+        const geminiPromise = fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }], generationConfig: { temperature: 0.1 }})
+        }).then(r => r.json());
 
-            if (aiResponse.ok) {
-                const aiData = await aiResponse.json();
-                if (aiData.candidates && aiData.candidates[0].content) {
-                    let text = aiData.candidates[0].content.parts[0].text;
-                    aiVerdict = JSON.parse(text); 
-                    aiVerdict.isError = false;
-                }
-            } else {
-                console.error("Gemini API error status:", aiResponse.status);
+        // אם יש מפתח של קלוד, נייצר עבורו פרומיס. אם לא - הפרומיס יחזיר null מיד כדי לא לתקוע הכל.
+        const claudePromise = anthropicKey ? fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+            body: JSON.stringify({
+                model: 'claude-3-5-haiku-20241022',
+                max_tokens: 1500,
+                temperature: 0.1,
+                system: "You are an elite AI financial analyst. Respond ONLY with valid JSON. No markdown, no preambles.",
+                messages: [{ role: 'user', content: promptText }]
+            })
+        }).then(r => r.json()) : Promise.resolve(null);
+
+        const [geminiRes, claudeRes] = await Promise.all([geminiPromise, claudePromise].map(p => p.catch(e => null)));
+
+        // --- פענוח התשובות (Parsing) ---
+        let geminiData = null;
+        let claudeData = null;
+
+        if (geminiRes && geminiRes.candidates && geminiRes.candidates[0].content) {
+            geminiData = cleanJSON(geminiRes.candidates[0].content.parts[0].text);
+        }
+        if (claudeRes && claudeRes.content && claudeRes.content[0].text) {
+            claudeData = cleanJSON(claudeRes.content[0].text);
+        }
+
+        // --- תהליך האיחוד והשקלול (Ensemble Logic) ---
+        let finalVerdict = { isError: true, identity: "שגיאה בניתוח המניה.", technical: "לא התקבלו נתונים." };
+
+        if (geminiData && claudeData) {
+            const gScore = geminiData.scores?.overall || 50;
+            const cScore = claudeData.scores?.overall || 50;
+            const diff = Math.abs(gScore - cScore);
+            let finalScore = Math.round((gScore + cScore) / 2);
+            let finalRating = finalScore >= 80 ? "קנייה חזקה 🔥" : finalScore >= 60 ? "קנייה ✓" : finalScore <= 40 ? "מכירה ✗" : "החזקה —";
+            
+            let scratchpadCombined = `<span style="color:#0a84ff; font-weight:bold;">🔵 Gemini:</span> ${geminiData.ai_scratchpad}<br><br><span style="color:#e67e22; font-weight:bold;">🟠 Claude:</span> ${claudeData.ai_scratchpad}`;
+            
+            // זיהוי קונפליקט ודריסת הציון
+            if (diff > 30) {
+                finalScore = Math.min(finalScore, 50); // מקסימום ציון 50 בגלל הסיכון
+                finalRating = "מעורב / סיכון גבוה ⚖️";
+                scratchpadCombined = `<span style="color:var(--red); font-weight:800;">⚠️ מחלוקת חריפה במועצת ה-AI!</span><br><br><span style="color:#0a84ff; font-weight:bold;">🔵 Gemini (ציון ${gScore}):</span> ${geminiData.ai_scratchpad}<br><br><span style="color:#e67e22; font-weight:bold;">🟠 Claude (ציון ${cScore}):</span> ${claudeData.ai_scratchpad}`;
             }
-        } catch (e) { 
-            console.error("Gemini Fetch error:", e.message);
+
+            finalVerdict = {
+                isError: false,
+                ai_scratchpad: scratchpadCombined,
+                internal_logic: `[Ensemble Match: ${diff <= 30 ? 'High' : 'Low'}]`,
+                identity: geminiData.identity, // ניקח את התיאור של ג'מיני
+                technical: `<span style="color:#0a84ff; font-weight:bold;">מנוע Gemini:</span> ${geminiData.technical}<br><br><span style="color:#e67e22; font-weight:bold;">מנוע Claude:</span> ${claudeData.technical}`,
+                long_term: {
+                    summary: geminiData.long_term.summary, // נשאיר אחד כדי לא להעמיס קריאה
+                    intrinsic_value: geminiData.long_term.intrinsic_value,
+                    accumulation_zone: geminiData.long_term.accumulation_zone,
+                    // ניקח את היעד השמרני מבין השניים ליתר ביטחון
+                    price_target: Math.min(Number(String(geminiData.long_term.price_target).replace(/[^0-9.]/g, '')||0), Number(String(claudeData.long_term.price_target).replace(/[^0-9.]/g, '')||0)) || geminiData.long_term.price_target
+                },
+                short_term: {
+                    summary: claudeData.short_term.summary, // קלוד מעולה בסווינג
+                    entry_price: currPrice,
+                    target_price: geminiData.short_term.target_price,
+                    // ניקח את הסטופ לוס הקרוב והבטוח מבין השניים
+                    stop_loss: Math.max(Number(String(geminiData.short_term.stop_loss).replace(/[^0-9.]/g, '')||0), Number(String(claudeData.short_term.stop_loss).replace(/[^0-9.]/g, '')||0)) || geminiData.short_term.stop_loss
+                },
+                pros: [...new Set([...(geminiData.pros||[]), ...(claudeData.pros||[])])].slice(0, 4), // נאחד ונציג עד 4 מנצחים
+                cons: [...new Set([...(geminiData.cons||[]), ...(claudeData.cons||[])])].slice(0, 4),
+                news_sentiment_score: Math.round(((geminiData.news_sentiment_score||5) + (claudeData.news_sentiment_score||5))/2),
+                scores: {
+                    overall: finalScore,
+                    growth: Math.round(((geminiData.scores?.growth||50) + (claudeData.scores?.growth||50))/2),
+                    value: Math.round(((geminiData.scores?.value||50) + (claudeData.scores?.value||50))/2),
+                    momentum: Math.round(((geminiData.scores?.momentum||50) + (claudeData.scores?.momentum||50))/2),
+                    quality: Math.round(((geminiData.scores?.quality||50) + (claudeData.scores?.quality||50))/2)
+                },
+                rating: finalRating
+            };
+        } else if (geminiData) {
+            // גיבוי - אם רק ג'מיני עבד
+            finalVerdict = { ...geminiData, isError: false, ai_scratchpad: `<span style="color:#0a84ff; font-weight:bold;">🔵 Gemini:</span> ${geminiData.ai_scratchpad}` };
+        } else if (claudeData) {
+            // גיבוי - אם רק קלוד עבד
+            finalVerdict = { ...claudeData, isError: false, ai_scratchpad: `<span style="color:#e67e22; font-weight:bold;">🟠 Claude:</span> ${claudeData.ai_scratchpad}` };
         }
 
         return res.status(200).json({
-            success: true, isDataComplete, ticker, name: profile?.name || ticker, industry: profile?.finnhubIndustry || "N/A", sector: profile?.finnhubIndustry || "N/A",
+            success: true, isDataComplete: true, ticker, name: profile?.name || ticker, industry: profile?.finnhubIndustry || "N/A", sector: profile?.finnhubIndustry || "N/A",
             price: currPrice, changePercentage: Number(quote.dp),
             ma50: lastPointDaily.ma50, ma200: lastPointDaily.ma200, volume: Number(quote.v || lastPointDaily.volume || 0),
             pattern: patternObj.text, patternLines: patternObj.lines, rsi: rsiVal, keyLevels, ...fundamentals,
             latestEarnings: (Array.isArray(earningsData) && earningsData.length > 0) ? earningsData[0] : null,
             tickerNews: (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 5),
             insiderTransactions: insiders.slice(0, 6), insiderSentiment: insiderSentiment,
-            analysis: aiVerdict, chartData: chartPointsDaily
+            analysis: finalVerdict, chartData: chartPointsDaily
         });
     } catch (error) { 
         console.error("Global Catch Error:", error);
