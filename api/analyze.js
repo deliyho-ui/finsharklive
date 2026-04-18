@@ -207,7 +207,7 @@ module.exports = async function(req, res) {
         const anthropicKey = process.env.ANTHROPIC_API_KEY ? process.env.ANTHROPIC_API_KEY.trim() : null; 
         const finnhubKey = process.env.FINNHUB_API_KEY;
 
-        if (!geminiKey || !finnhubKey) return res.status(500).json({ success: false, message: "Missing API Keys" });
+        if (!geminiKey || !finnhubKey) return res.status(200).json({ success: false, message: "Missing API Keys" });
 
         // --- תיק מניות כריש ---
         if (action === 'shark_portfolio') {
@@ -227,9 +227,10 @@ module.exports = async function(req, res) {
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.7, responseMimeType: "application/json" }})
                 });
                 const aiData = await aiRes.json();
+                if (!aiData?.candidates?.length || !aiData.candidates[0]?.content?.parts?.[0]?.text) throw new Error("Gemini empty response");
                 let text = aiData.candidates[0].content.parts[0].text;
                 let s = text.indexOf('['); let e = text.lastIndexOf(']');
-                if(s !== -1 && e !== -1) text = text.substring(s, e+1);
+                if (s !== -1 && e !== -1) text = text.substring(s, e + 1);
                 return res.status(200).json({ success: true, portfolio: JSON.parse(text) });
             } catch (e) {
                 return res.status(200).json({ success: true, portfolio: [{"ticker": "NVDA", "weight": 30, "role": "מנוע צמיחה ומומנטום", "reason": "שליטה ב-AI"}, {"ticker": "MSFT", "weight": 20, "role": "עוגן ויציבות", "reason": "תזרים יציב"}]});
@@ -254,12 +255,12 @@ module.exports = async function(req, res) {
             });
         }
 
-        if (!ticker) return res.status(400).json({ success: false, message: "Missing ticker symbol" });
+        if (!ticker) return res.status(200).json({ success: false, message: "Missing ticker symbol" });
 
         // --- Cache / Live Data ---
         if (action === 'live_data') {
             const quote = await fetchYahooQuote(ticker);
-            if (!quote) return res.status(404).json({ success: false, message: "לא ניתן למשוך מחיר למניה זו" });
+            if (!quote) return res.status(200).json({ success: false, message: "לא ניתן למשוך מחיר למניה זו" });
             const chartPoints = await fetchYahooData(ticker, '2y', '1d');
             const lastChartPoint = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1] : {};
             const patternObj = detectAllPatterns(chartPoints);
@@ -275,7 +276,7 @@ module.exports = async function(req, res) {
             fetchFinnhub('quote', `symbol=${ticker}`), fetchYahooData(ticker, '2y', '1d'), fetchYahooData(ticker, '2y', '1wk', 50, 200), fetchYahooData('SPY', '2y', '1d'), fetchYahooQuote('^VIX'), fetchYahooQuote('^TNX')
         ]);
 
-        if (!quote || quote.c === 0 || chartPointsDaily.length < 10) return res.status(404).json({ success: false, message: `הסימול לא נמצא.` });
+        if (!quote || quote.c === 0 || chartPointsDaily.length < 10) return res.status(200).json({ success: false, message: `הסימול לא נמצא או אין מספיק נתונים היסטוריים.` });
 
         const today = new Date().toISOString().split('T')[0];
         const lastMonth = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -376,7 +377,7 @@ module.exports = async function(req, res) {
         let claudeData = null;
         let claudeDebugMsg = null; 
 
-        if (geminiRes && geminiRes.candidates && geminiRes.candidates[0].content) {
+        if (geminiRes?.candidates?.length > 0 && geminiRes.candidates[0]?.content?.parts?.[0]?.text) {
             geminiData = cleanJSON(geminiRes.candidates[0].content.parts[0].text);
         }
         
@@ -455,8 +456,8 @@ module.exports = async function(req, res) {
             insiderTransactions: insiders.slice(0, 6), insiderSentiment: insiderSentiment,
             analysis: finalVerdict, chartData: chartPointsDaily
         });
-    } catch (error) { 
+    } catch (error) {
         console.error("Global Catch Error:", error);
-        return res.status(500).json({ success: false, message: error.message }); 
+        return res.status(200).json({ success: false, message: error.message });
     }
 };
