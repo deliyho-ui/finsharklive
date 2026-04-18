@@ -140,11 +140,9 @@ function detectAllPatterns(chartPoints) {
 
     if (Math.abs(h1 - h2) / h1 < 0.02 && currentPrice < h1 * 0.96) {
         patterns.push("פסגה כפולה (Double Top) ⛰️⛰️");
-        lines.push({ start: {time: max1.time, value: h1}, end: {time: max2.time, value: h2}, color: 'rgba(255, 69, 58, 0.8)' });
     }
     if (Math.abs(l1 - l2) / l1 < 0.02 && currentPrice > l1 * 1.04) {
         patterns.push("תחתית כפולה (Double Bottom) 🕳️🕳️");
-        lines.push({ start: {time: min1.time, value: l1}, end: {time: min2.time, value: l2}, color: 'rgba(48, 209, 88, 0.8)' });
     }
     
     const isRising = h2 > h1 && l2 > l1, isFalling = h2 < h1 && l2 < l1, converge = (h1 - l1) > (h2 - l2) * 1.2; 
@@ -184,11 +182,15 @@ function calculateRelativeStrength(stockPoints, spyPoints) {
     return ((stockReturn - spyReturn) * 100).toFixed(2);
 }
 
-// פונקציה שמנקה JSON מתשובות AI אם הן עטופות ב-Markdown
+// שדרוג המערכת לקריאת JSON ללא קריסות
 function cleanJSON(text) {
     try {
-        let cleanText = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-        return JSON.parse(cleanText);
+        const start = text.indexOf('{');
+        const end = text.lastIndexOf('}');
+        if (start !== -1 && end !== -1) {
+            return JSON.parse(text.substring(start, end + 1));
+        }
+        return JSON.parse(text);
     } catch (e) { return null; }
 }
 
@@ -203,12 +205,12 @@ module.exports = async function(req, res) {
         const action = req.query.action;
         
         const geminiKey = process.env.GEMINI_API_KEY;
-        const anthropicKey = process.env.ANTHROPIC_API_KEY; // המפתח החדש שהזנת
+        const anthropicKey = process.env.ANTHROPIC_API_KEY; 
         const finnhubKey = process.env.FINNHUB_API_KEY;
 
         if (!geminiKey || !finnhubKey) return res.status(500).json({ success: false, message: "Missing API Keys" });
 
-        // --- אזור בניית תיק מניות כריש ---
+        // --- תיק מניות כריש ---
         if (action === 'shark_portfolio') {
             const prompt = `You are "FinShark", an elite Wall Street AI hedge fund manager. 
             Construct a 5-stock model portfolio for today's market environment. 
@@ -227,13 +229,15 @@ module.exports = async function(req, res) {
                 });
                 const aiData = await aiRes.json();
                 let text = aiData.candidates[0].content.parts[0].text;
+                let s = text.indexOf('['); let e = text.lastIndexOf(']');
+                if(s !== -1 && e !== -1) text = text.substring(s, e+1);
                 return res.status(200).json({ success: true, portfolio: JSON.parse(text) });
             } catch (e) {
                 return res.status(200).json({ success: true, portfolio: [{"ticker": "NVDA", "weight": 30, "role": "מנוע צמיחה ומומנטום", "reason": "שליטה ב-AI"}, {"ticker": "MSFT", "weight": 20, "role": "עוגן ויציבות", "reason": "תזרים יציב"}]});
             }
         }
 
-        // --- אזור מזג אוויר ונתוני שוק כלליים ---
+        // --- נתוני שוק ---
         if (action === 'market' || (!ticker && action !== 'analyze')) {
             const [spy, qqq, dia, iwm, xlk, xlv, xlf, xle, xly, xli, newsData, topGainers, topLosers] = await Promise.all([
                 fetchFinnhub('quote', 'symbol=SPY'), fetchFinnhub('quote', 'symbol=QQQ'), fetchFinnhub('quote', 'symbol=DIA'), fetchFinnhub('quote', 'symbol=IWM'), 
@@ -253,7 +257,7 @@ module.exports = async function(req, res) {
 
         if (!ticker) return res.status(400).json({ success: false, message: "Missing ticker symbol" });
 
-        // --- קריאה חסכונית (Cache) מול Yahoo ---
+        // --- Cache / Live Data ---
         if (action === 'live_data') {
             const quote = await fetchYahooQuote(ticker);
             if (!quote) return res.status(404).json({ success: false, message: "לא ניתן למשוך מחיר למניה זו" });
@@ -298,7 +302,6 @@ module.exports = async function(req, res) {
         const rsiVal = calculateRSI(chartPointsDaily.map(p=>p.close));
         const relativeStrength = calculateRelativeStrength(chartPointsDaily, spyPointsDaily);
         const currPrice = Number(quote.c);
-        const sectorETF = getSectorETF(profile?.finnhubIndustry);
 
         let earningsStreak = "אין מספיק נתונים על דוחות עבר.";
         if (Array.isArray(earningsData) && earningsData.length >= 3) {
@@ -316,7 +319,6 @@ module.exports = async function(req, res) {
         const marketContext = `אג"ח 10 שנים: ${tnxQuote?.c||'N/A'}%. VIX: ${vixQuote?.c||'N/A'}. עוצמה יחסית מול השוק בחודש האחרון: ${relativeStrength > 0 ? '+' : ''}${relativeStrength}%.`;
         const recentNews = (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 3).map(n => n.headline).join(" | ");
 
-        // --- הפרומפט הסופי ---
         const promptText = `אתה "FinShark" - אנליסט מניות וסוחר בכיר בוול סטריט.
         המניה: ${ticker} ($${currPrice}).
         מאקרו: ${marketContext}
@@ -348,13 +350,15 @@ module.exports = async function(req, res) {
           "rating": "קנייה / החזקה / מכירה" 
         }`;
 
-        // --- קריאה לשני הכרישים במקביל (Promise.all) ---
+        // הוספנו בחזרה את הנעילה לג'מיני כדי שלא יקשקש טקסט מיותר מסביב ל-JSON
         const geminiPromise = fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }], generationConfig: { temperature: 0.1 }})
+            body: JSON.stringify({ 
+                contents: [{ parts: [{ text: promptText }] }], 
+                generationConfig: { temperature: 0.1, responseMimeType: "application/json" }
+            })
         }).then(r => r.json());
 
-        // אם יש מפתח של קלוד, נייצר עבורו פרומיס. אם לא - הפרומיס יחזיר null מיד כדי לא לתקוע הכל.
         const claudePromise = anthropicKey ? fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: { 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
@@ -369,7 +373,6 @@ module.exports = async function(req, res) {
 
         const [geminiRes, claudeRes] = await Promise.all([geminiPromise, claudePromise].map(p => p.catch(e => null)));
 
-        // --- פענוח התשובות (Parsing) ---
         let geminiData = null;
         let claudeData = null;
 
@@ -380,7 +383,6 @@ module.exports = async function(req, res) {
             claudeData = cleanJSON(claudeRes.content[0].text);
         }
 
-        // --- תהליך האיחוד והשקלול (Ensemble Logic) ---
         let finalVerdict = { isError: true, identity: "שגיאה בניתוח המניה.", technical: "לא התקבלו נתונים." };
 
         if (geminiData && claudeData) {
@@ -392,9 +394,8 @@ module.exports = async function(req, res) {
             
             let scratchpadCombined = `<span style="color:#0a84ff; font-weight:bold;">🔵 Gemini:</span> ${geminiData.ai_scratchpad}<br><br><span style="color:#e67e22; font-weight:bold;">🟠 Claude:</span> ${claudeData.ai_scratchpad}`;
             
-            // זיהוי קונפליקט ודריסת הציון
             if (diff > 30) {
-                finalScore = Math.min(finalScore, 50); // מקסימום ציון 50 בגלל הסיכון
+                finalScore = Math.min(finalScore, 50); 
                 finalRating = "מעורב / סיכון גבוה ⚖️";
                 scratchpadCombined = `<span style="color:var(--red); font-weight:800;">⚠️ מחלוקת חריפה במועצת ה-AI!</span><br><br><span style="color:#0a84ff; font-weight:bold;">🔵 Gemini (ציון ${gScore}):</span> ${geminiData.ai_scratchpad}<br><br><span style="color:#e67e22; font-weight:bold;">🟠 Claude (ציון ${cScore}):</span> ${claudeData.ai_scratchpad}`;
             }
@@ -403,23 +404,21 @@ module.exports = async function(req, res) {
                 isError: false,
                 ai_scratchpad: scratchpadCombined,
                 internal_logic: `[Ensemble Match: ${diff <= 30 ? 'High' : 'Low'}]`,
-                identity: geminiData.identity, // ניקח את התיאור של ג'מיני
+                identity: geminiData.identity,
                 technical: `<span style="color:#0a84ff; font-weight:bold;">מנוע Gemini:</span> ${geminiData.technical}<br><br><span style="color:#e67e22; font-weight:bold;">מנוע Claude:</span> ${claudeData.technical}`,
                 long_term: {
-                    summary: geminiData.long_term.summary, // נשאיר אחד כדי לא להעמיס קריאה
+                    summary: geminiData.long_term.summary,
                     intrinsic_value: geminiData.long_term.intrinsic_value,
                     accumulation_zone: geminiData.long_term.accumulation_zone,
-                    // ניקח את היעד השמרני מבין השניים ליתר ביטחון
                     price_target: Math.min(Number(String(geminiData.long_term.price_target).replace(/[^0-9.]/g, '')||0), Number(String(claudeData.long_term.price_target).replace(/[^0-9.]/g, '')||0)) || geminiData.long_term.price_target
                 },
                 short_term: {
-                    summary: claudeData.short_term.summary, // קלוד מעולה בסווינג
+                    summary: claudeData.short_term.summary,
                     entry_price: currPrice,
                     target_price: geminiData.short_term.target_price,
-                    // ניקח את הסטופ לוס הקרוב והבטוח מבין השניים
                     stop_loss: Math.max(Number(String(geminiData.short_term.stop_loss).replace(/[^0-9.]/g, '')||0), Number(String(claudeData.short_term.stop_loss).replace(/[^0-9.]/g, '')||0)) || geminiData.short_term.stop_loss
                 },
-                pros: [...new Set([...(geminiData.pros||[]), ...(claudeData.pros||[])])].slice(0, 4), // נאחד ונציג עד 4 מנצחים
+                pros: [...new Set([...(geminiData.pros||[]), ...(claudeData.pros||[])])].slice(0, 4),
                 cons: [...new Set([...(geminiData.cons||[]), ...(claudeData.cons||[])])].slice(0, 4),
                 news_sentiment_score: Math.round(((geminiData.news_sentiment_score||5) + (claudeData.news_sentiment_score||5))/2),
                 scores: {
@@ -432,10 +431,8 @@ module.exports = async function(req, res) {
                 rating: finalRating
             };
         } else if (geminiData) {
-            // גיבוי - אם רק ג'מיני עבד
             finalVerdict = { ...geminiData, isError: false, ai_scratchpad: `<span style="color:#0a84ff; font-weight:bold;">🔵 Gemini:</span> ${geminiData.ai_scratchpad}` };
         } else if (claudeData) {
-            // גיבוי - אם רק קלוד עבד
             finalVerdict = { ...claudeData, isError: false, ai_scratchpad: `<span style="color:#e67e22; font-weight:bold;">🟠 Claude:</span> ${claudeData.ai_scratchpad}` };
         }
 
