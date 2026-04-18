@@ -357,12 +357,12 @@ module.exports = async function(req, res) {
             })
         }).then(r => r.json());
 
-        // --- קריאה לקלוד עם תפיסת שגיאות משודרגת ---
+        // --- קריאה לקלוד עם המודל החדש (Claude Haiku 4.5) ---
         const claudePromise = anthropicKey ? fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: { 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
             body: JSON.stringify({
-                model: 'claude-3-5-haiku-20241022',
+                model: 'claude-haiku-4-5-20251001', // <--- הקסם פה! המודל החדש.
                 max_tokens: 1500,
                 temperature: 0.1,
                 system: "You are an elite AI financial analyst. Respond ONLY with valid JSON. No markdown, no preambles.",
@@ -370,18 +370,16 @@ module.exports = async function(req, res) {
             })
         }).then(r => r.json()) : Promise.resolve(null);
 
-        // תופס שגיאות רשת פנימיות
         const [geminiRes, claudeRes] = await Promise.all([geminiPromise, claudePromise].map(p => p.catch(e => ({ error: { message: e.message } }))));
 
         let geminiData = null;
         let claudeData = null;
-        let claudeDebugMsg = null; // משתנה שישמור את סיבת הקריסה של קלוד
+        let claudeDebugMsg = null; 
 
         if (geminiRes && geminiRes.candidates && geminiRes.candidates[0].content) {
             geminiData = cleanJSON(geminiRes.candidates[0].content.parts[0].text);
         }
         
-        // אבחון מדויק של קלוד:
         if (!anthropicKey) {
             claudeDebugMsg = "מפתח ANTHROPIC_API_KEY חסר ב-Vercel!";
         } else if (claudeRes && claudeRes.content && claudeRes.content[0].text) {
@@ -441,7 +439,6 @@ module.exports = async function(req, res) {
                 rating: finalRating
             };
         } else if (geminiData) {
-            // כאן המערכת תדפיס לך את השגיאה של קלוד ישירות למסך!
             let debugHtml = claudeDebugMsg ? `<br><br><span style="color:var(--red); font-size:0.85em; font-weight:bold;">🔍 שגיאת אבחון (קלוד נכשל): ${claudeDebugMsg}</span>` : "";
             finalVerdict = { ...geminiData, isError: false, ai_scratchpad: `<span style="color:#0a84ff; font-weight:bold;">🔵 Gemini:</span> ${geminiData.ai_scratchpad}${debugHtml}` };
         } else if (claudeData) {
