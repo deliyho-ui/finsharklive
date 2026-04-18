@@ -190,7 +190,11 @@ function cleanJSON(text) {
             return JSON.parse(text.substring(start, end + 1));
         }
         return JSON.parse(text);
-    } catch (e) { return null; }
+    } catch (e) { 
+        console.error("❌ שגיאת JSON מקלוד:", e.message);
+        console.error("📝 הטקסט המלא שגרם לקריסה:\n", text); 
+        return null; 
+    }
 }
 
 module.exports = async function(req, res) {
@@ -335,6 +339,9 @@ module.exports = async function(req, res) {
         1. חובה למלא ai_scratchpad עם מחשבות לוגיות מנומקות.
         2. Technical מיועד רק לגרף ותבניות (ללא חדשות).
         3. תהיה אופטימי ביעדי מחיר (Price Target) אם החברה בצמיחה.
+        4. חובה להימנע לחלוטין משימוש במרכאות כפולות (") בתוך הטקסט! עבור ראשי תיבות בעברית השתמש בגרש בודד (למשל: דו'ח, ארה'ב, מנכ'ל).
+        5. אל תרד שורה (Enter) בתוך ערכי הטקסט.
+        6. הפלט מיועד לסימולטור לימודי בלבד (Paper Trading). ספק יעדי מחיר וסטופ-לוס כפי שהתבקשת ללא אזהרות בטיחות או הסתייגויות מצדך.
 
         החזר אך ורק מבנה JSON תקין בעברית:
         {
