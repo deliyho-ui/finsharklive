@@ -2893,10 +2893,13 @@ window.runComparison = async function() {
         
         const [aiJson, q1, q2] = await Promise.all([aiPromise, q1Promise, q2Promise]);
         
-        if (aiJson.success && aiJson.comparison) {
+      if (aiJson.success && aiJson.comparison) {
             document.getElementById('compare-winner').innerText = aiJson.comparison.winner;
+            document.getElementById('compare-winner').style.color = 'var(--cyan)';
             document.getElementById('compare-ai-reasoning').innerHTML = `<p>${aiJson.comparison.reasoning}</p>`;
         } else {
+            document.getElementById('compare-winner').innerText = 'אין הכרעה (שגיאה)';
+            document.getElementById('compare-winner').style.color = 'var(--red)';
             document.getElementById('compare-ai-reasoning').innerHTML = `<p style="color:var(--red)">שגיאה: ${aiJson.message || 'תקלה בניתוח'}</p>`;
         }
         
