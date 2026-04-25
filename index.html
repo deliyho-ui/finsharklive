@@ -1919,16 +1919,47 @@ button:focus:not(:focus-visible){outline:none;}
 </div>
 
 <div class="modal-overlay" id="modal-update">
-  <div class="modal" style="position:relative;">
-    <button class="modal-close" onclick="closeUpdateModal()">✕</button>
-    <span class="new-badge">השקה חדשה</span>
-    <div style="font-size: 3.5rem; margin-bottom: 15px;">🎓</div>
-    <h2 style="color: var(--text); font-size: 1.8rem; font-weight: 800; margin-bottom: 8px;">אקדמיית הכריש באוויר!</h2>
-    <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 24px; font-size: 0.95rem;">
-      הפכנו את FinShark למכללה פיננסית שלמה. כעת תוכלו ללמוד איך לקרוא גרפים, לנהל סיכונים ולהשתמש ב-AI כמו מקצוענים - דרך מצגות אינטראקטיביות ופודקאסטים קוליים מובנים שזמינים עכשיו באתר.
-    </p>
-    <button class="btn btn-primary" style="width: 100%; padding: 14px; font-size: 1.05rem; border-radius: 14px; margin-bottom: 12px; box-shadow: 0 8px 24px rgba(10,132,255,0.25);" onclick="goToAcademyFromModal()">קחו אותי לאקדמיה 🚀</button>
-    <button class="btn btn-ghost" style="width: 100%; padding: 12px; border-radius: 14px;" onclick="closeUpdateModal()">המשך למסך השוק</button>
+  <div class="modal" style="position:relative; text-align: right; max-width: 500px; padding: 32px; border: 1px solid rgba(0,229,255,0.15); box-shadow: 0 20px 40px rgba(0,0,0,0.5), inset 0 0 80px rgba(0,229,255,0.03);">
+    <button class="modal-close" onclick="closeUpdateModal()" style="left: 16px; right: auto; top: 16px; background: rgba(255,255,255,0.05);">✕</button>
+
+    <div style="text-align: center; margin-bottom: 28px;">
+        <span class="new-badge" style="background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.3); color: var(--cyan); padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; letter-spacing: 0.1em; display: inline-block; margin-bottom: 16px;">🚀 עדכון מערכת</span>
+        <div style="font-size: 4rem; margin-bottom: 8px; filter: drop-shadow(0 0 15px rgba(0,229,255,0.3));">🦈</div>
+        <h2 style="color: #fff; font-size: 1.9rem; font-weight: 900; letter-spacing: -0.03em; margin-bottom: 8px;">מה חדש ב-FinShark?</h2>
+        <p style="color: var(--text-secondary); line-height: 1.6; font-size: 0.95rem; max-width: 90%; margin: 0 auto;">
+          שדרגנו את המנועים מאחורי הקלעים כדי להביא לכם ניתוחי שוק מדויקים, חדים ומהירים מאי פעם. הנה מה שחידשנו:
+        </p>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 32px;">
+        
+        <div style="display: flex; gap: 14px; background: rgba(255,255,255,0.02); padding: 14px; border-radius: 12px; border: 1px solid var(--border); transition: all 0.2s ease; cursor: default;" onmouseover="this.style.borderColor='var(--cyan)'; this.style.transform='translateY(-2px)'; this.style.background='rgba(0,229,255,0.02)';" onmouseout="this.style.borderColor='var(--border)'; this.style.transform='none'; this.style.background='rgba(255,255,255,0.02)';">
+            <div style="background: rgba(0,229,255,0.1); width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; color: var(--cyan); border: 1px solid rgba(0,229,255,0.2);">⚔️</div>
+            <div>
+                <div style="color: var(--text); font-weight: 800; font-size: 1.05rem; margin-bottom: 4px;">זירת השוואות (VS) חכמה</div>
+                <div style="color: var(--text-secondary); font-size: 0.88rem; line-height: 1.5;">מנוע ה-AI שואב נתונים טכניים בזמן אמת לשתי המניות במקביל (RSI, ממוצעים, תנועות מחיר), ומכריע מי עדיפה להשקעה כרגע.</div>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 14px; background: rgba(255,255,255,0.02); padding: 14px; border-radius: 12px; border: 1px solid var(--border); transition: all 0.2s ease; cursor: default;" onmouseover="this.style.borderColor='var(--purple)'; this.style.transform='translateY(-2px)'; this.style.background='rgba(179,136,255,0.02)';" onmouseout="this.style.borderColor='var(--border)'; this.style.transform='none'; this.style.background='rgba(255,255,255,0.02)';">
+            <div style="background: rgba(179,136,255,0.1); width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; color: var(--purple); border: 1px solid rgba(179,136,255,0.2);">🧠</div>
+            <div>
+                <div style="color: var(--text); font-weight: 800; font-size: 1.05rem; margin-bottom: 4px;">מנועי AI כפולים</div>
+                <div style="color: var(--text-secondary); font-size: 0.88rem; line-height: 1.5;">Claude ו-Gemini מנתחים כעת את המניה במקביל ומגיעים לפסיקה משותפת - להקטנת סיכונים ואמינות שיא.</div>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 14px; background: rgba(255,255,255,0.02); padding: 14px; border-radius: 12px; border: 1px solid var(--border); transition: all 0.2s ease; cursor: default;" onmouseover="this.style.borderColor='var(--gold)'; this.style.transform='translateY(-2px)'; this.style.background='rgba(255,215,64,0.02)';" onmouseout="this.style.borderColor='var(--border)'; this.style.transform='none'; this.style.background='rgba(255,255,255,0.02)';">
+            <div style="background: rgba(255,215,64,0.1); width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; color: var(--gold); border: 1px solid rgba(255,215,64,0.2);">🎓</div>
+            <div>
+                <div style="color: var(--text); font-weight: 800; font-size: 1.05rem; margin-bottom: 4px;">אקדמיית הכריש</div>
+                <div style="color: var(--text-secondary); font-size: 0.88rem; line-height: 1.5;">מכללה פיננסית שלמה בתוך המערכת. פודקאסטים קוליים, מצגות, וכל מה שצריך כדי ללמוד לסחור כמו המקצוענים.</div>
+            </div>
+        </div>
+        
+    </div>
+
+    <button class="btn btn-primary" style="width: 100%; padding: 16px; font-size: 1.1rem; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,229,255,0.25); justify-content: center; font-weight: 900; letter-spacing: 0.03em;" onclick="closeUpdateModal()">קדימה, למים! 🌊</button>
   </div>
 </div>
 
