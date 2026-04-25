@@ -184,12 +184,13 @@ function calculateRelativeStrength(stockPoints, spyPoints) {
 
 function cleanJSON(text) {
     try {
-        const start = text.indexOf('{');
-        const end = text.lastIndexOf('}');
+        let cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const start = cleaned.indexOf('{');
+        const end = cleaned.lastIndexOf('}');
         if (start !== -1 && end !== -1) {
-            return JSON.parse(text.substring(start, end + 1));
+            return JSON.parse(cleaned.substring(start, end + 1));
         }
-        return JSON.parse(text);
+        return JSON.parse(cleaned);
     } catch (e) { 
         console.error("❌ שגיאת JSON מקלוד:", e.message);
         console.error("📝 הטקסט המלא שגרם לקריסה:\n", text); 
