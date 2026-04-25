@@ -243,19 +243,17 @@ module.exports = async function(req, res) {
 
         // --- נתוני שוק ---
         if (action === 'market' || (!ticker && action !== 'analyze')) {
-            const [spy, qqq, dia, iwm, xlk, xlv, xlf, xle, xly, xli, newsData, topGainers, topLosers, vixQuote] = await Promise.all([
+            const [spy, qqq, dia, iwm, xlk, xlv, xlf, xle, xly, xli, newsData, topGainers, topLosers] = await Promise.all([
                 fetchFinnhub('quote', 'symbol=SPY'), fetchFinnhub('quote', 'symbol=QQQ'), fetchFinnhub('quote', 'symbol=DIA'), fetchFinnhub('quote', 'symbol=IWM'), 
                 fetchFinnhub('quote', 'symbol=XLK'), fetchFinnhub('quote', 'symbol=XLV'), fetchFinnhub('quote', 'symbol=XLF'), fetchFinnhub('quote', 'symbol=XLE'), 
                 fetchFinnhub('quote', 'symbol=XLY'), fetchFinnhub('quote', 'symbol=XLI'), fetchFinnhub('news', 'category=business'),
-                fetchYahooScreener('day_gainers'), fetchYahooScreener('day_losers'),
-                fetchYahooQuote('^VIX')
+                fetchYahooScreener('day_gainers'), fetchYahooScreener('day_losers')
             ]);
             return res.status(200).json({
                 success: true, marketData: {
                     indexes: [{ symbol: 'S&P 500', price: spy?.c, changesPercentage: spy?.dp }, { symbol: 'NASDAQ', price: qqq?.c, changesPercentage: qqq?.dp }, { symbol: 'DOW 30', price: dia?.c, changesPercentage: dia?.dp }, { symbol: 'RUSSELL 2000', price: iwm?.c, changesPercentage: iwm?.dp }],
                     sectors: [{ sector: "Technology", changesPercentage: String(xlk?.dp) }, { sector: "Healthcare", changesPercentage: String(xlv?.dp) }, { sector: "Financials", changesPercentage: String(xlf?.dp) }, { sector: "Industrials", changesPercentage: String(xli?.dp) }, { sector: "Consumer Cyclical", changesPercentage: String(xly?.dp) }, { sector: "Energy", changesPercentage: String(xle?.dp) }],
                     gainers: topGainers, losers: topLosers,
-                    vix: vixQuote?.c || null,
                     news: (Array.isArray(newsData) ? newsData : []).slice(0, 5).map(item => ({ title: item.headline, url: item.url, source: item.source, date: new Date(item.datetime * 1000).toISOString() }))
                 }
             });
@@ -367,13 +365,13 @@ module.exports = async function(req, res) {
             })
         }).then(r => r.json());
 
-        // --- קריאה לקלוד עם המודל החדש ---
+        // --- קריאה לקלוד עם המודל החדש (Claude Haiku 4.5) ---
         const claudePromise = anthropicKey ? fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: { 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
             body: JSON.stringify({
-                model: 'claude-3-haiku-20240307', 
-                max_tokens: 1000,
+                model: 'claude-3-haiku-20240307',
+                max_tokens: 1500,
                 temperature: 0.1,
                 system: "You are an elite AI financial analyst. Respond ONLY with valid JSON. No markdown, no preambles.",
                 messages: [{ role: 'user', content: promptText }]
