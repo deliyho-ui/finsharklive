@@ -949,8 +949,109 @@ button:focus:not(:focus-visible){outline:none;}
 }
 
 
-/* ── Chart ── */
-#chart-container{height:340px;border-radius:var(--radius-sm);overflow:hidden;background:var(--bg3);border:1px solid var(--border);}
+/* ─────────── RESULTS GRID (stock analysis layout) ─────────── */
+.results-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-top:16px;
+}
+.results-grid .full-width,
+.results-grid .chart-card{
+  grid-column:1 / -1;
+}
+@media(max-width:700px){
+  .results-grid{grid-template-columns:1fr;}
+}
+
+/* ── Chart container ── */
+#chart-container,
+#stockChart,
+.chart-container{
+  height:340px;
+  border-radius:var(--radius-sm);
+  overflow:hidden;
+  background:var(--bg3);
+  position:relative;
+  width:100%;
+  /* critical: do NOT let the LightweightCharts canvas bleed out */
+  isolation:isolate;
+}
+#stockChart canvas,
+.chart-container canvas{
+  display:block !important;
+  max-width:100% !important;
+}
+
+/* ── Chart toolbar ── */
+.chart-controls{display:flex;gap:3px;}
+.chart-btn{
+  padding:4px 10px;border:1px solid var(--border);
+  background:transparent;color:var(--text2);
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;font-weight:700;
+  border-radius:4px;cursor:pointer;
+  transition:var(--transition);
+}
+.chart-btn:hover{border-color:var(--border2);color:var(--text);}
+.chart-btn.active{background:var(--cyan-dim);border-color:var(--cyan-border);color:var(--cyan);}
+.chart-label{font-size:10px;font-weight:700;color:var(--text2);}
+
+/* ── Chart legend overlay ── */
+.chart-legend-overlay{
+  position:absolute;top:10px;right:10px;
+  display:flex;flex-direction:column;gap:5px;
+  z-index:10;pointer-events:none;
+}
+.legend-item{
+  display:flex;align-items:center;gap:5px;
+  font-size:9px;font-weight:700;color:var(--text2);
+}
+.legend-color{width:10px;height:3px;border-radius:2px;}
+
+/* ── Score section ── */
+#scores-card-container .ai-score-circle-wrap{
+  display:flex;align-items:center;gap:16px;margin-bottom:14px;
+}
+#ai-score-circle{
+  width:88px;height:88px;border-radius:50%;
+  border:2px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  flex-direction:column;background:var(--bg3);flex-shrink:0;
+}
+.ai-score-num{
+  font-size:1.8rem;font-weight:900;
+  letter-spacing:-0.05em;
+  font-family:'JetBrains Mono',monospace;
+}
+.ai-score-sub{font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:0.08em;color:var(--text2);}
+#ai-score-title{font-size:1rem;font-weight:800;letter-spacing:-0.02em;margin-bottom:4px;}
+#ai-score-desc{font-size:11px;color:var(--text2);line-height:1.5;}
+#ai-scores{margin:10px 0;}
+.score-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:7px;}
+.score-bar-label{font-size:10px;font-weight:700;color:var(--text2);width:80px;flex-shrink:0;text-align:right;}
+.score-bar-track{flex:1;height:3px;background:var(--bg4);border-radius:2px;overflow:hidden;}
+.score-bar-fill{height:100%;border-radius:2px;transition:width 0.8s cubic-bezier(0.4,0,0.2,1);}
+.score-bar-val{font-size:9px;font-weight:800;color:var(--text2);width:24px;text-align:left;font-family:'JetBrains Mono',monospace;}
+
+/* ── Tooltip / icon btn ── */
+.icon-btn{
+  background:var(--glass);border:1px solid var(--border);
+  color:var(--text2);padding:5px 8px;border-radius:6px;
+  cursor:pointer;font-size:12px;transition:var(--transition);
+  display:inline-flex;align-items:center;
+}
+.icon-btn:hover{background:var(--glass-hover);border-color:var(--border2);}
+.tooltip-wrap{position:relative;}
+.tooltip-wrap[data-tip]:hover::after{
+  content:attr(data-tip);
+  position:absolute;bottom:calc(100% + 6px);left:50%;
+  transform:translateX(-50%);
+  background:var(--bg4);border:1px solid var(--border2);
+  color:var(--text);font-size:10px;font-weight:600;
+  padding:4px 8px;border-radius:5px;white-space:nowrap;
+  z-index:100;pointer-events:none;
+}
 
 /* ── Portfolio ── */
 #tab-virt-port,#tab-real-port{
@@ -2208,11 +2309,15 @@ function renderChart(historyData, months, fullDataObj) {
     }
 
     tvChart = LightweightCharts.createChart(container, {
+        width: container.clientWidth,
+        height: container.clientHeight || 340,
         layout: { background: { type: 'solid', color: 'transparent' }, textColor: '#86868b' },
         grid: { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
         rightPriceScale: { borderVisible: false },
         timeScale: { borderVisible: false, fixLeftEdge: true, fixRightEdge: true },
-        crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
+        crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+        handleScroll: { mouseWheel: false, pressedMouseMove: true },
+        handleScale: { mouseWheel: false, pinch: true },
     });
     
     if (legendHtml) {
