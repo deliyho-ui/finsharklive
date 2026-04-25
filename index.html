@@ -6,6 +6,7 @@
 <title>FinShark | כריש פיננסי - AI Market Analysis</title>
 <link rel="icon" href="data:,">
 <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
 <style>
 
 @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700;800&display=swap');
@@ -118,6 +119,40 @@ body::before{
   flex-shrink:0;
   z-index:50;
   position:relative;
+  transition: width 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+
+.sidebar.collapsed {
+  width: 68px;
+}
+
+.sidebar.collapsed .sidebar-logo-text,
+.sidebar.collapsed .sidebar-logo-version,
+.sidebar.collapsed .sidebar-section,
+.sidebar.collapsed .nav-tab span,
+.sidebar.collapsed .lock-icon,
+.sidebar.collapsed .sidebar-user-name,
+.sidebar.collapsed .sidebar-user-role {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-logo {
+  justify-content: center;
+  padding: 16px 0;
+}
+
+.sidebar.collapsed .nav-tab {
+  justify-content: center;
+  padding: 12px 0;
+}
+
+.sidebar.collapsed .nav-tab::after {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-user {
+  justify-content: center;
+  padding: 8px 0;
 }
 
 /* Sidebar scanline */
@@ -246,6 +281,28 @@ body::before{
   padding:8px;
   border-top:1px solid var(--border);
   flex-shrink:0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sidebar-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.sidebar-collapse-btn:hover {
+  background: var(--glass-hover);
+  color: var(--text);
+}
+.sidebar.collapsed .sidebar-collapse-btn i {
+  transform: rotate(180deg);
 }
 .sidebar-user{
   display:flex;align-items:center;gap:8px;
@@ -923,13 +980,64 @@ main{
 }
 
 /* ─────────── RESPONSIVE ─────────── */
-@media(max-width:900px){
-  :root{--sidebar-w:56px;}
-  .sidebar-logo-text,.sidebar-logo-version,.sidebar-section,.nav-tab span:not(.tab-icon):not(.lock-icon),.sidebar-user-name,.sidebar-user-role{display:none;}
-  .sidebar-logo{justify-content:center;padding:12px;}
-  .nav-tab{justify-content:center;padding:10px;}
-  .sidebar-user{justify-content:center;padding:7px;}
-  .sidebar-footer .btn-ghost,.sidebar-footer .btn-danger{display:none;}
+@media(max-width:1024px){
+  .sidebar:not(.collapsed) {
+     width: 68px;
+  }
+  .sidebar:not(.collapsed) .sidebar-logo-text,
+  .sidebar:not(.collapsed) .sidebar-logo-version,
+  .sidebar:not(.collapsed) .sidebar-section,
+  .sidebar:not(.collapsed) .nav-tab span,
+  .sidebar:not(.collapsed) .lock-icon,
+  .sidebar:not(.collapsed) .sidebar-user-name,
+  .sidebar:not(.collapsed) .sidebar-user-role {
+    display: none;
+  }
+  .sidebar:not(.collapsed) .sidebar-logo { justify-content: center; padding: 16px 0; }
+  .sidebar:not(.collapsed) .nav-tab { justify-content: center; padding: 12px 0; }
+  .sidebar:not(.collapsed) .nav-tab::after { display: none; }
+  .sidebar:not(.collapsed) .sidebar-user { justify-content: center; padding: 8px 0; }
+  .sidebar-collapse-btn { display: none; }
+}
+
+@media(max-width:768px){
+  .app-layout { flex-direction: column; }
+  .sidebar { 
+    width: 100% !important; 
+    height: 60px; 
+    flex-direction: row; 
+    border-left: none; 
+    border-top: 1px solid var(--border); 
+    order: 2; /* Bottom */
+    z-index: 100;
+  }
+  .sidebar-logo, .sidebar-section, .sidebar-footer { display: none !important; }
+  .sidebar-nav {
+    flex-direction: row;
+    justify-content: space-around;
+    padding: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .nav-tab {
+    flex-direction: column;
+    padding: 6px;
+    gap: 4px;
+    font-size: 9px;
+    justify-content: center;
+    width: auto;
+    min-width: 60px;
+  }
+  .nav-tab span { display: block !important; }
+  .nav-tab .tab-icon { margin: 0; }
+  .nav-tab.active::after {
+    display: block !important;
+    top: 0; bottom: auto; left: 20%; right: 20%;
+    height: 2px; width: auto;
+    border-radius: 0 0 2px 2px;
+  }
+  main { padding: 16px; margin-bottom: 60px; }
+  .topbar { padding: 0 16px; }
 }
 @media(max-width:600px){
   main{padding:14px;}
@@ -1887,6 +1995,14 @@ button:focus:not(:focus-visible){outline:none;}
       <svg class="tab-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><polyline points="1,12 5,7 8,9 12,4 15,6"/><polyline points="11,4 15,4 15,8"/></svg>
       <span>שוק</span>
     </button>
+    <button class="nav-tab" id="nav-screener" onclick="switchTab('screener',this)" aria-label="סורק מניות">
+      <svg class="tab-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 3h12M4 8h8M6 13h4"/></svg>
+      <span>סורק מניות</span>
+    </button>
+    <button class="nav-tab" id="nav-compare" onclick="switchTab('compare',this)" aria-label="השוואת מניות">
+      <svg class="tab-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M11 2v12M11 2L8 5M11 2l3 3M5 14V2M5 14l3-3M5 14l-3-3"/></svg>
+      <span>השוואה (VS)</span>
+    </button>
     <button class="nav-tab" id="nav-shark" onclick="switchTab('shark',this)" aria-label="ניתוח כריש">
       <svg class="tab-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>
       <span>ניתוח AI</span>
@@ -1924,6 +2040,9 @@ button:focus:not(:focus-visible){outline:none;}
   </nav>
 
   <div class="sidebar-footer">
+    <button class="sidebar-collapse-btn" onclick="toggleSidebar()" aria-label="כווץ/הרחב תפריט">
+      <i class="ph ph-caret-right"></i>
+    </button>
     <div class="sidebar-user" id="sidebar-user-widget" style="display:none;">
       <div class="sidebar-avatar" id="sidebar-avatar">?</div>
       <div>
@@ -1996,23 +2115,23 @@ button:focus:not(:focus-visible){outline:none;}
 
     <div class="market-movers-grid">
       <div class="card">
-          <div class="card-title" style="color:var(--green)">🚀 המובילות של היום (Top Gainers)</div>
+          <div class="card-title" style="color:var(--green)"><i class="ph ph-rocket-launch"></i> המובילות של היום (Top Gainers)</div>
           <div id="top-gainers-list" style="display:flex; flex-direction:column; gap:10px;">טוען נתונים...</div>
       </div>
       <div class="card">
-          <div class="card-title" style="color:var(--red)">🔻 המפסידות של היום (Top Losers)</div>
+          <div class="card-title" style="color:var(--red)"><i class="ph ph-trend-down"></i> המפסידות של היום (Top Losers)</div>
           <div id="top-losers-list" style="display:flex; flex-direction:column; gap:10px;">טוען נתונים...</div>
       </div>
     </div>
 
     <div class="card mt-16">
-      <div class="card-title">📰 חדשות שוק אחרונות</div>
+      <div class="card-title"><i class="ph ph-newspaper"></i> חדשות שוק אחרונות</div>
       <div class="news-grid" id="market-news-grid"></div>
     </div>
   </div>
 
   <div id="section-portfolio" class="section">
-    <div class="section-title">💼 תיק השקעות שלך</div>
+    <div class="section-title"><i class="ph ph-briefcase"></i> תיק השקעות שלך</div>
     <div class="section-subtitle">נהל סימולציות וירטואליות או עקוב אחרי התיק האמיתי שלך מול הבורסה.</div>
     
     <div class="portfolio-tabs">
@@ -2037,7 +2156,7 @@ button:focus:not(:focus-visible){outline:none;}
 
     <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
-            <div class="card-title" style="margin:0;">📊 פוזיציות פתוחות</div>
+            <div class="card-title" style="margin:0;"><i class="ph ph-chart-pie-slice"></i> פוזיציות פתוחות</div>
             <button class="btn btn-ghost" onclick="window.switchTab('shark', document.getElementById('nav-shark'))" style="font-size:0.75rem; padding: 5px 12px;">+ חפש מניה להוספה</button>
         </div>
         <div id="portfolio-positions-list">טוען נתונים...</div>
@@ -2052,7 +2171,7 @@ button:focus:not(:focus-visible){outline:none;}
   </div>
 
   <div id="section-admin" class="section">
-    <div class="section-title" style="color:var(--gold)">⚙️ פאנל מנהל מערכת</div>
+    <div class="section-title" style="color:var(--gold)"><i class="ph ph-gear"></i> פאנל מנהל מערכת</div>
     <div class="section-subtitle">ניהול משתמשים והרשאות גישה למערכת בענן</div>
     
     <div style="margin-top: 30px; margin-bottom:30px; padding: 20px; background: rgba(255,69,58,0.1); border: 1px solid var(--red); border-radius: 12px;">
@@ -2068,12 +2187,12 @@ button:focus:not(:focus-visible){outline:none;}
   </div>
 
   <div id="section-community" class="section">
-    <div class="section-title">👥 קהילה וחוכמת הכריש</div>
+    <div class="section-title"><i class="ph ph-users"></i> קהילה וחוכמת הכריש</div>
     <div class="section-subtitle">עקבו אחרי הסטאפים המובילים ואחרי תיק ה-AI המנוהל (Shark Fund).</div>
     
     <div class="results-grid" style="align-items: start;">
         <div class="card">
-            <div class="card-title" style="color:var(--blue)">🔥 10 הסטאפים החמים (Top Setups)</div>
+            <div class="card-title" style="color:var(--blue)"><i class="ph ph-fire"></i> 10 הסטאפים החמים (Top Setups)</div>
             <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:15px;">עשר המניות שקיבלו את ציוני ה-AI הגבוהים ביותר מכלל חיפושי המשתמשים שלנו.</p>
             <div id="top-setups-list" style="display:flex; flex-direction:column; gap:12px; min-height: 200px;">
                  טוען נתוני סטאפים...
@@ -2089,6 +2208,49 @@ button:focus:not(:focus-visible){outline:none;}
                  ממתין להוראה שלך...
             </div>
         </div>
+    </div>
+  </div>
+
+  <div id="section-screener" class="section">
+    <div class="section-title"><i class="ph ph-funnel"></i> סורק מניות</div>
+    <div class="section-subtitle">מצא הזדמנויות בשוק לפי קריטריונים מהירים (Day Gainers, Most Actives, וכו').</div>
+    <div class="card" style="margin-bottom: 24px;">
+      <div class="modal-tabs" style="margin-bottom:0;">
+        <button class="modal-tab active" onclick="loadScreener('day_gainers', this)">המובילות</button>
+        <button class="modal-tab" onclick="loadScreener('day_losers', this)">המפסידות</button>
+        <button class="modal-tab" onclick="loadScreener('most_actives', this)">הפעילות ביותר</button>
+        <button class="modal-tab" onclick="loadScreener('undervalued_growth_equities', this)">צמיחה זולה</button>
+        <button class="modal-tab" onclick="loadScreener('aggressive_small_caps', this)">Small Caps</button>
+      </div>
+    </div>
+    <div class="card">
+      <div id="screener-results" style="min-height:200px;">טוען נתונים...</div>
+    </div>
+  </div>
+
+  <div id="section-compare" class="section">
+    <div class="section-title"><i class="ph ph-scales"></i> השוואת מניות (VS)</div>
+    <div class="section-subtitle">הזן שני סימולים להשוואה ראש בראש, ותן ל-AI להחליט מי עדיפה להשקעה כרגע.</div>
+    <div class="card" style="margin-bottom: 24px;">
+      <div style="display:flex; gap: 16px; align-items:center; flex-wrap:wrap;">
+        <input class="input-field" id="compare-ticker-1" type="text" placeholder="סימול (למשל AAPL)" style="margin:0; text-transform:uppercase; direction:ltr; flex:1; min-width:120px;" />
+        <div style="font-weight:900; color:var(--text2);">VS</div>
+        <input class="input-field" id="compare-ticker-2" type="text" placeholder="סימול (למשל MSFT)" style="margin:0; text-transform:uppercase; direction:ltr; flex:1; min-width:120px;" />
+        <button class="btn btn-primary" style="flex:1; min-width:100px; justify-content:center;" onclick="runComparison()">השווה ←</button>
+      </div>
+    </div>
+    <div id="compare-results" style="display:none;">
+      <div class="card verdict-card full-width" style="margin-bottom: 24px;">
+          <div class="verdict-header">
+            <div class="verdict-icon">🦈</div>
+            <div class="verdict-title">פסיקת הכריש - המנצחת היא: <span id="compare-winner" style="color:var(--cyan); margin-right:8px;"></span></div>
+          </div>
+          <div id="compare-ai-reasoning"></div>
+      </div>
+      <div class="results-grid">
+         <div class="card"><div class="card-title" id="compare-t1-title">מניה 1</div><div id="compare-t1-data"></div></div>
+         <div class="card"><div class="card-title" id="compare-t2-title">מניה 2</div><div id="compare-t2-data"></div></div>
+      </div>
     </div>
   </div>
 
@@ -2153,25 +2315,6 @@ button:focus:not(:focus-visible){outline:none;}
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-title">📊 נתונים פונדמנטליים</div>
-          <div id="fundamentals-content"></div>
-        </div>
-
-        <div class="card">
-          <div class="card-title">📈 נתונים טכניים ופרופיל</div>
-          <div class="ma-display" id="ma-display"></div>
-          <div id="technical-content"></div>
-        </div>
-
-        <div class="card full-width">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
-            <div class="card-title" style="margin-bottom:0;">💼 תנועות כסף חכם (בעלי עניין)</div>
-            <div id="insider-badge"></div>
-          </div>
-          <div id="insider-content"></div>
-        </div>
-
         <div class="card verdict-card full-width">
           <div class="verdict-header">
             <div class="verdict-icon">🦈</div>
@@ -2184,7 +2327,7 @@ button:focus:not(:focus-visible){outline:none;}
         </div>
 
         <div class="card full-width" id="scores-card-container">
-          <div class="card-title">🤖 איכות החברה (AI Scores)</div>
+          <div class="card-title"><i class="ph ph-robot"></i> איכות החברה (AI Scores)</div>
           <div class="overall-score-container">
             <div class="score-ring-wrap" id="ai-score-circle" style="--score:0;">
               <svg class="score-ring-svg" viewBox="0 0 90 90" aria-hidden="true">
@@ -2204,19 +2347,44 @@ button:focus:not(:focus-visible){outline:none;}
           <div id="ai-scores"></div>
         </div>
 
-       <div class="card full-width">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
-            <div class="card-title" style="margin-bottom:0;">📰 חדשות מניה אחרונות</div>
-            <div id="news-sentiment-badge"></div>
+        <div class="card full-width">
+          <div class="modal-tabs" style="margin-bottom: 24px;">
+              <button class="modal-tab active" onclick="switchDataTab('res-fundamentals', this)"><i class="ph ph-buildings"></i> פונדמנטלי</button>
+              <button class="modal-tab" onclick="switchDataTab('res-technical', this)"><i class="ph ph-trend-up"></i> טכני ופרופיל</button>
+              <button class="modal-tab" onclick="switchDataTab('res-insider', this)"><i class="ph ph-money"></i> בעלי עניין</button>
+              <button class="modal-tab" onclick="switchDataTab('res-news', this)"><i class="ph ph-newspaper"></i> חדשות מניה</button>
           </div>
-          <div class="news-grid" id="stock-news-grid"></div>
+
+          <div id="res-fundamentals" class="data-tab-content" style="display:block;">
+            <div id="fundamentals-content"></div>
+          </div>
+
+          <div id="res-technical" class="data-tab-content" style="display:none;">
+            <div class="ma-display" id="ma-display"></div>
+            <div id="technical-content"></div>
+          </div>
+
+          <div id="res-insider" class="data-tab-content" style="display:none;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+              <div style="font-weight:700; color:var(--text2);">תנועות מדווחות לאחרונה</div>
+              <div id="insider-badge"></div>
+            </div>
+            <div id="insider-content"></div>
+          </div>
+
+          <div id="res-news" class="data-tab-content" style="display:none;">
+            <div style="display:flex; justify-content:flex-end; margin-bottom: 16px;">
+              <div id="news-sentiment-badge"></div>
+            </div>
+            <div class="news-grid" id="stock-news-grid"></div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
   <div id="section-watchlist" class="section">
-    <div class="section-title">📌 רשימת מעקב</div>
+    <div class="section-title"><i class="ph ph-push-pin"></i> רשימת מעקב</div>
     <p style="color:var(--text-secondary);">המניות השמורות שלך מסונכרנות בזמן אמת בענן.</p>
     <div class="add-watchlist-bar" style="display:flex; gap:10px; margin-bottom: 24px;">
       <input class="input-field" id="watch-input" type="text" placeholder="הוסף סימול..." maxlength="6" style="margin:0; direction:ltr; text-transform:uppercase; font-weight:700; flex:1; max-width:220px;" onkeydown="if(event.key==='Enter') addWatchlistItem()" />
@@ -2227,7 +2395,7 @@ button:focus:not(:focus-visible){outline:none;}
 
   <div id="section-academy" class="section">
     <div class="hero-badge" style="background: rgba(191,90,242,0.15); color: var(--purple); border-color: rgba(191,90,242,0.3);">✦ FinShark Masterclass</div>
-    <div class="section-title">🎓 אקדמיית הכריש</div>
+    <div class="section-title"><i class="ph ph-graduation-cap"></i> אקדמיית הכריש</div>
     <div class="section-subtitle">הפכו מסוחרים מתחילים למשקיעי-על. למדו לקרוא את השוק, לנהל סיכונים ולהשתמש בבינה המלאכותית שלנו כדי לייצר רווחים.</div>
     <div class="academy-grid">
         <div class="course-card">
@@ -2678,6 +2846,86 @@ window.adminClearCache = async function() {
     } catch(e) { alert('שגיאה במחיקה: ' + e.message); }
 };
 
+window.loadScreener = async function(type, btnEl) {
+    if (btnEl) {
+        document.querySelectorAll('#section-screener .modal-tab').forEach(b => b.classList.remove('active'));
+        btnEl.classList.add('active');
+    }
+    const resultsEl = document.getElementById('screener-results');
+    resultsEl.innerHTML = '<div style="padding:40px;text-align:center;"><div class="loading-spinner"></div><p style="margin-top:20px;color:var(--text-secondary);">הכריש סורק את השוק...</p></div>';
+    try {
+        const res = await fetch(`/api/analyze?action=screener&type=${type}`);
+        const json = await res.json();
+        if(!json.success || !json.data || json.data.length === 0) {
+            resultsEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);">לא נמצאו תוצאות לסריקה זו.</div>';
+            return;
+        }
+        let html = '<div class="market-movers-grid" style="grid-template-columns:1fr; gap:10px;">';
+        json.data.slice(0, 15).forEach(item => {
+            const chg = Number(item.changesPercentage) > 0 ? '+' : '';
+            const color = Number(item.changesPercentage) >= 0 ? 'var(--green)' : 'var(--red)';
+            html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:var(--bg); border:1px solid var(--border); border-radius:10px; cursor:pointer;" onclick="quickSearch('${item.symbol}')"><div style="display:flex;align-items:center;gap:12px;"><div style="font-weight:800;font-size:1.1rem;width:60px;">${item.symbol}</div><div style="font-size:0.85rem;color:var(--text-secondary);">${item.name}</div></div><div style="text-align:right;"><div style="font-weight:700;">$${Number(item.price).toFixed(2)}</div><div style="font-size:0.85rem;color:${color};direction:ltr;">${chg}${Number(item.changesPercentage).toFixed(2)}%</div></div></div>`;
+        });
+        html += '</div>';
+        resultsEl.innerHTML = html;
+    } catch(e) {
+        resultsEl.innerHTML = '<div style="color:var(--red);padding:20px;">שגיאה בטעינת נתונים</div>';
+    }
+};
+
+window.runComparison = async function() {
+    const t1 = document.getElementById('compare-ticker-1').value.trim().toUpperCase();
+    const t2 = document.getElementById('compare-ticker-2').value.trim().toUpperCase();
+    if (!t1 || !t2) return alert('נא להזין שני סימולים להשוואה');
+    
+    document.getElementById('compare-results').style.display = 'block';
+    document.getElementById('compare-winner').innerText = '...הכריש חושב...';
+    document.getElementById('compare-ai-reasoning').innerHTML = '<div class="loading-spinner"></div>';
+    document.getElementById('compare-t1-title').innerText = t1;
+    document.getElementById('compare-t2-title').innerText = t2;
+    document.getElementById('compare-t1-data').innerHTML = '<div class="loading-spinner"></div>';
+    document.getElementById('compare-t2-data').innerHTML = '<div class="loading-spinner"></div>';
+    
+    try {
+        const aiPromise = fetch(`/api/analyze?action=compare&t1=${t1}&t2=${t2}`).then(r=>r.json());
+        const q1Promise = fetch(`/api/analyze?action=live_data&ticker=${t1}`).then(r=>r.json());
+        const q2Promise = fetch(`/api/analyze?action=live_data&ticker=${t2}`).then(r=>r.json());
+        
+        const [aiJson, q1, q2] = await Promise.all([aiPromise, q1Promise, q2Promise]);
+        
+        if (aiJson.success && aiJson.comparison) {
+            document.getElementById('compare-winner').innerText = aiJson.comparison.winner;
+            document.getElementById('compare-ai-reasoning').innerHTML = `<p>${aiJson.comparison.reasoning}</p>`;
+        } else {
+            document.getElementById('compare-ai-reasoning').innerHTML = `<p style="color:var(--red)">שגיאה: ${aiJson.message || 'תקלה בניתוח'}</p>`;
+        }
+        
+        const renderQ = (q) => {
+            if (!q || !q.success) return '<div>אין נתונים זמינים או מניה שגויה</div>';
+            return `<div style="font-size:1.5rem;font-weight:800;margin-bottom:10px;">$${q.price} <span style="font-size:1rem;color:${q.changePercentage>=0?'var(--green)':'var(--red)'}">${q.changePercentage}%</span></div>
+            <div style="font-size:0.85rem;color:var(--text2);margin-bottom:5px;">RSI: <span style="color:var(--text);font-weight:700;">${q.rsi?q.rsi.toFixed(1):'N/A'}</span></div>
+            <div style="font-size:0.85rem;color:var(--text2);margin-bottom:5px;">תבנית טכנית: <span style="color:var(--text);font-weight:700;">${q.pattern||'N/A'}</span></div>
+            <button class="btn btn-ghost" style="margin-top:12px; width:100%; justify-content:center;" onclick="quickSearch('${q.ticker}')">ניתוח כריש מלא ←</button>`;
+        };
+        document.getElementById('compare-t1-data').innerHTML = renderQ(q1);
+        document.getElementById('compare-t2-data').innerHTML = renderQ(q2);
+
+    } catch (e) {
+        document.getElementById('compare-ai-reasoning').innerHTML = `<p style="color:var(--red)">שגיאה בחיבור לשרת.</p>`;
+    }
+};
+
+window.toggleSidebar = function() {
+  document.querySelector('.sidebar').classList.toggle('collapsed');
+};
+
+window.switchDataTab = function(tabId, el) {
+  document.querySelectorAll('.data-tab-content').forEach(c => c.style.display = 'none');
+  document.querySelectorAll('.modal-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById(tabId).style.display = 'block';
+  el.classList.add('active');
+};
+
 window.addWatchlistItem = async function() { const inputEl = document.getElementById('watch-input'); if(!inputEl) return; const val = inputEl.value.trim().toUpperCase(); if (!val || !State.currentUser) return; inputEl.value = ''; await updateDoc(doc(db, 'users', State.currentUser.uid), { watchlist: arrayUnion(val) }); };
 window.removeFromWatchlist = async function(ticker) { if(!State.currentUser) return; await updateDoc(doc(db, 'users', State.currentUser.uid), { watchlist: arrayRemove(ticker) }); };
 window.addToWatchlistFromResults = async function() { const ticker = State.currentData?.ticker; if (!ticker || !State.currentUser) return; await updateDoc(doc(db, 'users', State.currentUser.uid), { watchlist: arrayUnion(ticker) }); const btn = document.getElementById('btn-add-watch-results'); if(btn){btn.classList.add('active'); btn.textContent = '✓'; setTimeout(() => { btn.classList.remove('active'); btn.textContent = '📌'; }, 1500);} };
@@ -2702,13 +2950,21 @@ window.switchTab = function(tab, el) {
       if (!isApproved) { State.currentTab = 'pending'; renderApp(); return; }
   }
   
+  if (tab === 'screener') {
+      setTimeout(() => { 
+          const screenerHTML = document.getElementById('screener-results').innerHTML;
+          if(screenerHTML.includes('טוען')) window.loadScreener('day_gainers'); 
+      }, 50);
+  }
+  
   State.currentTab = tab;
   renderApp();
 };
 
-
 const TAB_NAMES = {
   'market': 'שוק',
+  'screener': 'סורק מניות',
+  'compare': 'השוואת מניות',
   'shark': 'ניתוח AI',
   'portfolio': 'תיק השקעות',
   'watchlist': 'רשימת מעקב',
@@ -2719,7 +2975,7 @@ const TAB_NAMES = {
 };
 
 function renderApp() {
-  ['section-market', 'section-pending', 'section-shark', 'section-admin', 'section-watchlist', 'section-community', 'section-portfolio', 'section-academy'].forEach(s => { const elem = document.getElementById(s); if(elem) elem.classList.remove('active'); });
+  ['section-market', 'section-screener', 'section-compare', 'section-pending', 'section-shark', 'section-admin', 'section-watchlist', 'section-community', 'section-portfolio', 'section-academy'].forEach(s => { const elem = document.getElementById(s); if(elem) elem.classList.remove('active'); });
   
   const isLoggedIn = State.currentUser !== null;
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
