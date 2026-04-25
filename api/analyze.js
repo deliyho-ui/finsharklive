@@ -370,7 +370,7 @@ module.exports = async function(req, res) {
             method: 'POST',
             headers: { 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
             body: JSON.stringify({
-                model: 'claude-3-haiku-20240307',
+                model: 'claude-haiku-4-5-20251001', // <--- הקסם פה! המודל החדש.
                 max_tokens: 1500,
                 temperature: 0.1,
                 system: "You are an elite AI financial analyst. Respond ONLY with valid JSON. No markdown, no preambles.",
