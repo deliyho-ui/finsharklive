@@ -1103,6 +1103,324 @@ button:focus:not(:focus-visible){outline:none;}
 .slides-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
 .podcasts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
 
+
+/* ═══════════════════════════════════════════════════════
+   ANIMATIONS & POLISH — added pass 2
+   ═══════════════════════════════════════════════════════ */
+
+/* ── ma-display ── */
+.ma-display{display:flex;gap:10px;margin-bottom:12px;}
+.ma-box{
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:11px 14px;
+  flex:1;text-align:center;transition:var(--transition);
+}
+.ma-box:hover{border-color:var(--border2);}
+.ma-label{font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:0.1em;color:var(--text2);margin-bottom:4px;}
+.ma-value{font-size:1rem;font-weight:800;direction:ltr;font-family:'JetBrains Mono',monospace;margin-bottom:3px;}
+.ma-status{font-size:9px;font-weight:800;}
+.ma-status.above{color:var(--green);}
+.ma-status.below{color:var(--red);}
+
+/* ── LOADING SCREEN — cinematic redesign ── */
+.loading-overlay{
+  position:fixed;inset:0;
+  background:var(--bg);
+  z-index:9000;
+  display:none;align-items:center;justify-content:center;
+  flex-direction:column;gap:0;
+}
+.loading-overlay.active{display:flex;}
+
+/* Animated grid background on loading screen */
+.loading-overlay::before{
+  content:'';
+  position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(0,229,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,0.04) 1px, transparent 1px);
+  background-size:40px 40px;
+  animation:gridScroll 8s linear infinite;
+  pointer-events:none;
+}
+@keyframes gridScroll{
+  0%{background-position:0 0;}
+  100%{background-position:40px 40px;}
+}
+.loading-overlay::after{
+  content:'';
+  position:absolute;inset:0;
+  background:radial-gradient(ellipse 500px 500px at 50% 50%, rgba(0,229,255,0.04) 0%, transparent 70%);
+  pointer-events:none;
+  animation:loadingPulseGlow 3s ease-in-out infinite;
+}
+@keyframes loadingPulseGlow{
+  0%,100%{opacity:0.5;transform:scale(1);}
+  50%{opacity:1;transform:scale(1.15);}
+}
+
+.sonar-wrapper{
+  position:relative;width:100px;height:100px;
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:28px;
+  z-index:1;
+}
+.sonar-ring{
+  position:absolute;border-radius:50%;
+  border:1px solid var(--cyan);
+  animation:sonarRing 2.4s cubic-bezier(0,0.6,0.4,1) infinite;
+  opacity:0;
+}
+.sonar-ring:nth-child(1){width:100px;height:100px;animation-delay:0s;}
+.sonar-ring:nth-child(2){width:100px;height:100px;animation-delay:0.8s;}
+.sonar-ring:nth-child(3){width:100px;height:100px;animation-delay:1.6s;}
+@keyframes sonarRing{
+  0%{transform:scale(0.15);opacity:0.9;border-color:var(--cyan);}
+  60%{opacity:0.3;}
+  100%{transform:scale(3);opacity:0;}
+}
+
+.sonar-shark{
+  position:relative;z-index:1;font-size:36px;
+  animation:sharkScan 3s ease-in-out infinite;
+  filter:drop-shadow(0 0 16px rgba(0,229,255,0.7));
+}
+@keyframes sharkScan{
+  0%,100%{transform:translateY(0) scale(1);}
+  25%{transform:translateY(-5px) scale(1.05);}
+  50%{transform:translateY(0) scale(1);}
+  75%{transform:translateY(3px) scale(0.97);}
+}
+
+.loading-text{
+  font-size:14px;font-weight:700;
+  color:var(--text2);letter-spacing:0.04em;
+  z-index:1;margin-bottom:12px;
+  animation:textPulse 2s ease-in-out infinite;
+}
+@keyframes textPulse{
+  0%,100%{opacity:0.6;}
+  50%{opacity:1;}
+}
+
+.loading-steps{
+  font-size:10px;color:var(--text3);
+  font-family:'JetBrains Mono',monospace;
+  max-width:300px;text-align:center;
+  line-height:2;z-index:1;
+}
+.loading-steps .step-done{color:var(--green);}
+.loading-steps .step-active{color:var(--cyan);animation:textPulse 1s ease-in-out infinite;}
+
+/* Loading progress bar */
+.loading-progress{
+  width:200px;height:2px;
+  background:rgba(255,255,255,0.05);
+  border-radius:2px;margin-top:20px;
+  overflow:hidden;z-index:1;
+  position:relative;
+}
+.loading-progress-fill{
+  height:100%;width:0%;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+  border-radius:2px;
+  animation:loadingBar 2s ease-in-out infinite;
+}
+@keyframes loadingBar{
+  0%{width:0%;margin-left:0;}
+  50%{width:60%;}
+  100%{width:0%;margin-left:100%;}
+}
+
+/* ── STAT CARDS — enter animation ── */
+.stat-card{
+  animation:cardEnter 0.4s cubic-bezier(0.4,0,0.2,1) both;
+}
+.stat-card:nth-child(1){animation-delay:0.05s;}
+.stat-card:nth-child(2){animation-delay:0.1s;}
+.stat-card:nth-child(3){animation-delay:0.15s;}
+.stat-card:nth-child(4){animation-delay:0.2s;}
+@keyframes cardEnter{
+  from{opacity:0;transform:translateY(12px);}
+  to{opacity:1;transform:translateY(0);}
+}
+
+/* ── NUMBER COUNTER animation (for stat values) ── */
+.stat-value{
+  transition:color 0.3s;
+}
+.stat-value.flash-up{color:var(--green)!important;text-shadow:0 0 12px rgba(0,230,118,0.4);}
+.stat-value.flash-down{color:var(--red)!important;text-shadow:0 0 12px rgba(255,82,82,0.4);}
+
+/* ── HEATMAP cells — staggered entrance ── */
+.heatmap-cell{
+  animation:cellEnter 0.35s cubic-bezier(0.4,0,0.2,1) both;
+}
+.heatmap-cell:nth-child(1){animation-delay:0.04s;}
+.heatmap-cell:nth-child(2){animation-delay:0.08s;}
+.heatmap-cell:nth-child(3){animation-delay:0.12s;}
+.heatmap-cell:nth-child(4){animation-delay:0.16s;}
+.heatmap-cell:nth-child(5){animation-delay:0.20s;}
+.heatmap-cell:nth-child(6){animation-delay:0.24s;}
+.heatmap-cell:nth-child(7){animation-delay:0.28s;}
+.heatmap-cell:nth-child(8){animation-delay:0.32s;}
+@keyframes cellEnter{
+  from{opacity:0;transform:scale(0.85);}
+  to{opacity:1;transform:scale(1);}
+}
+
+/* ── NEWS CARDS — slide up ── */
+.news-card{
+  animation:slideUp 0.35s cubic-bezier(0.4,0,0.2,1) both;
+}
+.news-card:nth-child(1){animation-delay:0.06s;}
+.news-card:nth-child(2){animation-delay:0.12s;}
+.news-card:nth-child(3){animation-delay:0.18s;}
+.news-card:nth-child(4){animation-delay:0.22s;}
+.news-card:nth-child(5){animation-delay:0.26s;}
+.news-card:nth-child(6){animation-delay:0.30s;}
+@keyframes slideUp{
+  from{opacity:0;transform:translateY(16px);}
+  to{opacity:1;transform:translateY(0);}
+}
+
+/* ── STOCK HEADER — dramatic entrance ── */
+.stock-header{
+  animation:stockHeaderIn 0.5s cubic-bezier(0.4,0,0.2,1) both;
+}
+@keyframes stockHeaderIn{
+  from{opacity:0;transform:translateY(-8px);}
+  to{opacity:1;transform:translateY(0);}
+}
+
+/* ── Stock price — glow on load ── */
+.stock-price{
+  animation:priceGlow 0.8s ease both;
+  animation-delay:0.3s;
+}
+@keyframes priceGlow{
+  0%{text-shadow:none;}
+  50%{text-shadow:0 0 30px rgba(0,229,255,0.5);}
+  100%{text-shadow:none;}
+}
+
+/* ── RESULTS GRID — cascade in ── */
+.results-grid .card{
+  animation:cardEnter 0.4s cubic-bezier(0.4,0,0.2,1) both;
+}
+.results-grid .card:nth-child(1){animation-delay:0.1s;}
+.results-grid .card:nth-child(2){animation-delay:0.15s;}
+.results-grid .card:nth-child(3){animation-delay:0.2s;}
+.results-grid .card:nth-child(4){animation-delay:0.25s;}
+.results-grid .card:nth-child(5){animation-delay:0.3s;}
+.results-grid .card:nth-child(6){animation-delay:0.35s;}
+
+/* ── SCORE BAR — fills on load ── */
+.score-bar-fill{
+  width:0%;
+  animation:scoreBarFill 1s cubic-bezier(0.4,0,0.2,1) forwards;
+  animation-delay:0.5s;
+}
+@keyframes scoreBarFill{to{width:var(--score-w,0%);}}
+
+/* ── SIDEBAR NAV — hover glow on active ── */
+.nav-tab.active{
+  box-shadow:inset 0 0 20px rgba(0,229,255,0.04);
+}
+.nav-tab{
+  transition:background 0.15s, color 0.15s, transform 0.12s;
+}
+.nav-tab:active{transform:scale(0.97);}
+
+/* ── TOPBAR STATUS — breathing border ── */
+.topbar-status{
+  animation:statusBreath 4s ease-in-out infinite;
+}
+@keyframes statusBreath{
+  0%,100%{box-shadow:none;}
+  50%{box-shadow:0 0 10px rgba(0,230,118,0.15);}
+}
+
+/* ── TICKER — gradient fade edges ── */
+.ticker-wrap{
+  position:relative;
+  mask-image:linear-gradient(90deg, transparent 0%, black 6%, black 94%, transparent 100%);
+  -webkit-mask-image:linear-gradient(90deg, transparent 0%, black 6%, black 94%, transparent 100%);
+}
+
+/* ── CARD hover lift ── */
+.card{
+  transition:border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+.card:hover{
+  transform:translateY(-2px);
+  box-shadow:0 8px 32px rgba(0,0,0,0.3);
+}
+
+/* ── BUTTON — ripple effect ── */
+.btn-primary{
+  position:relative;overflow:hidden;
+}
+.btn-primary::after{
+  content:'';
+  position:absolute;inset:0;
+  background:radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
+  opacity:0;transition:opacity 0.3s;
+  pointer-events:none;
+}
+.btn-primary:active::after{opacity:1;}
+
+/* ── PAGE LOAD — subtle fade in ── */
+.app-layout{
+  animation:appLoad 0.4s ease both;
+}
+@keyframes appLoad{
+  from{opacity:0;}
+  to{opacity:1;}
+}
+
+/* ── MODAL — glassmorphism shimmer ── */
+.modal::before{
+  content:'';
+  position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  border-radius:16px 16px 0 0;
+}
+
+/* ── SIDEBAR LOGO — pulse on hover ── */
+.sidebar-logo-mark{
+  transition:box-shadow 0.2s, transform 0.2s;
+}
+.sidebar-logo:hover .sidebar-logo-mark{
+  box-shadow:0 0 28px rgba(0,229,255,0.45), 0 4px 12px rgba(0,0,0,0.4);
+  transform:scale(1.06);
+}
+
+/* ── SCORE CIRCLE — spin-in ── */
+#ai-score-circle{
+  animation:scoreCircleIn 0.6s cubic-bezier(0.34,1.56,0.64,1) both;
+  animation-delay:0.4s;
+}
+@keyframes scoreCircleIn{
+  from{opacity:0;transform:scale(0.5) rotate(-20deg);}
+  to{opacity:1;transform:scale(1) rotate(0);}
+}
+
+/* ── VERDICT COLUMNS — slide in from sides ── */
+.verdict-col:first-child{animation:slideFromRight 0.4s cubic-bezier(0.4,0,0.2,1) both;animation-delay:0.3s;}
+.verdict-col:last-child{animation:slideFromLeft 0.4s cubic-bezier(0.4,0,0.2,1) both;animation-delay:0.4s;}
+@keyframes slideFromRight{from{opacity:0;transform:translateX(16px);}to{opacity:1;transform:translateX(0);}}
+@keyframes slideFromLeft{from{opacity:0;transform:translateX(-16px);}to{opacity:1;transform:translateX(0);}}
+
+/* ── WATCH items — stagger ── */
+.watch-item{animation:cardEnter 0.3s cubic-bezier(0.4,0,0.2,1) both;}
+.watch-item:nth-child(1){animation-delay:0.05s;}
+.watch-item:nth-child(2){animation-delay:0.1s;}
+.watch-item:nth-child(3){animation-delay:0.15s;}
+.watch-item:nth-child(4){animation-delay:0.2s;}
+.watch-item:nth-child(5){animation-delay:0.25s;}
+.watch-item:nth-child(6){animation-delay:0.3s;}
+
 </style>
 </head>
 <body>
@@ -1117,6 +1435,7 @@ button:focus:not(:focus-visible){outline:none;}
   </div>
   <div class="loading-text" id="loading-text">הכריש מנתח את המים...</div>
   <div class="loading-steps" id="loading-steps"></div>
+  <div class="loading-progress"><div class="loading-progress-fill"></div></div>
 </div>
 
 <div class="modal-overlay" id="onboarding-modal">
@@ -1313,6 +1632,7 @@ button:focus:not(:focus-visible){outline:none;}
     <div class="section-title">🌐 מזג האוויר של השוק</div>
     <div class="section-subtitle">נתוני מדדים מרכזיים ועדכוני שוק בזמן אמת</div>
 
+    <div id="debug-market"></div>
     <div class="ticker-wrap"><div class="ticker-track" id="ticker-track">ממתין לנתונים מ-Finnhub...</div></div>
     <div class="market-stats" id="market-stats"></div>
     
