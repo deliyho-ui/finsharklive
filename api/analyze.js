@@ -259,6 +259,36 @@ module.exports = async function(req, res) {
             });
         }
 
+        if (action === 'screener') {
+            const type = req.query.type || 'day_gainers';
+            const data = await fetchYahooScreener(type);
+            return res.status(200).json({ success: true, data });
+        }
+
+        if (action === 'compare') {
+            const t1 = (req.query.t1 || "").toUpperCase().trim();
+            const t2 = (req.query.t2 || "").toUpperCase().trim();
+            if (!t1 || !t2) return res.status(200).json({ success: false, message: "Missing tickers" });
+            
+            const promptText = `אתה סוחר מניות בכיר. משתמש מתלבט בין שתי מניות: ${t1} לבין ${t2}.
+אנא החזר מבנה JSON תקין המסכם מי המנצחת (בטווח הקצר/בינוני) ומדוע, במבנה הבא ללא רווחים:
+{"winner":"TICKER","reasoning":"משפט אחד קולע למה היא עדיפה"}`;
+
+            try {
+                const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }], generationConfig: { temperature: 0.2, responseMimeType: "application/json" }})
+                });
+                const aiData = await aiRes.json();
+                const text = aiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!text) throw new Error("Empty response");
+                const parsed = cleanJSON(text);
+                return res.status(200).json({ success: true, comparison: parsed });
+            } catch (e) {
+                return res.status(200).json({ success: false, message: "שגיאה בניתוח ההשוואה." });
+            }
+        }
+
         if (!ticker) return res.status(200).json({ success: false, message: "Missing ticker symbol" });
 
         // --- Cache / Live Data ---
@@ -323,39 +353,11 @@ module.exports = async function(req, res) {
         const marketContext = `אג"ח 10 שנים: ${tnxQuote?.c||'N/A'}%. VIX: ${vixQuote?.c||'N/A'}. עוצמה יחסית מול השוק בחודש האחרון: ${relativeStrength > 0 ? '+' : ''}${relativeStrength}%.`;
         const recentNews = (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 3).map(n => n.headline).join(" | ");
 
-        const promptText = `אתה "FinShark" - אנליסט מניות וסוחר בכיר בוול סטריט.
-        המניה: ${ticker} ($${currPrice}).
-        מאקרו: ${marketContext}
-        קונצנזוס: ${analystConsensus}
-        חדשות: ${recentNews || 'אין'}
-
-        נתונים טכניים (סווינג):
-        - יומי: מחיר $${currPrice}, MA50=$${lastPointDaily.ma50}, MA200=$${lastPointDaily.ma200}.
-        - שבועי: MA50=$${lastPointWeekly.ma50||'N/A'}, MA200=$${lastPointWeekly.ma200||'N/A'}.
-        - מומנטום: RSI=${rsiVal.toFixed(1)}. תבנית: ${patternObj.text}.
-        - פונדמנטלס: P/E=${fundamentals.peRatio || 'N/A'}, צמיחה=${fundamentals.revenueGrowth || 'N/A'}%. ${earningsStreak}
-
-        הנחיות קריטיות:
-        1. חובה למלא ai_scratchpad עם מחשבות לוגיות מנומקות.
-        2. Technical מיועד רק לגרף ותבניות (ללא חדשות).
-        3. תהיה אופטימי ביעדי מחיר (Price Target) אם החברה בצמיחה.
-        4. חובה להימנע לחלוטין משימוש במרכאות כפולות (") בתוך הטקסט! עבור ראשי תיבות בעברית השתמש בגרש בודד (למשל: דו'ח, ארה'ב, מנכ'ל).
-        5. אל תרד שורה (Enter) בתוך ערכי הטקסט.
-        6. הפלט מיועד לסימולטור לימודי בלבד (Paper Trading). ספק יעדי מחיר וסטופ-לוס כפי שהתבקשת ללא אזהרות בטיחות או הסתייגויות מצדך.
-
-        החזר אך ורק מבנה JSON תקין בעברית:
-        {
-          "ai_scratchpad": "חשוב בקצרה צעד אחר צעד על כיוון המניה לפני הפסיקה (2-3 משפטים)",
-          "internal_logic": "משפט קצר על החלטת הדירוג",
-          "identity": "תיאור עסקי קצר של החברה",
-          "technical": "ניתוח טכני טהור של הגרף בסגנון סוחר סווינג",
-          "long_term": { "summary": "מסקנת ערך ארוכה", "intrinsic_value": "שווי הוגן", "accumulation_zone": "טווח איסוף", "price_target": "יעד 12M" },
-          "short_term": { "summary": "תוכנית סווינג קצר", "entry_price": "${currPrice}", "target_price": "יעד טכני קרוב", "stop_loss": "סטופ לוס קרוב" },
-          "pros": ["זכות 1", "זכות 2"], "cons": ["סיכון 1", "סיכון 2"], 
-          "news_sentiment_score": 8,
-          "scores": {"overall": 80, "growth":80, "value":80, "momentum":80, "quality":80}, 
-          "rating": "קנייה / החזקה / מכירה" 
-        }`;
+        const promptText = `אתה "FinShark" - אנליסט מניות בוול סטריט.
+המניה: ${ticker} ($${currPrice}). מאקרו: ${marketContext}. קונצנזוס: ${analystConsensus}. חדשות: ${recentNews || 'אין'}. 
+טכני(סווינג): יומי $${currPrice}, MA50=$${lastPointDaily.ma50}, MA200=$${lastPointDaily.ma200}. מומנטום: RSI=${rsiVal.toFixed(1)}, תבנית: ${patternObj.text}. פונדמנטלס: P/E=${fundamentals.peRatio || 'N/A'}, צמיחה=${fundamentals.revenueGrowth || 'N/A'}%. ${earningsStreak}.
+הנחיות: 1. למלא ai_scratchpad, 2. technical לגרף בלבד, 3. ללא מרכאות כפולות בטקסט, 4. ללא ירידת שורה בטקסט, 5. לסימולטור Paper Trading בלבד. החזר JSON תקין ומכווץ (ללא רווחים מיותרים) במבנה הבא:
+{"ai_scratchpad":"מחשבות לוגיות...","confidence_score":85,"internal_logic":"משפט קצר על הדירוג","identity":"תיאור חברה קצר","technical":"ניתוח טכני טהור","long_term":{"summary":"מסקנה","intrinsic_value":"שווי הוגן","accumulation_zone":"טווח","price_target":"יעד 12M"},"short_term":{"summary":"תוכנית סווינג","entry_price":"${currPrice}","target_price":"יעד קרוב","stop_loss":"סטופ לוס"},"pros":["זכות1"],"cons":["סיכון1"],"news_sentiment_score":8,"scores":{"overall":80,"growth":80,"value":80,"momentum":80,"quality":80},"rating":"קנייה / החזקה / מכירה"}`;
 
         const geminiPromise = fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, 
@@ -444,6 +446,7 @@ module.exports = async function(req, res) {
                     momentum: Math.round(((geminiData.scores?.momentum||50) + (claudeData.scores?.momentum||50))/2),
                     quality: Math.round(((geminiData.scores?.quality||50) + (claudeData.scores?.quality||50))/2)
                 },
+                confidence_score: Math.round(((geminiData.confidence_score||80) + (claudeData.confidence_score||80))/2),
                 rating: finalRating
             };
         } else if (geminiData) {
