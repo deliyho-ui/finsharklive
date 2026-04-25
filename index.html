@@ -3033,6 +3033,8 @@ function renderApp() {
   else if (State.currentTab === 'watchlist') { const sec = document.getElementById('section-watchlist'); if(sec) sec.classList.add('active'); renderWatchlist(); }
   else if (State.currentTab === 'portfolio') { const sec = document.getElementById('section-portfolio'); if(sec) sec.classList.add('active'); renderPortfolio(); }
   else if (State.currentTab === 'academy') { const sec = document.getElementById('section-academy'); if(sec) sec.classList.add('active'); }
+  else if (State.currentTab === 'screener') { const sec = document.getElementById('section-screener'); if(sec) sec.classList.add('active'); }
+  else if (State.currentTab === 'compare') { const sec = document.getElementById('section-compare'); if(sec) sec.classList.add('active'); }
   else { const sec = document.getElementById('section-market'); if(sec) sec.classList.add('active'); }
   
   document.querySelectorAll('.nav-tab').forEach(t => { if(t.getAttribute('onclick')?.includes(`'${State.currentTab}'`)) t.classList.add('active'); else t.classList.remove('active'); });
