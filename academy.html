@@ -11,7 +11,7 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            background-color: #000000;
+            background-color: #000;
             color: #f5f5f7;
             font-family: 'Heebo', sans-serif;
             min-height: 100vh;
@@ -20,30 +20,19 @@
             align-items: center;
         }
 
-        /* === Spatial OS Ambient Lighting === */
-        .aurora { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; background: radial-gradient(circle at 50% -20%, rgba(10, 132, 255, 0.08), transparent 60%); }
-        .aurora-blob { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.1; }
-        .aurora-blob:nth-child(1) { width: 1000px; height: 1000px; background: rgba(10, 132, 255, 0.5); top: -400px; left: -200px; animation: auroraFloat1 30s ease-in-out infinite; }
-        .aurora-blob:nth-child(2) { width: 800px; height: 800px; background: rgba(191, 90, 242, 0.4); bottom: -300px; right: -200px; animation: auroraFloat2 35s ease-in-out infinite; }
-        @keyframes auroraFloat1 { 0%, 100% { transform: translate(0,0) scale(1) rotate(0deg); } 33% { transform: translate(60px, -40px) scale(1.1) rotate(2deg); } 66% { transform: translate(-30px, 20px) scale(0.95) rotate(-1deg); } }
-        @keyframes auroraFloat2 { 0%, 100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-50px, -60px) scale(1.15); } }
-
         .academy-navbar {
-            width: calc(100% - 48px);
-            height: 64px;
-            background: rgba(15, 15, 18, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 20px;
+            width: 100%;
+            height: 60px;
+            background: rgba(5,5,10,0.9);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 24px;
+            padding: 0 20px;
             position: fixed;
-            top: 16px;
+            top: 0;
             z-index: 1000;
-            backdrop-filter: blur(60px);
-            -webkit-backdrop-filter: blur(60px);
-            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
         }
 
         .back-btn {
@@ -61,46 +50,44 @@
 
         .course-title-nav {
             font-weight: 800;
-            color: #64b5f6;
+            color: #0a84ff;
             font-size: 1.1rem;
         }
 
-        .slider-container {
+        #presentation-container {
+            margin-top: 80px;
             width: 100%;
-            max-width: 1100px;
-            margin-top: 120px;
-            margin-bottom: 40px;
-            padding: 0 24px;
-            position: relative;
-            z-index: 1;
+            max-width: 1200px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
         }
 
         /* Slide / Card Style */
         .slide {
-            background-color: rgba(255, 255, 255, 0.02);
-            backdrop-filter: blur(60px);
-            -webkit-backdrop-filter: blur(60px);
-            border-radius: 32px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            padding: 60px;
+            background-color: #05050a;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.08);
+            padding: 50px;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
         }
 
         .slide::before {
             content: ''; position: absolute; top: -100px; left: -100px; width: 300px; height: 300px;
-            background: radial-gradient(circle, rgba(33,150,243,0.06) 0%, transparent 70%); border-radius: 50%; pointer-events: none;
+            background: radial-gradient(circle, rgba(10,132,255,0.05) 0%, transparent 70%); border-radius: 50%; pointer-events: none;
         }
 
         h1 { font-size: 48px; font-weight: 900; line-height: 1.1; margin-bottom: 20px; }
-        h2 { font-size: 32px; font-weight: 800; margin-bottom: 20px; color: #2196f3; }
+        h2 { font-size: 32px; font-weight: 800; margin-bottom: 20px; color: #0a84ff; }
         h3 { font-size: 24px; font-weight: 700; margin-bottom: 12px; }
         p, li { font-size: 18px; line-height: 1.6; color: #86868b; margin-bottom: 15px; }
         
         .accent { font-size: 18px; font-weight: 700; color: #86868b; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; display: block;}
 
-        .text-blue { color: #2196f3; } .text-green { color: #00e676; } .text-red { color: #ff5252; } .text-gold { color: #ffd740; } .text-purple { color: #b388ff; }
+        .text-blue { color: #0a84ff; } .text-green { color: #30d158; } .text-red { color: #ff453a; } .text-gold { color: #ffd60a; } .text-purple { color: #bf5af2; }
 
         .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
         .tiled { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
@@ -141,9 +128,7 @@
 </head>
 <body>
 
-    <div class="aurora"><div class="aurora-blob"></div><div class="aurora-blob"></div></div>
-    
-    <div class="academy-navbar">
+<div class="academy-navbar">
     <div class="course-title-nav" id="nav-title">FinShark Academy</div>
     <button class="back-btn" onclick="window.close()">✕ סגור מצגת</button>
 </div>
