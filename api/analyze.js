@@ -266,26 +266,53 @@ module.exports = async function(req, res) {
             return res.status(200).json({ success: true, data });
         }
 
+        // --- השוואת מניות מעודכנת עם נתונים ---
         if (action === 'compare') {
             const t1 = (req.query.t1 || "").toUpperCase().trim();
             const t2 = (req.query.t2 || "").toUpperCase().trim();
             if (!t1 || !t2) return res.status(200).json({ success: false, message: "Missing tickers" });
-            
-            const promptText = `אתה סוחר מניות בכיר. משתמש מתלבט בין שתי מניות: ${t1} לבין ${t2}.
-אנא החזר מבנה JSON תקין המסכם מי המנצחת (בטווח הקצר/בינוני) ומדוע, במבנה הבא ללא רווחים:
-{"winner":"TICKER","reasoning":"משפט אחד קולע למה היא עדיפה"}`;
 
             try {
+                // 1. שאיבת נתונים טכניים בזמן אמת לשתי המניות (מחיר + גרפים)
+                const [q1, q2, chart1, chart2] = await Promise.all([
+                    fetchYahooQuote(t1), fetchYahooQuote(t2),
+                    fetchYahooData(t1, '2y', '1d'), fetchYahooData(t2, '2y', '1d')
+                ]);
+
+                // פונקציית עזר להכנת הנתונים ל-AI
+                const formatData = (ticker, q, chart) => {
+                    if (!q || !chart || chart.length === 0) return `${ticker}: אין נתונים זמינים.`;
+                    const rsi = calculateRSI(chart.map(p => p.close));
+                    const last = chart[chart.length - 1];
+                    return `${ticker} - מחיר: $${q.c.toFixed(2)} (שינוי יומי: ${q.dp.toFixed(2)}%), RSI: ${rsi.toFixed(1)}, MA50: $${last.ma50}, MA200: $${last.ma200}`;
+                };
+
+                const data1 = formatData(t1, q1, chart1);
+                const data2 = formatData(t2, q2, chart2);
+
+                // 2. הפרומפט החדש: מכיל את נתוני האמת!
+                const promptText = `אתה סוחר מניות בכיר. משתמש מתלבט בין שתי מניות: ${t1} לבין ${t2}.
+הנה הנתונים שלהן בזמן אמת כרגע:
+1. ${data1}
+2. ${data2}
+
+אנא החזר מבנה JSON תקין המסכם מי המנצחת (בטווח הקצר/בינוני) ומדוע, במבנה הבא בדיוק (ללא רווחים מיותרים, בלי Markdown):
+{"winner":"TICKER","reasoning":"משפט אחד קולע למה היא עדיפה מבוסס על הנתונים שקיבלת"}`;
+
                 const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }], generationConfig: { temperature: 0.2, responseMimeType: "application/json" }})
                 });
                 const aiData = await aiRes.json();
                 const text = aiData?.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (!text) throw new Error("Empty response");
+                if (!text) throw new Error("Empty response from AI");
+                
                 const parsed = cleanJSON(text);
+                if (!parsed || !parsed.winner) throw new Error("JSON Parse failed");
+                
                 return res.status(200).json({ success: true, comparison: parsed });
             } catch (e) {
+                console.error("Compare Error:", e);
                 return res.status(200).json({ success: false, message: "שגיאה בניתוח ההשוואה." });
             }
         }
@@ -373,7 +400,7 @@ module.exports = async function(req, res) {
             method: 'POST',
             headers: { 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
             body: JSON.stringify({
-                model: 'claude-haiku-4-5-20251001', // <--- הקסם פה! המודל החדש.
+                model: 'claude-haiku-4-5-20251001',
                 max_tokens: 1500,
                 temperature: 0.1,
                 system: "You are an elite AI financial analyst. Respond ONLY with valid JSON. No markdown, no preambles.",
