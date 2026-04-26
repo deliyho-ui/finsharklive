@@ -181,17 +181,27 @@
 
         <!-- User Area -->
         <div class="p-3 border-t border-glassBorder relative z-10 flex flex-col gap-2">
-            <div class="flex items-center p-2 rounded-xl bg-glass border border-glassBorder hover:border-gray-600 transition-colors cursor-pointer">
-                <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-blue-600 flex items-center justify-center text-darker font-black text-[10px] shadow-[0_0_10px_rgba(0,229,255,0.2)]">DE</div>
-                <div class="mr-3">
-                    <div class="text-[12px] font-bold text-white leading-tight">דניאל אליהו</div>
-                    <div class="text-[10px] text-gray-400">משתמש פרו</div>
-                </div>
+            <!-- Logged-out state: Login button -->
+            <div id="sidebar-login-btn" class="flex flex-col gap-2">
+                <button onclick="window.openLogin()" class="w-full bg-primary hover:bg-cyan-400 text-darker font-black text-xs py-2.5 rounded-lg transition-all shadow-[0_4px_15px_rgba(0,229,255,0.2)] flex items-center justify-center gap-1.5 hover:-translate-y-0.5">
+                    <i class="ph ph-sign-in text-sm"></i>
+                    התחבר / הירשם
+                </button>
             </div>
-            <button class="w-full bg-primary hover:bg-cyan-400 text-darker font-black text-xs py-2 rounded-lg transition-all shadow-[0_4px_15px_rgba(0,229,255,0.2)] flex items-center justify-center gap-1.5 hover:-translate-y-0.5">
-                <i class="ph ph-sign-out text-sm"></i>
-                התנתק
-            </button>
+            <!-- Logged-in state: User widget + logout -->
+            <div id="sidebar-user-widget" class="hidden flex-col gap-2">
+                <div class="flex items-center p-2 rounded-xl bg-glass border border-glassBorder hover:border-gray-600 transition-colors cursor-default">
+                    <div id="sidebar-avatar" class="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-blue-600 flex items-center justify-center text-darker font-black text-[10px] shadow-[0_0_10px_rgba(0,229,255,0.2)]">?</div>
+                    <div class="mr-3">
+                        <div id="sidebar-user-name" class="text-[12px] font-bold text-white leading-tight">משתמש</div>
+                        <div id="sidebar-user-role" class="text-[10px] text-gray-400">ממתין לאישור</div>
+                    </div>
+                </div>
+                <button onclick="window.logout()" class="w-full bg-glass hover:bg-danger/20 border border-glassBorder hover:border-danger/30 text-gray-400 hover:text-danger font-black text-xs py-2 rounded-lg transition-all flex items-center justify-center gap-1.5">
+                    <i class="ph ph-sign-out text-sm"></i>
+                    התנתק
+                </button>
+            </div>
         </div>
     </aside>
 
@@ -530,6 +540,20 @@
                         </div>
                     </div>
                 </div>
+                <!-- Loading Overlay -->
+                <div id="loading" class="hidden mt-6">
+                    <div class="glass-panel rounded-[20px] p-8 border border-glassBorder flex flex-col items-center gap-6">
+                        <div class="relative w-16 h-16">
+                            <div class="absolute inset-0 rounded-full border-4 border-glassBorder"></div>
+                            <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-primary animate-spin"></div>
+                            <div class="absolute inset-0 flex items-center justify-center text-2xl">🦈</div>
+                        </div>
+                        <div id="loading-text" class="text-primary font-bold text-sm tracking-wide">הכריש מנתח...</div>
+                        <div id="loading-steps" class="text-xs text-gray-500 space-y-1 text-center"></div>
+                        <div id="rate-limit-warning" class="hidden text-warning text-xs font-bold bg-warning/10 border border-warning/30 rounded-lg p-3"></div>
+                        <div id="debug-analyze" class="hidden text-danger text-xs font-bold"></div>
+                    </div>
+                </div>
 
                 <!-- Results container placeholder -->
                                 <!-- Results container -->
@@ -794,7 +818,55 @@
                         </div>
                     </div>
                 </div>
+                </div>
             </div> <!-- /#section-academy -->
+
+            <!-- SECTION: PENDING -->
+            <div id="section-pending" class="section hidden flex-col items-center justify-center h-full text-center px-4 py-20">
+                <div class="w-24 h-24 rounded-full bg-warning/10 flex items-center justify-center text-4xl mb-6 border border-warning/30 shadow-[0_0_30px_rgba(255,215,64,0.15)] mx-auto">⏳</div>
+                <h2 class="text-3xl font-black text-white mb-4">החשבון ממתין לאישור</h2>
+                <p class="text-gray-400 max-w-md mx-auto leading-relaxed text-sm">
+                    שמחים שהצטרפת לכרישים! החשבון שלך כרגע בבדיקה וממתין לאישור מנהל.
+                    <br>לאחר האישור, תיפתח לך הגישה המלאה למנוע ה-AI, לתיק ההשקעות, ולקהילה.
+                </p>
+                <button onclick="window.logout()" class="mt-8 bg-darker border border-glassBorder text-gray-400 hover:text-white px-6 py-2 rounded-lg font-bold text-sm transition-colors mx-auto">
+                    התנתק בינתיים
+                </button>
+            </div>
+
+            <!-- SECTION: ADMIN -->
+            <div id="section-admin" class="section hidden space-y-6">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-black text-white flex items-center gap-2 mb-1"><i class="ph-fill ph-shield-check text-primary"></i> לוח ניהול (Admin)</h2>
+                    <p class="text-sm text-gray-400">ניהול משתמשים וניקוי מטמון (Cache).</p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Manage Users -->
+                    <div class="glass-panel rounded-[16px] p-6 border border-glassBorder flex flex-col h-[500px]">
+                        <h3 class="text-lg font-black text-white mb-4 flex items-center gap-2"><i class="ph-fill ph-users"></i> משתמשים במערכת</h3>
+                        <div id="admin-users-list" class="flex-1 overflow-y-auto space-y-3 pr-2 scroll-smooth">
+                            <div class="text-center text-gray-500 py-10 text-sm font-bold">טוען משתמשים...</div>
+                        </div>
+                    </div>
+                    
+                    <!-- System Tools -->
+                    <div class="glass-panel rounded-[16px] p-6 border border-glassBorder">
+                        <h3 class="text-lg font-black text-white mb-4 flex items-center gap-2"><i class="ph-fill ph-database"></i> פעולות מערכת</h3>
+                        
+                        <div class="bg-darker rounded-xl p-4 border border-glassBorder mb-4">
+                            <h4 class="text-sm font-bold text-gray-300 mb-2">ניקוי מטמון מלא למניה</h4>
+                            <p class="text-xs text-gray-500 mb-4">מחיקת היסטוריית ניתוחים למניה ספציפית כדי לאלץ את ה-AI לסרוק מחדש.</p>
+                            <div class="flex gap-2">
+                                <input id="admin-cache-input" type="text" placeholder="סימול (למשל TSLA)" class="flex-1 bg-card border border-glassBorder rounded-lg px-3 py-2 text-sm text-white font-mono uppercase focus:outline-none focus:border-primary/50" dir="ltr">
+                                <button onclick="adminClearCache()" class="bg-danger/20 hover:bg-danger text-danger hover:text-white border border-danger/30 px-4 py-2 rounded-lg text-sm font-bold transition-colors">
+                                    מחק
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
         </div>
     </main>
@@ -1131,13 +1203,13 @@ window.renderPortfolio = async function() {
     if(isVirtual) safeText('port-cash', `$${cash.toLocaleString(undefined, {minimumFractionDigits:2})}`);
     
     if(tickers.length === 0) {
-        listEl.innerHTML = `<p style="color:var(--text-secondary); text-align:center; padding:30px;">התיק ה${isVirtual?'וירטואלי':'אמיתי'} שלך ריק. חפש מניות ו${isVirtual?'קנה':'הוסף'} אותן.</p>`;
+        listEl.innerHTML = `<p style="color:#9ca3af; text-align:center; padding:30px;">התיק ה${isVirtual?'וירטואלי':'אמיתי'} שלך ריק. חפש מניות ו${isVirtual?'קנה':'הוסף'} אותן.</p>`;
         safeText('port-total', `$${cash.toLocaleString(undefined, {minimumFractionDigits:2})}`);
         safeText('port-pnl', `$0.00 (0.00%)`);
         return;
     }
 
-    listEl.innerHTML = '<p style="color:var(--blue); text-align:center;">מעדכן מחירים חיים מהבורסה...</p>';
+    listEl.innerHTML = '<p style="color:#00e5ff; text-align:center;">מעדכן מחירים חיים מהבורסה...</p>';
     let totalStockValue = 0; let totalInvested = 0; let html = '';
 
     for (let t of tickers) {
@@ -1180,12 +1252,16 @@ window.renderPortfolio = async function() {
     
     const pnlEl = document.getElementById('port-pnl');
     pnlEl.textContent = `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} (${totalPnlPct.toFixed(2)}%)`;
-    pnlEl.style.color = totalPnl >= 0 ? 'var(--green)' : 'var(--red)';
+    pnlEl.style.color = totalPnl >= 0 ? '#00e676' : '#ff5252';
     listEl.innerHTML = html;
 };
 
-window.openLogin = function() { document.getElementById('auth-error').style.display = 'none'; document.getElementById('modal-login').classList.add('active'); };
-window.closeLogin = function() { document.getElementById('modal-login').classList.remove('active'); };
+window.openLogin = function() { 
+    const errEl = document.getElementById('auth-error');
+    if(errEl) { errEl.textContent = ''; errEl.classList.add('hidden'); }
+    document.getElementById('modal-login').classList.remove('hidden'); 
+};
+window.closeLogin = function() { document.getElementById('modal-login').classList.add('hidden'); };
 window.switchLoginTab = function(mode) { authMode = mode; document.getElementById('auth-error').style.display = 'none'; document.getElementById('tab-login').classList.toggle('active', mode === 'login'); document.getElementById('tab-register').classList.toggle('active', mode === 'register'); document.getElementById('btn-auth-action').textContent = mode === 'login' ? 'כניסה למערכת ←' : 'שלח בקשה לאישור'; };
 window.handleAuth = async function() {
   const emailEl = document.getElementById('auth-email'), passEl = document.getElementById('auth-pass'), errEl = document.getElementById('auth-error');
@@ -1243,15 +1319,15 @@ window.loadTopSetupsData = async function() {
         setups.sort((a,b) => (b.score || 0) - (a.score || 0));
         
         if(setups.length === 0) {
-            container.innerHTML = '<p style="color:var(--text-secondary)">אין כרגע סטאפים במערכת. נתח מניות כדי להוסיף אותן למאגר.</p>';
+            container.innerHTML = '<p style="color:#9ca3af">אין כרגע סטאפים במערכת. נתח מניות כדי להוסיף אותן למאגר.</p>';
         } else {
             let html = '<div style="display:flex; flex-direction:column; gap:12px; width:100%;">';
             setups.slice(0, 10).forEach((item, index) => {
-                const scoreColor = item.score >= 80 ? 'var(--green)' : 'var(--blue)';
+                const scoreColor = item.score >= 80 ? '#00e676' : '#00e5ff';
                 html += `
-                <div style="display:flex; align-items:center; gap:12px; cursor:pointer; background:rgba(255,255,255,0.02); padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); transition: var(--transition);" onclick="goToAnalysis('${item.ticker}')" onmouseover="this.style.borderColor='${scoreColor}'" onmouseout="this.style.borderColor='var(--glass-border)'">
+                <div style="display:flex; align-items:center; gap:12px; cursor:pointer; background:rgba(255,255,255,0.02); padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); transition: var(--transition);" onclick="goToAnalysis('${item.ticker}')" onmouseover="this.style.borderColor='${scoreColor}'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
                     <div style="width: 24px; font-weight: 800; color: var(--text-secondary);">${index + 1}.</div>
-                    <div style="width: 50px; font-weight:800; color:var(--text); direction:ltr; text-align:left;">${item.ticker}</div>
+                    <div style="width: 50px; font-weight:800; color:#f0f0fa; direction:ltr; text-align:left;">${item.ticker}</div>
                     <div style="flex:1; display: flex; align-items: center; gap: 8px;">
                         <div style="flex:1; height:8px; background:rgba(255,255,255,0.05); border-radius:4px; overflow:hidden;">
                             <div style="width:${item.score}%; height:100%; background:${scoreColor}; border-radius:4px;"></div>
@@ -1268,7 +1344,7 @@ window.loadTopSetupsData = async function() {
 
 window.generateSharkPortfolio = async function() {
     const container = document.getElementById('shark-portfolio-list');
-    container.innerHTML = '<div style="text-align:center; color:var(--blue); padding: 20px;">הכריש מנתח את כלל השוק ובונה תיק מנצח... 🦈</div>';
+    container.innerHTML = '<div style="text-align:center; color:#00e5ff; padding: 20px;">הכריש מנתח את כלל השוק ובונה תיק מנצח... 🦈</div>';
     
     try {
         const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -1293,10 +1369,10 @@ window.generateSharkPortfolio = async function() {
             });
             renderSharkHTML(data.portfolio, container);
         } else {
-            container.innerHTML = '<p style="color:var(--red);">שגיאה. נסה שנית בעוד מספר רגעים.</p>';
+            container.innerHTML = '<p style="color:#ff5252;">שגיאה. נסה שנית בעוד מספר רגעים.</p>';
         }
     } catch(e) { 
-        container.innerHTML = '<p style="color:var(--red);">שגיאת תקשורת עם הכריש.</p>'; 
+        container.innerHTML = '<p style="color:#ff5252;">שגיאת תקשורת עם הכריש.</p>'; 
     }
 }
 
@@ -1304,13 +1380,13 @@ function renderSharkHTML(portfolioArray, container) {
     let html = '';
     portfolioArray.forEach(item => {
         html += `
-        <div style="background:linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)); border:1px solid var(--glass-border); padding:20px; border-radius:16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:var(--transition); box-shadow: 0 4px 15px rgba(0,0,0,0.2);" onclick="window.goToAnalysis('${item.ticker}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--glass-border)'">
+        <div style="background:linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.06); padding:20px; border-radius:16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:var(--transition); box-shadow: 0 4px 15px rgba(0,0,0,0.2);" onclick="window.goToAnalysis('${item.ticker}')" onmouseover="this.style.borderColor='#ffd740'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
             <div style="display:flex; align-items:center; gap:16px; flex:1;">
-                <div style="width: 56px; height: 56px; min-width: 56px; border-radius: 14px; background: rgba(255,214,10,0.15); color: var(--gold); border: 1px solid rgba(255,214,10,0.3); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 900;">${item.weight}%</div>
+                <div style="width: 56px; height: 56px; min-width: 56px; border-radius: 14px; background: rgba(255,214,10,0.15); color: #ffd740; border: 1px solid rgba(255,214,10,0.3); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 900;">${item.weight}%</div>
                 <div>
-                    <div style="font-weight:900; font-size:1.3rem; direction:ltr; text-align:left; color:var(--text); letter-spacing: 0.05em;">${item.ticker}</div>
-                    <div style="font-size:0.8rem; font-weight:600; color:var(--blue); margin-top:4px;">${item.role}</div>
-                    <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:4px;">${item.reason}</div>
+                    <div style="font-weight:900; font-size:1.3rem; direction:ltr; text-align:left; color:#f0f0fa; letter-spacing: 0.05em;">${item.ticker}</div>
+                    <div style="font-size:0.8rem; font-weight:600; color:#00e5ff; margin-top:4px;">${item.role}</div>
+                    <div style="font-size:0.8rem; color:#9ca3af; margin-top:4px;">${item.reason}</div>
                 </div>
             </div>
         </div>`;
@@ -1324,14 +1400,14 @@ function setupAdminDashboard() {
     const listEl = document.getElementById('admin-users-list'); const users = [];
     if (!listEl) return;
     snapshot.forEach(doc => { if (doc.data().role !== 'admin') users.push({ id: doc.id, ...doc.data() }); });
-    if(users.length === 0) { listEl.innerHTML = '<p style="color:var(--text-secondary)">אין משתמשים במערכת כרגע.</p>'; return; }
+    if(users.length === 0) { listEl.innerHTML = '<p style="color:#9ca3af">אין משתמשים במערכת כרגע.</p>'; return; }
     
     listEl.innerHTML = users.map(u => { 
         const isApproved = u.status === 'approved'; 
         const isRestricted = u.restrictedUntil && Date.now() < u.restrictedUntil;
         const count = u.analysisCount || 0;
         const statusBadge = isApproved ? `<span class="user-status status-approved">מאושר ✓</span>` : `<span class="user-status status-pending">ממתין לאישור ⏳</span>`;
-        const restrictBadge = isRestricted ? `<span style="color:var(--red); font-size:0.8rem; background:rgba(255,69,58,0.1); padding:4px 8px; border-radius:6px; border:1px solid rgba(255,69,58,0.3)">🚫 מוגבל זמנית</span>` : `<span style="color:var(--text-secondary); font-size:0.8rem; border:1px solid var(--glass-border); padding:4px 8px; border-radius:6px;">📊 הרצות: ${count}/6</span>`;
+        const restrictBadge = isRestricted ? `<span style="color:#ff5252; font-size:0.8rem; background:rgba(255,69,58,0.1); padding:4px 8px; border-radius:6px; border:1px solid rgba(255,69,58,0.3)">🚫 מוגבל זמנית</span>` : `<span style="color:#9ca3af; font-size:0.8rem; border:1px solid rgba(255,255,255,0.06); padding:4px 8px; border-radius:6px;">📊 הרצות: ${count}/6</span>`;
         const actionButtons = !isApproved ? `<button class="btn btn-primary" onclick="approveUser('${u.id}')">אשר משתמש</button>` : `<button class="btn btn-ghost" onclick="revokeUser('${u.id}')">הסר הרשאה</button> ${isRestricted ? `<button class="btn btn-primary" style="margin-right:8px;" onclick="removeRestriction('${u.id}')">שחרר חסימה</button>` : ''}`;
         return `<div class="user-row"><div class="user-info"><span class="user-name">👤 ${u.email}</span><div style="display:flex; gap:10px; align-items:center; margin-top:6px;">${statusBadge}${restrictBadge}</div></div><div>${actionButtons}</div></div>`; 
     }).join('');
@@ -1359,24 +1435,27 @@ window.loadScreener = async function(type, btnEl) {
         btnEl.classList.add('active');
     }
     const resultsEl = document.getElementById('screener-results');
-    resultsEl.innerHTML = '<div style="padding:40px;text-align:center;"><div class="loading-spinner"></div><p style="margin-top:20px;color:var(--text-secondary);">הכריש סורק את השוק...</p></div>';
+    resultsEl.innerHTML = `<div class="flex flex-col items-center justify-center gap-3 py-12 text-gray-400">
+        <div class="w-10 h-10 rounded-full border-2 border-transparent border-t-primary animate-spin"></div>
+        <p class="text-sm font-bold">הכריש סורק את השוק...</p>
+    </div>`;
     try {
         const res = await fetch(`/api/analyze?action=screener&type=${type}`);
         const json = await res.json();
         if(!json.success || !json.data || json.data.length === 0) {
-            resultsEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);">לא נמצאו תוצאות לסריקה זו.</div>';
+            resultsEl.innerHTML = '<div style="padding:20px;text-align:center;color:#9ca3af;">לא נמצאו תוצאות לסריקה זו.</div>';
             return;
         }
         let html = '<div class="market-movers-grid" style="grid-template-columns:1fr; gap:10px;">';
         json.data.slice(0, 15).forEach(item => {
             const chg = Number(item.changesPercentage) > 0 ? '+' : '';
-            const color = Number(item.changesPercentage) >= 0 ? 'var(--green)' : 'var(--red)';
-            html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:var(--bg); border:1px solid var(--border); border-radius:10px; cursor:pointer;" onclick="quickSearch('${item.symbol}')"><div style="display:flex;align-items:center;gap:12px;"><div style="font-weight:800;font-size:1.1rem;width:60px;">${item.symbol}</div><div style="font-size:0.85rem;color:var(--text-secondary);">${item.name}</div></div><div style="text-align:right;"><div style="font-weight:700;">$${Number(item.price).toFixed(2)}</div><div style="font-size:0.85rem;color:${color};direction:ltr;">${chg}${Number(item.changesPercentage).toFixed(2)}%</div></div></div>`;
+            const color = Number(item.changesPercentage) >= 0 ? '#00e676' : '#ff5252';
+            html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:var(--bg); border:1px solid var(--border); border-radius:10px; cursor:pointer;" onclick="quickSearch('${item.symbol}')"><div style="display:flex;align-items:center;gap:12px;"><div style="font-weight:800;font-size:1.1rem;width:60px;">${item.symbol}</div><div style="font-size:0.85rem;color:#9ca3af;">${item.name}</div></div><div style="text-align:right;"><div style="font-weight:700;">$${Number(item.price).toFixed(2)}</div><div style="font-size:0.85rem;color:${color};direction:ltr;">${chg}${Number(item.changesPercentage).toFixed(2)}%</div></div></div>`;
         });
         html += '</div>';
         resultsEl.innerHTML = html;
     } catch(e) {
-        resultsEl.innerHTML = '<div style="color:var(--red);padding:20px;">שגיאה בטעינת נתונים</div>';
+        resultsEl.innerHTML = '<div style="color:#ff5252;padding:20px;">שגיאה בטעינת נתונים</div>';
     }
 };
 
@@ -1404,21 +1483,21 @@ window.runComparison = async function() {
             document.getElementById('compare-winner').innerText = aiJson.comparison.winner;
             document.getElementById('compare-ai-reasoning').innerHTML = `<p>${aiJson.comparison.reasoning}</p>`;
         } else {
-            document.getElementById('compare-ai-reasoning').innerHTML = `<p style="color:var(--red)">שגיאה: ${aiJson.message || 'תקלה בניתוח'}</p>`;
+            document.getElementById('compare-ai-reasoning').innerHTML = `<p style="color:#ff5252">שגיאה: ${aiJson.message || 'תקלה בניתוח'}</p>`;
         }
         
         const renderQ = (q) => {
             if (!q || !q.success) return '<div>אין נתונים זמינים או מניה שגויה</div>';
-            return `<div style="font-size:1.5rem;font-weight:800;margin-bottom:10px;">$${q.price} <span style="font-size:1rem;color:${q.changePercentage>=0?'var(--green)':'var(--red)'}">${q.changePercentage}%</span></div>
-            <div style="font-size:0.85rem;color:var(--text2);margin-bottom:5px;">RSI: <span style="color:var(--text);font-weight:700;">${q.rsi?q.rsi.toFixed(1):'N/A'}</span></div>
-            <div style="font-size:0.85rem;color:var(--text2);margin-bottom:5px;">תבנית טכנית: <span style="color:var(--text);font-weight:700;">${q.pattern||'N/A'}</span></div>
+            return `<div style="font-size:1.5rem;font-weight:800;margin-bottom:10px;">$${q.price} <span style="font-size:1rem;color:${q.changePercentage>=0?'#00e676':'#ff5252'}">${q.changePercentage}%</span></div>
+            <div style="font-size:0.85rem;color:var(--text2);margin-bottom:5px;">RSI: <span style="color:#f0f0fa;font-weight:700;">${q.rsi?q.rsi.toFixed(1):'N/A'}</span></div>
+            <div style="font-size:0.85rem;color:var(--text2);margin-bottom:5px;">תבנית טכנית: <span style="color:#f0f0fa;font-weight:700;">${q.pattern||'N/A'}</span></div>
             <button class="btn btn-ghost" style="margin-top:12px; width:100%; justify-content:center;" onclick="quickSearch('${q.ticker}')">ניתוח כריש מלא ←</button>`;
         };
         document.getElementById('compare-t1-data').innerHTML = renderQ(q1);
         document.getElementById('compare-t2-data').innerHTML = renderQ(q2);
 
     } catch (e) {
-        document.getElementById('compare-ai-reasoning').innerHTML = `<p style="color:var(--red)">שגיאה בחיבור לשרת.</p>`;
+        document.getElementById('compare-ai-reasoning').innerHTML = `<p style="color:#ff5252">שגיאה בחיבור לשרת.</p>`;
     }
 };
 
@@ -1504,6 +1583,7 @@ function renderApp() {
   const btnLogin = document.getElementById('btn-login'); if(btnLogin) btnLogin.style.display = isLoggedIn ? 'none' : '';
   const btnLogout = document.getElementById('btn-logout'); if(btnLogout) btnLogout.style.display = isLoggedIn ? '' : 'none';
   
+  // Lock icons
   ['lock-shark', 'lock-watch', 'lock-comm', 'lock-port', 'lock-acad'].forEach(id => {
       const lock = document.getElementById(id);
       if (lock) lock.style.display = (isApproved || isAdmin) ? 'none' : 'inline';
@@ -1522,19 +1602,22 @@ function renderApp() {
   const topbarTitle = document.getElementById('topbar-title');
   if(topbarTitle) topbarTitle.textContent = TAB_NAMES[State.currentTab] || 'FinShark';
 
-  // Update sidebar user widget
-  const sidebarWidget = document.getElementById('sidebar-user-widget');
+  // Update sidebar widget (new class-based approach)
+  const loginBtn = document.getElementById('sidebar-login-btn');
+  const userWidget = document.getElementById('sidebar-user-widget');
   const sidebarAvatar = document.getElementById('sidebar-avatar');
   const sidebarUserName = document.getElementById('sidebar-user-name');
   const sidebarUserRole = document.getElementById('sidebar-user-role');
-  if (isLoggedIn && sidebarWidget) {
-    sidebarWidget.style.display = 'flex';
+  if (isLoggedIn) {
+    if (loginBtn) loginBtn.classList.add('hidden');
+    if (userWidget) { userWidget.classList.remove('hidden'); userWidget.classList.add('flex'); }
     const uname = State.currentUser.email.split('@')[0];
-    if(sidebarAvatar) sidebarAvatar.textContent = uname[0].toUpperCase();
-    if(sidebarUserName) sidebarUserName.textContent = uname;
-    if(sidebarUserRole) sidebarUserRole.textContent = isAdmin ? 'מנהל' : isApproved ? 'משתמש מאושר' : 'ממתין';
-  } else if(sidebarWidget) {
-    sidebarWidget.style.display = 'none';
+    if (sidebarAvatar) sidebarAvatar.textContent = uname[0].toUpperCase();
+    if (sidebarUserName) sidebarUserName.textContent = uname;
+    if (sidebarUserRole) sidebarUserRole.textContent = isAdmin ? 'מנהל 👑' : isApproved ? 'משתמש מאושר ✓' : 'ממתין לאישור ⏳';
+  } else {
+    if (loginBtn) loginBtn.classList.remove('hidden');
+    if (userWidget) { userWidget.classList.add('hidden'); userWidget.classList.remove('flex'); }
   }
 
   if(navAdmin) navAdmin.style.display = isAdmin ? '' : 'none';
@@ -1576,7 +1659,7 @@ function renderMarketWeather(data) {
   
   let tickerHtml = "", statsHtml = "";
 
-  if (indexes.length === 0) tickerHtml = "<div class='ticker-item' style='color:var(--red)'>המתן... לא הצלחנו למשוך נתונים.</div>";
+  if (indexes.length === 0) tickerHtml = "<div class='ticker-item' style='color:#ff5252'>המתן... לא הצלחנו למשוך נתונים.</div>";
   else {
       indexes.forEach(idx => {
           const name = idx.symbol, isUp = typeof idx.changesPercentage === 'number' && idx.changesPercentage >= 0, price = (typeof idx.price === 'number') ? (idx.price >= 1000 ? idx.price.toLocaleString(undefined, {maximumFractionDigits: 0}) : idx.price.toFixed(2)) : 0; 
@@ -1598,7 +1681,7 @@ function renderMarketWeather(data) {
       const container = document.getElementById(containerId);
       if(!container) return;
       if (!items || items.length === 0) {
-          container.innerHTML = '<p style="color:var(--text-secondary); font-size:0.85rem;">אין נתונים זמינים כרגע.</p>';
+          container.innerHTML = '<p style="color:#9ca3af; font-size:0.85rem;">אין נתונים זמינים כרגע.</p>';
           return;
       }
       container.innerHTML = items.map(item => {
@@ -1608,10 +1691,10 @@ function renderMarketWeather(data) {
           const priceStr = !isNaN(p) ? `$${p.toFixed(2)}` : 'N/A';
           const colorCls = isGainer ? 'up' : 'down';
           return `
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); border-radius:10px; cursor:pointer; transition:var(--transition);" onclick="quickSearch('${item.symbol}')" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--glass-border)'">
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:10px; cursor:pointer; transition:var(--transition);" onclick="quickSearch('${item.symbol}')" onmouseover="this.style.borderColor='#00e5ff'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
               <div style="display:flex; flex-direction:column; gap:2px; text-align:left; direction:ltr; flex:1; min-width:0;">
-                  <span style="font-weight:800; color:var(--text); font-size:0.95rem;">${item.symbol}</span>
-                  <span style="font-size:0.7rem; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:90%;">${item.name}</span>
+                  <span style="font-weight:800; color:#f0f0fa; font-size:0.95rem;">${item.symbol}</span>
+                  <span style="font-size:0.7rem; color:#9ca3af; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:90%;">${item.name}</span>
               </div>
               <div style="display:flex; flex-direction:column; gap:2px; text-align:right; direction:ltr; min-width:70px;">
                   <span style="font-weight:700; font-size:0.95rem;">${priceStr}</span>
@@ -1728,7 +1811,7 @@ window.setChartPeriod = function(months, btn) {
 
 function renderChart(historyData, months, fullDataObj) {
     window.currentChartData = historyData; 
-    const container = document.getElementById('stockChart');
+    const container = document.getElementById('tv-chart') || document.getElementById('stockChart');
     if(!container) return;
     if(!historyData || !Array.isArray(historyData)) return;
 
@@ -1938,7 +2021,7 @@ safeHTML('chart-buttons-container', chartBtns);
   
   const fundRows = [ 
       { label: 'שווי שוק', val: formatNumberShort(data.marketCap), tag: 'M.CAP', isTag: false }, 
-      { label: 'טווח 52 שבועות', val: `<span style="font-size:0.75rem; color:var(--text-secondary); margin-right:8px">$${safeNum(rangeLow, 2)}</span> <div class="range-bar-wrap"><div class="range-indicator" style="left:${currentPos}%"></div></div> <span style="font-size:0.75rem; color:var(--text-secondary); margin-left:8px">$${safeNum(rangeHigh, 2)}</span>`, isHtml: true }, 
+      { label: 'טווח 52 שבועות', val: `<span style="font-size:0.75rem; color:#9ca3af; margin-right:8px">$${safeNum(rangeLow, 2)}</span> <div class="range-bar-wrap"><div class="range-indicator" style="left:${currentPos}%"></div></div> <span style="font-size:0.75rem; color:#9ca3af; margin-left:8px">$${safeNum(rangeHigh, 2)}</span>`, isHtml: true }, 
       { label: 'דוח רבעוני אחרון', val: earningsText, good: earningsGood, bad: earningsBad, goodLabel: 'הפתעה לטובה', badLabel: 'אכזב', neutralLabel: 'אין נתון' },
       { label: 'מחיר / רווח (P/E)', val: (data.peRatio !== null) ? `${data.peRatio.toFixed(1)}x` : 'N/A', good: data.peRatio !== null && data.peRatio < 30, bad: data.peRatio !== null && data.peRatio > 45, goodLabel: 'זול', badLabel: 'יקר', neutralLabel: 'סביר' }, 
       { label: 'מכפיל מכירות (P/S)', val: safeNum(data.psRatio, 2, '', 'x'), good: data.psRatio > 0 && data.psRatio < 3, bad: data.psRatio > 10, goodLabel: 'זול', badLabel: 'בועה', neutralLabel: 'ממוצע' },
@@ -2002,7 +2085,7 @@ safeHTML('chart-buttons-container', chartBtns);
   else safeHTML('insider-badge', '<span class="text-xs font-bold px-2 py-1 rounded border bg-gray-500/10 text-gray-400 border-gray-500/30">ניטרלי</span>');
 
   if (insiders.length === 0) {
-      safeHTML('insider-content', '<p style="color:var(--text-secondary); font-size:0.85rem;">לא זוהו עסקאות בעלי עניין בחודשים האחרונים.</p>');
+      safeHTML('insider-content', '<p style="color:#9ca3af; font-size:0.85rem;">לא זוהו עסקאות בעלי עניין בחודשים האחרונים.</p>');
   } else {
       const contentEl = document.getElementById('insider-content');
       if (contentEl) {
@@ -2037,9 +2120,9 @@ safeHTML('chart-buttons-container', chartBtns);
   if (isError || !safeAnalysis.scores) {
       if(aiScoreCircle) aiScoreCircle.style.display = 'none';
       if(aiScoresBar) aiScoresBar.style.display = 'none';
-      if(aiScoreTitle) { aiScoreTitle.textContent = safeAnalysis.identity; aiScoreTitle.style.color = 'var(--red)'; }
+      if(aiScoreTitle) { aiScoreTitle.textContent = safeAnalysis.identity; aiScoreTitle.style.color = '#ff5252'; }
       if(aiScoreDesc) aiScoreDesc.textContent = safeAnalysis.technical;
-      safeHTML('verdict-rating-pill', `<div class="verdict-rating sell" style="background:var(--red-dim);color:var(--red);border-color:var(--red);">שגיאה בניתוח</div>`);
+      safeHTML('verdict-rating-pill', `<div class="verdict-rating sell" style="background:var(--red-dim);color:#ff5252;border-color:#ff5252;">שגיאה בניתוח</div>`);
   } else {
       if(aiScoreCircle) aiScoreCircle.style.display = 'flex';
       if(aiScoresBar) aiScoresBar.style.display = 'block';
@@ -2066,8 +2149,8 @@ safeHTML('chart-buttons-container', chartBtns);
 
 safeHTML('verdict-content', `
     <div style="margin-bottom:22px">
-        <div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--blue); margin-bottom:8px;">פרופיל חברה והשפעת חדשות</div>
-        <div style="font-size:0.95rem;line-height:1.6;color:var(--text); font-weight:500; margin-bottom:10px;">${safeAnalysis.identity || "מידע חסר"}</div>
+        <div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:#00e5ff; margin-bottom:8px;">פרופיל חברה והשפעת חדשות</div>
+        <div style="font-size:0.95rem;line-height:1.6;color:#f0f0fa; font-weight:500; margin-bottom:10px;">${safeAnalysis.identity || "מידע חסר"}</div>
     </div>
     
     ${safeAnalysis.ai_scratchpad ? `
@@ -2079,38 +2162,38 @@ safeHTML('verdict-content', `
     <div class="verdict-split" style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:24px; margin-bottom:20px;">
         <div class="split-card" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 20px; display:flex; flex-direction:column; gap: 12px;">
             <div class="split-header" style="font-size:1.1rem; font-weight:800; display:flex; align-items:center; gap:8px; margin-bottom:8px;"><span style="font-size:1.4rem;">📅</span> למשקיעי טווח ארוך (ערך)</div>
-            <div class="split-summary" style="font-size:0.9rem; line-height:1.6; color:var(--text-secondary); margin-bottom:10px;">${lTerm.summary || 'אין נתונים מספיקים.'}</div>
+            <div class="split-summary" style="font-size:0.9rem; line-height:1.6; color:#9ca3af; margin-bottom:10px;">${lTerm.summary || 'אין נתונים מספיקים.'}</div>
             <div class="split-data-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; background:rgba(255,255,255,0.02); padding:12px; border-radius:10px;">
                 <div class="split-data-item" style="display:flex; flex-direction:column;">
-                    <span class="split-data-lbl" style="font-size:0.65rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:2px;">שווי הוגן מחושב</span>
-                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:var(--text)">${lTerm.intrinsic_value || 'N/A'}</span>
+                    <span class="split-data-lbl" style="font-size:0.65rem; color:#9ca3af; text-transform:uppercase; margin-bottom:2px;">שווי הוגן מחושב</span>
+                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:#f0f0fa">${lTerm.intrinsic_value || 'N/A'}</span>
                 </div>
                 <div class="split-data-item" style="display:flex; flex-direction:column;">
-                    <span class="split-data-lbl" style="font-size:0.65rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:2px;">אזור איסוף</span>
-                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:var(--blue)">${lTerm.accumulation_zone || 'N/A'}</span>
+                    <span class="split-data-lbl" style="font-size:0.65rem; color:#9ca3af; text-transform:uppercase; margin-bottom:2px;">אזור איסוף</span>
+                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:#00e5ff">${lTerm.accumulation_zone || 'N/A'}</span>
                 </div>
                 <div class="split-data-item" style="display:flex; flex-direction:column;">
-                    <span class="split-data-lbl" style="font-size:0.65rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:2px;">יעד ממוצע 12M</span>
-                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:var(--green)">${lTerm.price_target ? '$'+lTerm.price_target : 'N/A'}</span>
+                    <span class="split-data-lbl" style="font-size:0.65rem; color:#9ca3af; text-transform:uppercase; margin-bottom:2px;">יעד ממוצע 12M</span>
+                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:#00e676">${lTerm.price_target ? '$'+lTerm.price_target : 'N/A'}</span>
                 </div>
             </div>
         </div>
 
         <div class="split-card" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 20px; display:flex; flex-direction:column; gap: 12px;">
             <div class="split-header" style="font-size:1.1rem; font-weight:800; display:flex; align-items:center; gap:8px; margin-bottom:8px;"><span style="font-size:1.4rem;">⚡</span> לסוחרי סווינג (טווח קצר)</div>
-            <div class="split-summary" style="font-size:0.9rem; line-height:1.6; color:var(--text-secondary); margin-bottom:10px;">${sTerm.summary || 'אין נתונים מספיקים.'}</div>
+            <div class="split-summary" style="font-size:0.9rem; line-height:1.6; color:#9ca3af; margin-bottom:10px;">${sTerm.summary || 'אין נתונים מספיקים.'}</div>
             <div class="split-data-grid" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; background:rgba(255,255,255,0.02); padding:12px; border-radius:10px;">
                 <div class="split-data-item" style="display:flex; flex-direction:column;">
-                    <span class="split-data-lbl" style="font-size:0.65rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:2px;">כניסה</span>
-                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:var(--blue)">${sTerm.entry_price || 'N/A'}</span>
+                    <span class="split-data-lbl" style="font-size:0.65rem; color:#9ca3af; text-transform:uppercase; margin-bottom:2px;">כניסה</span>
+                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:#00e5ff">${sTerm.entry_price || 'N/A'}</span>
                 </div>
                 <div class="split-data-item" style="display:flex; flex-direction:column;">
-                    <span class="split-data-lbl" style="font-size:0.65rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:2px;">יעד פריצה</span>
-                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:var(--green)">${sTerm.target_price || 'N/A'}</span>
+                    <span class="split-data-lbl" style="font-size:0.65rem; color:#9ca3af; text-transform:uppercase; margin-bottom:2px;">יעד פריצה</span>
+                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:#00e676">${sTerm.target_price || 'N/A'}</span>
                 </div>
                 <div class="split-data-item" style="display:flex; flex-direction:column;">
-                    <span class="split-data-lbl" style="font-size:0.65rem; color:var(--text-secondary); text-transform:uppercase; margin-bottom:2px;">סטופ לוס</span>
-                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:var(--red)">${sTerm.stop_loss || 'N/A'}</span>
+                    <span class="split-data-lbl" style="font-size:0.65rem; color:#9ca3af; text-transform:uppercase; margin-bottom:2px;">סטופ לוס</span>
+                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:#ff5252">${sTerm.stop_loss || 'N/A'}</span>
                 </div>
             </div>
         </div>
@@ -2122,13 +2205,13 @@ safeHTML('verdict-content', `
     </div>
     
     ${!isError ? `<div style="background: linear-gradient(135deg, rgba(255,214,10,0.1), rgba(255,214,10,0.02)); border: 1px solid rgba(255,214,10,0.3); padding: 24px; border-radius: 16px; text-align: center; box-shadow: 0 8px 32px rgba(255,214,10,0.06); margin-top:20px;">
-         <div style="font-size: 0.85rem; color: var(--gold); font-weight: 800; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em;">🎯 פוטנציאל רווח (מול תחזית 12 חודשים)</div>
-         <div style="font-size: 1.05rem; font-weight: 800; color: ${parseFloat(upside) >= 0 ? 'var(--green)' : 'var(--red)'}; direction:ltr;">${parseFloat(upside) >= 0 ? '▲ אפסייד:' : '▼ דאונסייד:'} ${parseFloat(upside) >= 0 ? '+' : ''}${upside}%</div>
+         <div style="font-size: 0.85rem; color: #ffd740; font-weight: 800; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em;">🎯 פוטנציאל רווח (מול תחזית 12 חודשים)</div>
+         <div style="font-size: 1.05rem; font-weight: 800; color: ${parseFloat(upside) >= 0 ? '#00e676' : '#ff5252'}; direction:ltr;">${parseFloat(upside) >= 0 ? '▲ אפסייד:' : '▼ דאונסייד:'} ${parseFloat(upside) >= 0 ? '+' : ''}${upside}%</div>
     </div>` : ''}`);
 
   if (safeAnalysis.news_sentiment_score) {
       const score = safeAnalysis.news_sentiment_score;
-      const sentColor = score >= 7 ? 'var(--green)' : (score <= 4 ? 'var(--red)' : 'var(--gold)');
+      const sentColor = score >= 7 ? '#00e676' : (score <= 4 ? '#ff5252' : '#ffd740');
       const sentEmoji = score >= 7 ? '🔥' : (score <= 4 ? '⚠️' : '⚖️');
       safeHTML('news-sentiment-badge', `<span class="tag" style="background: ${sentColor}22; color: ${sentColor}; border: 1px solid ${sentColor}44; font-size: 0.75rem;">סנטימנט (AI): ${score}/10 ${sentEmoji}</span>`);
   } else {
@@ -2142,7 +2225,7 @@ safeHTML('verdict-content', `
       }).join(''); 
       safeHTML('stock-news-grid', newsHtml);
   } else { 
-      safeHTML('stock-news-grid', `<p style="color:var(--text-secondary); grid-column:1/-1;">לא נמצאו חדשות עדכניות למניה זו.</p>`); 
+      safeHTML('stock-news-grid', `<p style="color:#9ca3af; grid-column:1/-1;">לא נמצאו חדשות עדכניות למניה זו.</p>`); 
   }
 
   const resultsEl = document.getElementById('results');
@@ -2171,10 +2254,10 @@ safeHTML('verdict-content', `
       const isOpen = day >= 1 && day <= 5 && mins >= 570 && mins < 960;
       statusEl.innerHTML = isOpen
         ? '<span class="dot"></span><span>שוק פעיל</span>'
-        : '<span class="dot" style="background:var(--red);box-shadow:0 0 6px var(--red)"></span><span style="color:var(--red)">שוק סגור</span>';
+        : '<span class="dot" style="background:#ff5252;box-shadow:0 0 6px #ff5252"></span><span style="color:#ff5252">שוק סגור</span>';
       statusEl.style.background = isOpen ? 'rgba(0,230,118,0.07)' : 'rgba(255,82,82,0.07)';
       statusEl.style.borderColor = isOpen ? 'rgba(0,230,118,0.15)' : 'rgba(255,82,82,0.15)';
-      statusEl.style.color = isOpen ? 'var(--green)' : 'var(--red)';
+      statusEl.style.color = isOpen ? '#00e676' : '#ff5252';
     }
   }
   updateClock();
