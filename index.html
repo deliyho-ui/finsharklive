@@ -591,6 +591,9 @@
                             <div id="tv-chart" class="w-full h-[340px] rounded-xl overflow-hidden bg-darker border border-glassBorder shadow-inner"></div>
                         </div>
 
+                        <!-- Company Profile & AI Thoughts -->
+                        <div id="company-profile-container"></div>
+
                         <!-- AI Double Verdict -->
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-10">
                             <div class="bg-gradient-to-br from-[rgba(13,13,32,0.8)] to-[rgba(0,229,255,0.05)] border border-primary/20 rounded-2xl p-6 relative overflow-hidden shadow-lg group hover:border-primary/40 transition-colors">
@@ -2147,67 +2150,85 @@ safeHTML('chart-buttons-container', chartBtns);
       if (!isNaN(tPriceNum) && tPriceNum > 0) upside = (((tPriceNum / p) - 1) * 100).toFixed(1);
   }
 
-safeHTML('verdict-content', `
-    <div style="margin-bottom:22px">
-        <div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:#00e5ff; margin-bottom:8px;">פרופיל חברה והשפעת חדשות</div>
-        <div style="font-size:0.95rem;line-height:1.6;color:#f0f0fa; font-weight:500; margin-bottom:10px;">${safeAnalysis.identity || "מידע חסר"}</div>
+safeHTML('ai-short-term', `
+    <div class="mb-4">${(sTerm.summary || 'אין נתונים מספיקים לטווח הקצר.').replace(/\n/g, '<br>')}</div>
+    <div class="grid grid-cols-3 gap-2 bg-darker/50 p-3 rounded-xl border border-glassBorder mt-auto">
+        <div class="flex flex-col">
+            <span class="text-[10px] text-gray-500 font-bold mb-1 uppercase tracking-wider">כניסה</span>
+            <span class="text-primary font-black font-mono text-sm" dir="ltr">${sTerm.entry_price || 'N/A'}</span>
+        </div>
+        <div class="flex flex-col">
+            <span class="text-[10px] text-gray-500 font-bold mb-1 uppercase tracking-wider">יעד פריצה</span>
+            <span class="text-success font-black font-mono text-sm" dir="ltr">${sTerm.target_price || 'N/A'}</span>
+        </div>
+        <div class="flex flex-col">
+            <span class="text-[10px] text-gray-500 font-bold mb-1 uppercase tracking-wider">סטופ לוס</span>
+            <span class="text-danger font-black font-mono text-sm" dir="ltr">${sTerm.stop_loss || 'N/A'}</span>
+        </div>
+    </div>
+`);
+
+safeHTML('ai-long-term', `
+    <div class="mb-4">${(lTerm.summary || 'אין נתונים מספיקים לטווח הארוך.').replace(/\n/g, '<br>')}</div>
+    <div class="grid grid-cols-2 gap-2 bg-darker/50 p-3 rounded-xl border border-glassBorder mt-auto">
+        <div class="flex flex-col">
+            <span class="text-[10px] text-gray-500 font-bold mb-1 uppercase tracking-wider">שווי הוגן</span>
+            <span class="text-white font-black font-mono text-sm" dir="ltr">${lTerm.intrinsic_value || 'N/A'}</span>
+        </div>
+        <div class="flex flex-col">
+            <span class="text-[10px] text-gray-500 font-bold mb-1 uppercase tracking-wider">אזור איסוף</span>
+            <span class="text-primary font-black font-mono text-sm" dir="ltr">${lTerm.accumulation_zone || 'N/A'}</span>
+        </div>
+        <div class="flex flex-col col-span-2 mt-1 pt-2 border-t border-glassBorder">
+            <span class="text-[10px] text-gray-500 font-bold mb-1 uppercase tracking-wider">יעד מחיר ל-12 חודשים</span>
+            <span class="text-success font-black font-mono text-sm" dir="ltr">${lTerm.price_target ? '$'+lTerm.price_target : 'N/A'}</span>
+        </div>
+    </div>
+`);
+
+const prosHtml = (safeAnalysis.pros || []).map(p => `<li class="flex items-start gap-2 text-sm text-gray-300"><i class="ph-fill ph-check-circle text-success shrink-0 mt-0.5"></i> <span>${p}</span></li>`).join('');
+const consHtml = (safeAnalysis.cons || []).map(c => `<li class="flex items-start gap-2 text-sm text-gray-300"><i class="ph-fill ph-warning-circle text-danger shrink-0 mt-0.5"></i> <span>${c}</span></li>`).join('');
+
+const profileHtml = `
+    <!-- Company Profile -->
+    <div class="mb-8">
+        <div class="text-[10px] font-black text-primary tracking-widest uppercase mb-2">פרופיל חברה והשפעת חדשות</div>
+        <div class="text-sm text-white font-medium leading-relaxed">${safeAnalysis.identity || "מידע חסר"}</div>
     </div>
     
+    <!-- Scratchpad -->
     ${safeAnalysis.ai_scratchpad ? `
-    <div style="background: rgba(191,90,242,0.08); border-right: 3px solid var(--purple); padding: 14px 18px; margin-bottom: 24px; border-radius: 8px 0 0 8px;">
-        <div style="font-size: 0.72rem; color: var(--purple); font-weight: 800; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">🧠 מחשבות הכריש (תהליך ההסקה)</div>
-        <div style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.5; font-style: italic;">"${safeAnalysis.ai_scratchpad}"</div>
+    <div class="bg-[#b388ff]/10 border-r-4 border-[#b388ff] p-4 rounded-l-xl mb-8">
+        <div class="text-[10px] text-[#b388ff] font-black uppercase tracking-widest mb-2 flex items-center gap-2"><i class="ph-fill ph-brain"></i> מחשבות הכריש (תהליך הסקה)</div>
+        <div class="text-xs text-gray-400 font-medium leading-relaxed italic">"${safeAnalysis.ai_scratchpad}"</div>
     </div>` : ''}
-
-    <div class="verdict-split" style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:24px; margin-bottom:20px;">
-        <div class="split-card" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 20px; display:flex; flex-direction:column; gap: 12px;">
-            <div class="split-header" style="font-size:1.1rem; font-weight:800; display:flex; align-items:center; gap:8px; margin-bottom:8px;"><span style="font-size:1.4rem;">📅</span> למשקיעי טווח ארוך (ערך)</div>
-            <div class="split-summary" style="font-size:0.9rem; line-height:1.6; color:#9ca3af; margin-bottom:10px;">${lTerm.summary || 'אין נתונים מספיקים.'}</div>
-            <div class="split-data-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; background:rgba(255,255,255,0.02); padding:12px; border-radius:10px;">
-                <div class="split-data-item" style="display:flex; flex-direction:column;">
-                    <span class="split-data-lbl" style="font-size:0.65rem; color:#9ca3af; text-transform:uppercase; margin-bottom:2px;">שווי הוגן מחושב</span>
-                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:#f0f0fa">${lTerm.intrinsic_value || 'N/A'}</span>
-                </div>
-                <div class="split-data-item" style="display:flex; flex-direction:column;">
-                    <span class="split-data-lbl" style="font-size:0.65rem; color:#9ca3af; text-transform:uppercase; margin-bottom:2px;">אזור איסוף</span>
-                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:#00e5ff">${lTerm.accumulation_zone || 'N/A'}</span>
-                </div>
-                <div class="split-data-item" style="display:flex; flex-direction:column;">
-                    <span class="split-data-lbl" style="font-size:0.65rem; color:#9ca3af; text-transform:uppercase; margin-bottom:2px;">יעד ממוצע 12M</span>
-                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:#00e676">${lTerm.price_target ? '$'+lTerm.price_target : 'N/A'}</span>
-                </div>
-            </div>
+    
+    <!-- Pros & Cons -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <div class="bg-darker rounded-xl p-5 border border-glassBorder">
+            <div class="text-[11px] text-success font-black uppercase tracking-widest mb-3 flex items-center gap-2">✅ נקודות חוזק</div>
+            <ul class="space-y-2">${prosHtml}</ul>
         </div>
-
-        <div class="split-card" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 20px; display:flex; flex-direction:column; gap: 12px;">
-            <div class="split-header" style="font-size:1.1rem; font-weight:800; display:flex; align-items:center; gap:8px; margin-bottom:8px;"><span style="font-size:1.4rem;">⚡</span> לסוחרי סווינג (טווח קצר)</div>
-            <div class="split-summary" style="font-size:0.9rem; line-height:1.6; color:#9ca3af; margin-bottom:10px;">${sTerm.summary || 'אין נתונים מספיקים.'}</div>
-            <div class="split-data-grid" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; background:rgba(255,255,255,0.02); padding:12px; border-radius:10px;">
-                <div class="split-data-item" style="display:flex; flex-direction:column;">
-                    <span class="split-data-lbl" style="font-size:0.65rem; color:#9ca3af; text-transform:uppercase; margin-bottom:2px;">כניסה</span>
-                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:#00e5ff">${sTerm.entry_price || 'N/A'}</span>
-                </div>
-                <div class="split-data-item" style="display:flex; flex-direction:column;">
-                    <span class="split-data-lbl" style="font-size:0.65rem; color:#9ca3af; text-transform:uppercase; margin-bottom:2px;">יעד פריצה</span>
-                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:#00e676">${sTerm.target_price || 'N/A'}</span>
-                </div>
-                <div class="split-data-item" style="display:flex; flex-direction:column;">
-                    <span class="split-data-lbl" style="font-size:0.65rem; color:#9ca3af; text-transform:uppercase; margin-bottom:2px;">סטופ לוס</span>
-                    <span class="split-data-val" style="font-size:1.1rem; font-weight:800; direction:ltr; text-align:left; color:#ff5252">${sTerm.stop_loss || 'N/A'}</span>
-                </div>
-            </div>
+        <div class="bg-darker rounded-xl p-5 border border-glassBorder">
+            <div class="text-[11px] text-danger font-black uppercase tracking-widest mb-3 flex items-center gap-2">⚠️ גורמי סיכון</div>
+            <ul class="space-y-2">${consHtml}</ul>
         </div>
-    </div>
-
-    <div class="verdict-columns">
-        <div class="verdict-col"><div class="verdict-col-title pros">✅ נקודות חוזק</div><div class="verdict-col-content">${(safeAnalysis.pros || []).join('\n')}</div></div>
-        <div class="verdict-col"><div class="verdict-col-title cons">⚠️ גורמי סיכון</div><div class="verdict-col-content">${(safeAnalysis.cons || []).join('\n')}</div></div>
     </div>
     
-    ${!isError ? `<div style="background: linear-gradient(135deg, rgba(255,214,10,0.1), rgba(255,214,10,0.02)); border: 1px solid rgba(255,214,10,0.3); padding: 24px; border-radius: 16px; text-align: center; box-shadow: 0 8px 32px rgba(255,214,10,0.06); margin-top:20px;">
-         <div style="font-size: 0.85rem; color: #ffd740; font-weight: 800; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em;">🎯 פוטנציאל רווח (מול תחזית 12 חודשים)</div>
-         <div style="font-size: 1.05rem; font-weight: 800; color: ${parseFloat(upside) >= 0 ? '#00e676' : '#ff5252'}; direction:ltr;">${parseFloat(upside) >= 0 ? '▲ אפסייד:' : '▼ דאונסייד:'} ${parseFloat(upside) >= 0 ? '+' : ''}${upside}%</div>
-    </div>` : ''}`);
+    <!-- Upside Potential -->
+    ${!isError ? `
+    <div class="bg-warning/10 border border-warning/30 p-6 rounded-2xl text-center shadow-[0_8px_32px_rgba(255,215,64,0.06)] mb-8">
+         <div class="text-xs text-warning font-black mb-2 uppercase tracking-widest">🎯 פוטנציאל רווח (מול תחזית 12 חודשים)</div>
+         <div class="text-xl font-black ${parseFloat(upside) >= 0 ? 'text-success' : 'text-danger'}" dir="ltr">
+            ${parseFloat(upside) >= 0 ? '▲ אפסייד:' : '▼ דאונסייד:'} ${parseFloat(upside) >= 0 ? '+' : ''}${upside}%
+         </div>
+    </div>` : ''}
+`;
+
+const existingProfile = document.getElementById('company-profile-container');
+if (existingProfile) {
+    existingProfile.innerHTML = profileHtml;
+}
 
   if (safeAnalysis.news_sentiment_score) {
       const score = safeAnalysis.news_sentiment_score;
