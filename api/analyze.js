@@ -491,6 +491,42 @@ function cleanJSON(text) {
     }
 }
 
+function normalizeGeminiModel(model) {
+    const m = String(model || '').trim().toLowerCase();
+    if (!m) return '';
+    if (m.includes('plus') || m === 'gemini-2.5-plus') return 'gemini-2.5-flash';
+    if (m.includes('fast')) return 'gemini-2.5-flash';
+    return m;
+}
+
+function getGeminiModelCandidates() {
+    const envModel = normalizeGeminiModel(process.env.GEMINI_MODEL);
+    return [...new Set([envModel, 'gemini-2.5-flash', 'gemini-2.5-flash-lite'].filter(Boolean))];
+}
+
+async function fetchGeminiText(geminiKey, promptText, temperature, modelCandidates) {
+    let lastError = null;
+    for (const model of modelCandidates) {
+        try {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: promptText }] }],
+                    generationConfig: { temperature, responseMimeType: "application/json" }
+                })
+            });
+            const payload = await response.json().catch(() => ({}));
+            const text = payload?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            if (response.ok && text) return { text, model };
+            lastError = payload?.error || { message: `Gemini model ${model} returned empty response` };
+        } catch (error) {
+            lastError = { message: error.message || `Gemini model ${model} request failed` };
+        }
+    }
+    return { text: null, model: null, error: lastError };
+}
+
 async function fetchClaudeJson(anthropicKey, promptText) {
     const modelCandidates = [
         process.env.ANTHROPIC_MODEL,
@@ -551,7 +587,7 @@ module.exports = async function(req, res) {
         const action = req.query.action;
         const shouldRunAI = req.query.ai !== '0';
         const aiMode = String(req.query.ai_mode || 'smart').toLowerCase();
-        const geminiModel = process.env.GEMINI_MODEL || 'gemini-2.5-pro';
+        const geminiModelCandidates = getGeminiModelCandidates();
         
         const geminiKey = process.env.GEMINI_API_KEY;
         const anthropicKey = process.env.ANTHROPIC_API_KEY ? process.env.ANTHROPIC_API_KEY.trim() : null; 
@@ -573,13 +609,9 @@ module.exports = async function(req, res) {
             ]`;
 
             try {
-                const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.7, responseMimeType: "application/json" }})
-                });
-                const aiData = await aiRes.json();
-                if (!aiData?.candidates?.length || !aiData.candidates[0]?.content?.parts?.[0]?.text) throw new Error("Gemini empty response");
-                let text = aiData.candidates[0].content.parts[0].text;
+                const geminiAnswer = await fetchGeminiText(geminiKey, prompt, 0.7, geminiModelCandidates);
+                if (!geminiAnswer?.text) throw new Error(geminiAnswer?.error?.message || "Gemini empty response");
+                let text = geminiAnswer.text;
                 let s = text.indexOf('['); let e = text.lastIndexOf(']');
                 if (s !== -1 && e !== -1) text = text.substring(s, e + 1);
                 return res.status(200).json({ success: true, portfolio: JSON.parse(text) });
@@ -708,12 +740,8 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
 {"winner":"TICKER","reasoning":"2-3 משפטים מבוססי נתונים למה היא עדיפה"}`;
 
             try {
-                const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }], generationConfig: { temperature: 0.1, responseMimeType: "application/json" }})
-                });
-                const aiData = await aiRes.json();
-                const text = aiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+                const geminiAnswer = await fetchGeminiText(geminiKey, promptText, 0.1, geminiModelCandidates);
+                const text = geminiAnswer?.text;
                 if (!text) throw new Error("Empty response");
                 const parsed = cleanJSON(text);
                 return res.status(200).json({ success: true, comparison: parsed });
@@ -807,14 +835,8 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         const geminiPromise = (shouldRunAI && geminiKey) ? getOrSetCacheIf(
             geminiCacheKey,
             aiResponseCacheTtlMs,
-            () => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: promptText }] }],
-                    generationConfig: { temperature: aiMode === 'full' ? 0.1 : 0.05, responseMimeType: "application/json" }
-                })
-            }).then(r => r.json()),
-            (value) => Boolean(value?.candidates?.[0]?.content?.parts?.[0]?.text)
+            () => fetchGeminiText(geminiKey, promptText, aiMode === 'full' ? 0.1 : 0.05, geminiModelCandidates),
+            (value) => Boolean(value?.text)
         ) : Promise.resolve(null);
 
         const claudePromise = shouldRunClaude ? getOrSetCacheIf(
@@ -827,12 +849,30 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         const [geminiRes, claudeRes] = await Promise.all([geminiPromise, claudePromise].map(p => p.catch(e => ({ error: { message: e.message } }))));
 
         let geminiData = null;
+        let geminiModelUsed = null;
+        let geminiDebugMsg = null;
         let claudeData = null;
         let claudeModelUsed = null;
         let claudeDebugMsg = null; 
 
-        if (geminiRes?.candidates?.length > 0 && geminiRes.candidates[0]?.content?.parts?.[0]?.text) {
-            geminiData = cleanJSON(geminiRes.candidates[0].content.parts[0].text);
+        if (geminiRes?.text) {
+            geminiData = cleanJSON(geminiRes.text);
+            geminiModelUsed = geminiRes.model || null;
+            if (!geminiData && shouldRunAI && geminiKey) {
+                const retryPrompt = `${promptText}\n\nIMPORTANT: Output one valid JSON object only.`;
+                const geminiRetry = await fetchGeminiText(geminiKey, retryPrompt, 0.05, geminiModelCandidates);
+                if (geminiRetry?.text) {
+                    geminiData = cleanJSON(geminiRetry.text);
+                    geminiModelUsed = geminiRetry.model || geminiModelUsed;
+                    if (!geminiData) {
+                        geminiDebugMsg = "Gemini החזיר טקסט שלא ניתן לפרסר ל-JSON תקין.";
+                    }
+                } else {
+                    geminiDebugMsg = geminiRetry?.error?.message || "Gemini נכשל גם בניסיון תיקון JSON.";
+                }
+            }
+        } else if (shouldRunAI && geminiKey) {
+            geminiDebugMsg = geminiRes?.error?.message || "Gemini לא החזיר תשובה תקינה";
         }
         
         if (!shouldRunAI) {
@@ -954,6 +994,8 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         };
         finalVerdict.model_runtime = {
             gemini: geminiData ? "active" : "missing",
+            gemini_model: geminiModelUsed || null,
+            gemini_note: geminiDebugMsg || null,
             claude: claudeData ? "active" : "missing",
             claude_model: claudeModelUsed || null,
             claude_note: claudeDebugMsg || null
