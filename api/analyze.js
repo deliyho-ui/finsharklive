@@ -494,12 +494,15 @@ function cleanJSON(text) {
 async function fetchClaudeJson(anthropicKey, promptText) {
     const modelCandidates = [
         process.env.ANTHROPIC_MODEL,
+        'claude-sonnet-4-5-20250929',
         'claude-haiku-4-5-20251001',
         'claude-3-5-haiku-latest',
         'claude-3-5-haiku-20241022'
     ].filter(Boolean);
 
     const invoke = async (userPrompt, model) => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 18000);
         const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
@@ -507,6 +510,7 @@ async function fetchClaudeJson(anthropicKey, promptText) {
                 'anthropic-version': '2023-06-01',
                 'content-type': 'application/json'
             },
+            signal: controller.signal,
             body: JSON.stringify({
                 model,
                 max_tokens: 1000,
@@ -514,7 +518,7 @@ async function fetchClaudeJson(anthropicKey, promptText) {
                 system: "Return strictly valid minified JSON only. No markdown, no prose, no code fences.",
                 messages: [{ role: 'user', content: userPrompt }]
             })
-        });
+        }).finally(() => clearTimeout(timeout));
         const payload = await response.json().catch(() => ({}));
         return { ok: response.ok, status: response.status, payload, model };
     };

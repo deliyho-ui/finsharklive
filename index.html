@@ -189,7 +189,7 @@
         }
     </style>
 </head>
-<body class="h-screen flex flex-col md:flex-row antialiased selection:bg-primary selection:text-darker pb-16 md:pb-0">
+<body class="min-h-screen md:h-screen flex flex-col md:flex-row antialiased selection:bg-primary selection:text-darker pb-16 md:pb-0">
     <div class="ambient-glow"></div>
 
     <!-- Mobile Bottom Nav -->
@@ -211,6 +211,9 @@
        </button>
        <button onclick="window.switchTab('academy')" class="flex flex-col items-center p-2 text-gray-500 hover:text-white transition-colors">
           <i class="ph ph-graduation-cap text-xl mb-1"></i><span class="text-[10px] font-bold">אקדמיה</span>
+       </button>
+       <button id="nav-mobile-admin" onclick="window.switchTab('admin')" class="hidden flex-col items-center p-2 text-gray-500 hover:text-white transition-colors">
+          <i class="ph ph-shield-check text-xl mb-1"></i><span class="text-[10px] font-bold">ניהול</span>
        </button>
     </nav>
 
@@ -321,13 +324,19 @@
                 <h1 id="topbar-title" class="text-[13px] font-extrabold tracking-tight text-white">דשבורד ראשי</h1>
             </div>
 
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2 md:gap-4">
                 <div id="topbar-market-status" class="flex items-center gap-1.5 bg-success/10 border border-success/20 px-2.5 py-1 rounded text-success text-[9px] font-black tracking-widest uppercase">
                     <span class="w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_6px_var(--success)] animate-[pulse_2s_infinite]"></span>
                     שוק פעיל
                 </div>
-                <div id="topbar-clock" class="font-mono text-[11px] font-medium text-gray-400 tracking-wider" dir="ltr">15:42:01</div>
-                <span class="bg-primaryDim border border-primary/20 text-primary text-[8px] font-black px-1.5 py-0.5 rounded tracking-widest uppercase">AI ON</span>
+                <div id="topbar-clock" class="hidden sm:block font-mono text-[11px] font-medium text-gray-400 tracking-wider" dir="ltr">15:42:01</div>
+                <span class="hidden sm:inline bg-primaryDim border border-primary/20 text-primary text-[8px] font-black px-1.5 py-0.5 rounded tracking-widest uppercase">AI ON</span>
+                <button id="btn-login" onclick="window.openLogin()" class="bg-primary hover:bg-cyan-400 text-darker font-black text-[10px] px-2.5 py-1.5 rounded-lg transition-colors">
+                    התחברות
+                </button>
+                <button id="btn-logout" onclick="window.logout()" class="hidden bg-glass hover:bg-danger/20 border border-glassBorder hover:border-danger/30 text-gray-300 hover:text-danger font-black text-[10px] px-2.5 py-1.5 rounded-lg transition-colors">
+                    התנתקות
+                </button>
             </div>
         </header>
 
@@ -2372,6 +2381,11 @@ function renderApp() {
   if (navAdmin) {
     navAdmin.classList.toggle('hidden', !isAdmin);
     navAdmin.classList.toggle('flex', isAdmin);
+  }
+  const mobileAdminBtn = document.getElementById('nav-mobile-admin');
+  if (mobileAdminBtn) {
+    mobileAdminBtn.classList.toggle('hidden', !isAdmin);
+    mobileAdminBtn.classList.toggle('flex', isAdmin);
   }
   
   if (isAdmin && State.currentTab === 'admin') { const sec = document.getElementById('section-admin'); if(sec) sec.classList.remove('hidden'); setupAdminDashboard(); }
