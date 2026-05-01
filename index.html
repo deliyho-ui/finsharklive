@@ -1331,6 +1331,42 @@ const ACADEMY_COURSES = [
 
 const AcademyState = { activeCourseId: null, slideIndex: 0 };
 
+function escapeHTML(value) {
+    return String(value || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+}
+
+function renderAcademySlide(course, slideText, slideIndex, maxSlides) {
+    const progress = Math.round(((slideIndex + 1) / maxSlides) * 100);
+    const text = escapeHTML(slideText);
+    return `
+        <div class="relative min-h-[220px] md:min-h-[280px] rounded-2xl border border-primary/20 bg-[radial-gradient(circle_at_top_left,rgba(0,229,255,0.14),transparent_38%),linear-gradient(135deg,rgba(13,13,32,0.96),rgba(2,2,8,0.96))] p-6 md:p-8 overflow-hidden">
+            <div class="absolute inset-x-0 top-0 h-1 bg-white/5">
+                <div class="h-full bg-primary shadow-[0_0_14px_rgba(0,229,255,0.7)]" style="width:${progress}%"></div>
+            </div>
+            <div class="flex items-center justify-between gap-3 mb-7">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-10 h-10 rounded-xl ${course.color} flex items-center justify-center border shrink-0">
+                        <i class="ph ${course.icon} text-lg"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="text-[10px] font-black text-primary tracking-widest uppercase">FinShark Slide</div>
+                        <div class="text-sm font-black text-white truncate">${escapeHTML(course.title)}</div>
+                    </div>
+                </div>
+                <div class="text-xs text-gray-500 font-mono shrink-0" dir="ltr">${slideIndex + 1}/${maxSlides}</div>
+            </div>
+            <div class="flex min-h-[120px] items-center">
+                <p class="text-xl md:text-2xl leading-9 md:leading-10 font-black text-white max-w-3xl">${text}</p>
+            </div>
+        </div>
+    `;
+}
+
 function renderAcademyCourses() {
     const grid = document.getElementById('academy-courses-grid');
     if (!grid) return;
@@ -1357,7 +1393,8 @@ function updateAcademyViewer() {
     AcademyState.slideIndex = Math.max(0, Math.min(AcademyState.slideIndex, maxSlides - 1));
     safeText('academy-viewer-title', course.title);
     safeText('academy-viewer-subtitle', course.summary);
-    safeText('academy-slide-content', course.slides[AcademyState.slideIndex] || '');
+    const slideEl = document.getElementById('academy-slide-content');
+    if (slideEl) slideEl.innerHTML = renderAcademySlide(course, course.slides[AcademyState.slideIndex] || '', AcademyState.slideIndex, maxSlides);
     safeText('academy-slide-index', `שקופית ${AcademyState.slideIndex + 1} מתוך ${maxSlides}`);
     const audio = document.getElementById('academy-audio-player');
     const fallback = document.getElementById('academy-audio-fallback');
@@ -1393,6 +1430,7 @@ window.openAcademyCourse = function(courseId) {
     const viewer = document.getElementById('academy-viewer');
     if (viewer) viewer.classList.remove('hidden');
     updateAcademyViewer();
+    viewer?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
 window.closeAcademyCourse = function() {
@@ -1405,12 +1443,14 @@ window.academyNextSlide = function() {
     if (!AcademyState.activeCourseId) return;
     AcademyState.slideIndex += 1;
     updateAcademyViewer();
+    document.getElementById('academy-viewer')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
 window.academyPrevSlide = function() {
     if (!AcademyState.activeCourseId) return;
     AcademyState.slideIndex -= 1;
     updateAcademyViewer();
+    document.getElementById('academy-viewer')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
 function clearExpiredApiCache() {
