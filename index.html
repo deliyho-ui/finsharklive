@@ -2110,7 +2110,9 @@ window.runComparison = async function() {
         
         const renderQ = (q) => {
             if (!q || !q.success) return '<div>אין נתונים זמינים או מניה שגויה</div>';
-            return `<div style="font-size:1.5rem;font-weight:800;margin-bottom:10px;">$${q.price} <span style="font-size:1rem;color:${q.changePercentage>=0?'#00e676':'#ff5252'}">${q.changePercentage}%</span></div>
+            const priceVal = Number(q.price);
+            const changeVal = Number(q.changePercentage);
+            return `<div style="font-size:1.5rem;font-weight:800;margin-bottom:10px;">$${Number.isFinite(priceVal) ? priceVal.toFixed(2) : 'N/A'} <span style="font-size:1rem;color:${changeVal>=0?'#00e676':'#ff5252'}">${Number.isFinite(changeVal) ? `${changeVal.toFixed(2)}%` : 'N/A'}</span></div>
             <div style="font-size:0.85rem;color:var(--text2);margin-bottom:5px;">RSI: <span style="color:#f0f0fa;font-weight:700;">${q.rsi?q.rsi.toFixed(1):'N/A'}</span></div>
             <div style="font-size:0.85rem;color:var(--text2);margin-bottom:5px;">תבנית טכנית: <span style="color:#f0f0fa;font-weight:700;">${q.pattern||'N/A'}</span></div>
             <button class="mt-3 w-full bg-glass border border-glassBorder text-gray-300 hover:text-primary hover:border-primary/30 rounded-lg py-2 text-xs font-black transition-colors" onclick="quickSearch('${q.ticker}')">ניתוח כריש מלא ←</button>`;
@@ -2926,6 +2928,9 @@ safeHTML('chart-buttons-container', chartBtns);
 
   const lTerm = safeAnalysis.long_term || {};
   const sTerm = safeAnalysis.short_term || {};
+  if (!safeAnalysis.long_term || !safeAnalysis.long_term.summary) {
+      lTerm.summary = lTerm.summary || "התחזית הארוכה מבוססת על שילוב ביצועים עסקיים, תמחור וסביבת שוק.";
+  }
 
   let upside = 0;
   const target12M = lTerm.price_target;
