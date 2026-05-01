@@ -197,6 +197,9 @@
        <button onclick="window.switchTab('market')" class="flex flex-col items-center p-2 text-primary transition-colors">
           <i class="ph-fill ph-squares-four text-xl mb-1"></i><span class="text-[10px] font-bold">שוק</span>
        </button>
+       <button onclick="window.switchTab('shark')" class="flex flex-col items-center p-2 text-gray-500 hover:text-white transition-colors">
+          <i class="ph ph-robot text-xl mb-1"></i><span class="text-[10px] font-bold">כריש</span>
+       </button>
        <button onclick="window.switchTab('watchlist')" class="flex flex-col items-center p-2 text-gray-500 hover:text-white transition-colors">
           <i class="ph ph-push-pin text-xl mb-1"></i><span class="text-[10px] font-bold">מעקב</span>
        </button>
@@ -229,23 +232,23 @@
         <nav class="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 relative z-10">
             <div class="text-[9px] font-black text-gray-500 uppercase tracking-widest px-3 mb-1 mt-3">שוק</div>
             
-            <a href="#" class="flex items-center px-3 py-2.5 rounded-lg bg-primaryDim text-primary font-bold border-none transition-all relative overflow-hidden group">
+            <a id="nav-market" href="#" onclick="window.switchTab('market', this); return false;" class="nav-tab flex items-center px-3 py-2.5 rounded-lg bg-primaryDim text-primary font-bold border-none transition-all relative overflow-hidden group">
                 <div class="absolute right-0 top-[20%] bottom-[20%] w-[2px] bg-primary rounded-l shadow-[0_0_8px_var(--primary)]"></div>
                 <i class="ph ph-squares-four text-lg ml-3 opacity-100"></i>
                 דשבורד ראשי
             </a>
             
-            <a href="#" class="flex items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px]">
+            <a id="nav-watchlist" href="#" onclick="window.switchTab('watchlist', this); return false;" class="nav-tab flex items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px]">
                 <i class="ph ph-push-pin text-[17px] ml-3 opacity-50 group-hover:opacity-80"></i>
                 רשימת מעקב
             </a>
 
-            <a href="#" class="flex items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px]">
+            <a id="nav-compare" href="#" onclick="window.switchTab('compare', this); return false;" class="nav-tab flex items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px]">
                 <i class="ph ph-scales text-[17px] ml-3 opacity-50 group-hover:opacity-80"></i>
                 השוואה (VS)
             </a>
             
-            <a href="#" class="flex items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px]">
+            <a id="nav-shark" href="#" onclick="window.switchTab('shark', this); return false;" class="nav-tab flex items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px]">
                 <i class="ph ph-robot text-[17px] ml-3 opacity-50 group-hover:opacity-80"></i>
                 ניתוח AI
                 <i class="ph ph-lock-key text-[9px] mr-auto opacity-30"></i>
@@ -253,7 +256,7 @@
 
             <div class="text-[9px] font-black text-gray-500 uppercase tracking-widest px-3 mb-1 mt-5">תיקים</div>
             
-            <a href="#" class="flex items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px]">
+            <a id="nav-portfolio" href="#" onclick="window.switchTab('portfolio', this); return false;" class="nav-tab flex items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px]">
                 <i class="ph ph-briefcase text-[17px] ml-3 opacity-50 group-hover:opacity-80"></i>
                 תיק השקעות
                 <i class="ph ph-lock-key text-[9px] mr-auto opacity-30"></i>
@@ -261,16 +264,20 @@
             
             <div class="text-[9px] font-black text-gray-500 uppercase tracking-widest px-3 mb-1 mt-5">למידה וקהילה</div>
             
-            <a href="#" class="flex items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px]">
+            <a id="nav-academy" href="#" onclick="window.switchTab('academy', this); return false;" class="nav-tab flex items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px]">
                 <i class="ph ph-graduation-cap text-[17px] ml-3 opacity-50 group-hover:opacity-80"></i>
                 אקדמיה
                 <i class="ph ph-lock-key text-[9px] mr-auto opacity-30"></i>
             </a>
 
-            <a href="#" class="flex items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px]">
+            <a id="nav-community" href="#" onclick="window.switchTab('community', this); return false;" class="nav-tab flex items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px]">
                 <i class="ph ph-users text-[17px] ml-3 opacity-50 group-hover:opacity-80"></i>
                 קהילה
                 <i class="ph ph-lock-key text-[9px] mr-auto opacity-30"></i>
+            </a>
+            <a id="nav-admin" href="#" onclick="window.switchTab('admin', this); return false;" class="nav-tab hidden items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px]">
+                <i class="ph ph-shield-check text-[17px] ml-3 opacity-50 group-hover:opacity-80"></i>
+                ניהול
             </a>
         </nav>
 
@@ -1340,7 +1347,9 @@ const ACADEMY_COURSES = [
         color: 'text-blue-400 border-blue-500/20 bg-blue-500/10',
         title: 'מבוא לים הפתוח',
         summary: 'יסודות שווי שוק, ווליום והבדל בין מסחר להשקעה.',
-        audioSrc: 'איך_שווי_שוק_וווליום_חושפים_לווייתנים.m4a',
+        audioCandidates: [
+            'איך_שווי_שוק_וווליום_חושפים_לווייתנים.m4a'
+        ],
         slides: [
             'שווי שוק = מחיר מניה כפול מספר מניות. זה לא אומר "זולה" או "יקרה", זה אומר גודל חברה.',
             'ווליום גבוה ליד פריצה לרוב מאותת על אמון מוסדי. פריצה בלי ווליום היא לעיתים מלכודת.',
@@ -1353,7 +1362,10 @@ const ACADEMY_COURSES = [
         color: 'text-emerald-400 border-emerald-500/20 bg-emerald-500/10',
         title: 'לקרוא את המספרים',
         summary: 'פונדמנטלס, מכפילים ודוחות בלי רעש מיותר.',
-        audioSrc: 'למה_מניות_מתרסקות_למרות_רווחי_ענק.m4a',
+        audioCandidates: [
+            'למה_מניות_מתרסקות_למרות_רווחי_ענק (1).m4a',
+            'למה_מניות_מתרסקות_למרות_רווחי_ענק.m4a'
+        ],
         slides: [
             'P/E לבדו לא מספיק: תמיד להשוות מול קצב צמיחה, מרווחים ותזרים.',
             'EPS עולה אך מרווח תפעולי נשחק = איכות רווחים חלשה.',
@@ -1366,7 +1378,9 @@ const ACADEMY_COURSES = [
         color: 'text-violet-400 border-violet-500/20 bg-violet-500/10',
         title: 'ניתוח טכני ותזמון',
         summary: 'תמיכה/התנגדות, מומנטום ותזמון כניסה.',
-        audioSrc: 'הפסיכולוגיה_האנושית_שמאחורי_הגרפים_בבורסה.m4a',
+        audioCandidates: [
+            'הפסיכולוגיה_האנושית_שמאחורי_הגרפים_בבורסה.m4a'
+        ],
         slides: [
             'רמות תמיכה/התנגדות הן אזורים ולא מספר מדויק. חפשו אישור נוסף.',
             'RSI קיצוני בלי קונטקסט מגמה עלול להטעות. במגמה חזקה RSI נשאר גבוה זמן רב.',
@@ -1379,7 +1393,9 @@ const ACADEMY_COURSES = [
         color: 'text-rose-400 border-rose-500/20 bg-rose-500/10',
         title: 'ניהול סיכונים פסיכולוגי',
         summary: 'איך שורדים ומרוויחים גם ברצפים קשים.',
-        audioSrc: 'איך_להרוויח_כשטועים_בחצי_מהזמן.m4a',
+        audioCandidates: [
+            'איך_להרוויח_כשטועים_בחצי_מהזמן.m4a'
+        ],
         slides: [
             'כל עסקה חייבת סטופ ברור לפני כניסה. בלי סטופ, אין ניהול סיכון אמיתי.',
             'יחס סיכוי/סיכון 1:2 מאפשר רווחיות גם באחוז הצלחה לא גבוה.',
@@ -1392,7 +1408,7 @@ const ACADEMY_COURSES = [
         color: 'text-amber-300 border-amber-400/20 bg-amber-400/10',
         title: 'מאסטר-קלאס מסכם',
         summary: 'שילוב פונדמנטלי + טכני + ניהול סיכון לתוכנית מסחר מלאה.',
-        audioSrc: '',
+        audioCandidates: [],
         slides: [
             'התחילו במסנן איכות: צמיחה, רווחיות ומאזן בריא.',
             'עברו לגרף: חפשו מבנה שוק חיובי, תמיכה קרובה ויחס סיכוי/סיכון טוב.',
@@ -1402,6 +1418,32 @@ const ACADEMY_COURSES = [
 ];
 
 const AcademyState = { activeCourseId: null, slideIndex: 0 };
+
+function renderAcademySlide(slideText) {
+    const text = String(slideText || '').trim();
+    if (!text) {
+        return '<p class="text-sm text-gray-400">אין תוכן זמין לשקופית זו כרגע.</p>';
+    }
+    const parts = text
+        .split('.')
+        .map((part) => part.trim())
+        .filter(Boolean);
+    if (parts.length <= 1) {
+        return `<p class="text-sm leading-7 text-gray-100">${text}</p>`;
+    }
+    const bullets = parts.map((part) => `
+        <li class="relative pr-5 text-sm leading-7 text-gray-100">
+            <span class="absolute right-0 top-2 w-2 h-2 rounded-full bg-primary/80"></span>
+            ${part}.
+        </li>
+    `).join('');
+    return `
+        <div class="space-y-4">
+            <p class="text-xs font-black tracking-widest text-primary/80 uppercase">עיקרי השקופית</p>
+            <ul class="space-y-2">${bullets}</ul>
+        </div>
+    `;
+}
 
 function renderAcademyCourses() {
     const grid = document.getElementById('academy-courses-grid');
@@ -1429,14 +1471,25 @@ function updateAcademyViewer() {
     AcademyState.slideIndex = Math.max(0, Math.min(AcademyState.slideIndex, maxSlides - 1));
     safeText('academy-viewer-title', course.title);
     safeText('academy-viewer-subtitle', course.summary);
-    safeText('academy-slide-content', course.slides[AcademyState.slideIndex] || '');
+    const slideContentEl = document.getElementById('academy-slide-content');
+    if (slideContentEl) {
+        slideContentEl.innerHTML = renderAcademySlide(course.slides[AcademyState.slideIndex] || '');
+    }
     safeText('academy-slide-index', `שקופית ${AcademyState.slideIndex + 1} מתוך ${maxSlides}`);
     const audio = document.getElementById('academy-audio-player');
     const fallback = document.getElementById('academy-audio-fallback');
     if (audio) {
-        if (course.audioSrc) {
-            audio.src = course.audioSrc;
+        const candidates = Array.isArray(course.audioCandidates) ? course.audioCandidates.filter(Boolean) : [];
+        if (candidates.length > 0) {
+            let activeIndex = 0;
+            audio.src = candidates[activeIndex];
             audio.onerror = () => {
+                activeIndex += 1;
+                if (activeIndex < candidates.length) {
+                    audio.src = candidates[activeIndex];
+                    audio.load();
+                    return;
+                }
                 audio.classList.add('hidden');
                 fallback?.classList.remove('hidden');
             };
@@ -2230,13 +2283,15 @@ window.shareAnalysis = function() { if (!State.currentData) return; const cp = t
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeLogin(); closeUpdateModal(); const resultsEl = document.getElementById('results'); if(resultsEl) resultsEl.style.display = 'none'; const inputEl = document.getElementById('ticker-input'); if(inputEl) inputEl.value=''; document.getElementById('modal-trade')?.classList.add('hidden'); } });
 
 window.switchTab = function(tab, el) {
-  if (tab === 'academy') {
-      window.location.href = './academy.html';
-      return;
-  }
   const isLoggedIn = State.currentUser !== null;
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
   const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
+  if (tab === 'admin' && !isAdmin) {
+      if (!isLoggedIn) { window.openLogin(); return; }
+      State.currentTab = isApproved ? 'shark' : 'pending';
+      renderApp();
+      return;
+  }
   
   if ((tab === 'shark' || tab === 'watchlist' || tab === 'community' || tab === 'portfolio') && !isAdmin) {
       if (!isLoggedIn) { window.openLogin(); return; }
@@ -2313,7 +2368,10 @@ function renderApp() {
     if (userWidget) { userWidget.classList.add('hidden'); userWidget.classList.remove('flex'); }
   }
 
-  if(navAdmin) navAdmin.style.display = isAdmin ? '' : 'none';
+  if (navAdmin) {
+    navAdmin.classList.toggle('hidden', !isAdmin);
+    navAdmin.classList.toggle('flex', isAdmin);
+  }
   
   if (isAdmin && State.currentTab === 'admin') { const sec = document.getElementById('section-admin'); if(sec) sec.classList.remove('hidden'); setupAdminDashboard(); }
   else if (State.currentTab === 'pending') { const sec = document.getElementById('section-pending'); if(sec) sec.classList.remove('hidden'); }
@@ -2336,7 +2394,8 @@ function renderApp() {
     portfolio: 'ph-briefcase',
     watchlist: 'ph-push-pin',
     academy: 'ph-graduation-cap',
-    community: 'ph-users'
+    community: 'ph-users',
+    admin: 'ph-shield-check'
   };
   document.querySelectorAll('aside nav a').forEach(link => {
     const icon = link.querySelector('i');

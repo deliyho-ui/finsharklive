@@ -289,6 +289,16 @@ function trailingReturn(points, sessions) {
     return ((last / prior) - 1) * 100;
 }
 
+function trendStrength(points, lookback = 90) {
+    if (!Array.isArray(points) || points.length < Math.max(lookback, 30)) return null;
+    const slice = points.slice(-lookback);
+    const first = slice[0]?.close;
+    const last = slice[slice.length - 1]?.close;
+    if (!Number.isFinite(first) || !Number.isFinite(last) || first <= 0) return null;
+    const slope = ((last / first) - 1) * 100;
+    return slope;
+}
+
 function calculateATR(points, period = 14) {
     if (!Array.isArray(points) || points.length <= period) return null;
     const slice = points.slice(-(period + 1));
@@ -360,6 +370,7 @@ function buildQuantScorecard({ fundamentals, currPrice, chartPointsDaily, spyPoi
     const above200 = Number.isFinite(lastPoint.ma200) && currPrice >= lastPoint.ma200;
     const oneMonth = trailingReturn(chartPointsDaily, 21);
     const sixMonth = trailingReturn(chartPointsDaily, 126);
+    const trend90 = trendStrength(chartPointsDaily, 90);
     const rs = Number(relativeStrength);
     const peGood = fundamentals.revenueGrowth > 18 ? 28 : 18;
     const peBad = fundamentals.revenueGrowth > 18 ? 70 : 45;
@@ -401,7 +412,8 @@ function buildQuantScorecard({ fundamentals, currPrice, chartPointsDaily, spyPoi
         { score: scoreHigherBetter(rs, -12, 18), weight: 1.3 },
         { score: scoreRange(rsiVal, 20, 85, 42, 66), weight: 0.9 },
         { score: scoreHigherBetter(oneMonth, -12, 16), weight: 0.8 },
-        { score: scoreHigherBetter(sixMonth, -25, 35), weight: 0.8 }
+        { score: scoreHigherBetter(sixMonth, -25, 35), weight: 0.8 },
+        { score: scoreHigherBetter(trend90, -18, 22), weight: 0.9 }
     ]);
 
     const quality = weightedAverage([
@@ -425,7 +437,7 @@ function buildQuantScorecard({ fundamentals, currPrice, chartPointsDaily, spyPoi
         fundamentals.peRatio, fundamentals.psRatio, fundamentals.pbRatio, fundamentals.revenueGrowth,
         fundamentals.operatingMargin, fundamentals.netMargin, fundamentals.roe, fundamentals.roic,
         fundamentals.currentRatio, fundamentals.quickRatio, fundamentals.debtToEquity, lastPoint.ma50,
-        lastPoint.ma200, rsiVal, relativeStrength, priceTargetData?.targetMedian
+        lastPoint.ma200, rsiVal, relativeStrength, priceTargetData?.targetMedian, trend90
     ];
     const availableMetrics = metricValues.filter(v => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v))).length;
     const confidence = clampNumber(35 + availableMetrics * 3.5 + (chartPointsDaily.length >= 200 ? 10 : 0) + (recentEarnings.length >= 2 ? 6 : 0), 35, 92);
@@ -450,6 +462,7 @@ function buildQuantScorecard({ fundamentals, currPrice, chartPointsDaily, spyPoi
         drivers: [
             { label: "מומנטום", value: above50 && above200 ? "המחיר מעל MA50 ו-MA200" : !above50 && !above200 ? "המחיר מתחת לשני הממוצעים" : "המגמה מעורבת", score: momentum },
             { label: "עוצמה יחסית", value: `${rs > 0 ? "+" : ""}${Number.isFinite(rs) ? rs.toFixed(2) : "0.00"}% מול SPY בחודש`, score: scoreHigherBetter(rs, -12, 18) || 50 },
+            { label: "עוצמת מגמה", value: `${Number.isFinite(trend90) ? `${trend90 > 0 ? "+" : ""}${trend90.toFixed(2)}%` : "N/A"} ב-90 ימי מסחר`, score: scoreHigherBetter(trend90, -18, 22) || 50 },
             { label: "תמחור", value: `P/E ${fundamentals.peRatio || "N/A"} · P/S ${fundamentals.psRatio || "N/A"}`, score: valuation },
             { label: "רווחיות", value: `Operating ${fundamentals.operatingMargin || "N/A"}% · ROIC ${fundamentals.roic || "N/A"}%`, score: profitability }
         ]
