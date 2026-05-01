@@ -259,12 +259,6 @@
                 <i class="ph ph-lock-key text-[9px] mr-auto opacity-30"></i>
             </a>
             
-            <a href="#" class="flex items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px]">
-                <i class="ph ph-funnel text-[17px] ml-3 opacity-50 group-hover:opacity-80"></i>
-                סורק מניות
-                <i class="ph ph-lock-key text-[9px] mr-auto opacity-30"></i>
-            </a>
-
             <div class="text-[9px] font-black text-gray-500 uppercase tracking-widest px-3 mb-1 mt-5">למידה וקהילה</div>
             
             <a href="#" class="flex items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px]">
@@ -781,25 +775,6 @@
                 </div>
             </div> <!-- /#section-shark -->
 
-            <!-- SECTION: SCREENER -->
-            <div id="section-screener" class="section hidden space-y-6">
-                <div class="mb-6">
-                    <h2 class="text-2xl font-black text-white flex items-center gap-2 mb-1"><i class="ph ph-funnel text-primary"></i> סורק מניות</h2>
-                    <p class="text-sm text-gray-400">איתור מהיר של מניות בתנועה, עם מעבר ישיר לניתוח הכריש.</p>
-                </div>
-
-                <div class="glass-panel rounded-[14px] p-5 border border-glassBorder">
-                    <div class="flex flex-wrap gap-2 mb-5">
-                        <button onclick="loadScreener('day_gainers', this)" class="modal-tab active px-4 py-2 rounded-lg text-xs font-black text-white bg-card border border-glassBorder">מובילות היום</button>
-                        <button onclick="loadScreener('day_losers', this)" class="modal-tab px-4 py-2 rounded-lg text-xs font-black text-gray-400 hover:text-white hover:bg-white/5">יורדות היום</button>
-                        <button onclick="loadScreener('most_actives', this)" class="modal-tab px-4 py-2 rounded-lg text-xs font-black text-gray-400 hover:text-white hover:bg-white/5">פעילות במיוחד</button>
-                        <button onclick="loadScreener('undervalued_growth_equities', this)" class="modal-tab px-4 py-2 rounded-lg text-xs font-black text-gray-400 hover:text-white hover:bg-white/5">צמיחה במחיר נוח</button>
-                        <button onclick="loadScreener('aggressive_small_caps', this)" class="modal-tab px-4 py-2 rounded-lg text-xs font-black text-gray-400 hover:text-white hover:bg-white/5">סיכון גבוה</button>
-                    </div>
-                    <div id="screener-results" class="min-h-[220px] text-sm text-gray-500 font-bold">טוען תוצאות...</div>
-                </div>
-            </div> <!-- /#section-screener -->
-
             <!-- SECTION: COMPARE (VS) -->
             <div id="section-compare" class="section hidden space-y-6">
                 <div class="mb-6">
@@ -1000,8 +975,8 @@
                             <div class="text-[11px] uppercase tracking-wider text-gray-500 font-bold mb-3">פודקאסט סיכום</div>
                             <audio id="academy-audio-player" controls class="w-full"></audio>
                             <p id="academy-audio-fallback" class="text-xs text-warning mt-3 hidden">קובץ האודיו לקורס הזה עדיין לא זמין בפרויקט. אפשר להאזין כשיועלה קובץ פודקאסט.</p>
-                            <button id="academy-open-legacy" onclick="openLegacyAcademy()" class="mt-4 w-full py-2.5 rounded-lg border border-primary/30 text-primary hover:bg-primary/10 transition-colors text-sm font-bold">
-                                פתח מצגת מלאה בחלון חדש
+                            <button onclick="closeAcademyCourse()" class="mt-4 w-full py-2.5 rounded-lg border border-primary/30 text-primary hover:bg-primary/10 transition-colors text-sm font-bold">
+                                חזור לרשימת הקורסים
                             </button>
                         </div>
                     </div>
@@ -1166,7 +1141,6 @@
             // Map icon classes to section IDs
             const iconToSectionMap = {
                 'ph-squares-four': 'section-market',
-                'ph-funnel': 'section-screener',
                 'ph-scales': 'section-compare',
                 'ph-robot': 'section-shark',
                 'ph-briefcase': 'section-portfolio',
@@ -1176,7 +1150,6 @@
             };
             const sectionToTabMap = {
                 'section-market': 'market',
-                'section-screener': 'screener',
                 'section-compare': 'compare',
                 'section-shark': 'shark',
                 'section-portfolio': 'portfolio',
@@ -1498,11 +1471,6 @@ window.academyPrevSlide = function() {
     if (!AcademyState.activeCourseId) return;
     AcademyState.slideIndex -= 1;
     updateAcademyViewer();
-};
-
-window.openLegacyAcademy = function() {
-    if (!AcademyState.activeCourseId) return;
-    window.open(`academy.html?course=${AcademyState.activeCourseId}`, '_blank');
 };
 
 function clearExpiredApiCache() {
@@ -2113,35 +2081,6 @@ window.adminClearCache = async function() {
     } catch(e) { alert('שגיאה במחיקה: ' + e.message); }
 };
 
-window.loadScreener = async function(type, btnEl) {
-    if (btnEl) {
-        document.querySelectorAll('#section-screener .modal-tab').forEach(b => b.classList.remove('active'));
-        btnEl.classList.add('active');
-    }
-    const resultsEl = document.getElementById('screener-results');
-    resultsEl.innerHTML = `<div class="flex flex-col items-center justify-center gap-3 py-12 text-gray-400">
-        <div class="w-10 h-10 rounded-full border-2 border-transparent border-t-primary animate-spin"></div>
-        <p class="text-sm font-bold">הכריש סורק את השוק...</p>
-    </div>`;
-    try {
-        const json = await fetchApi('screener', { type }, { ttlMs: 45000 });
-        if(!json.success || !json.data || json.data.length === 0) {
-            resultsEl.innerHTML = '<div style="padding:20px;text-align:center;color:#9ca3af;">לא נמצאו תוצאות לסריקה זו.</div>';
-            return;
-        }
-        let html = '<div style="display:grid; grid-template-columns:1fr; gap:10px;">';
-        json.data.slice(0, 15).forEach(item => {
-            const chg = Number(item.changesPercentage) > 0 ? '+' : '';
-            const color = Number(item.changesPercentage) >= 0 ? '#00e676' : '#ff5252';
-            html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:var(--bg); border:1px solid var(--border); border-radius:10px; cursor:pointer;" onclick="quickSearch('${item.symbol}')"><div style="display:flex;align-items:center;gap:12px;"><div style="font-weight:800;font-size:1.1rem;width:60px;">${item.symbol}</div><div style="font-size:0.85rem;color:#9ca3af;">${item.name}</div></div><div style="text-align:right;"><div style="font-weight:700;">$${Number(item.price).toFixed(2)}</div><div style="font-size:0.85rem;color:${color};direction:ltr;">${chg}${Number(item.changesPercentage).toFixed(2)}%</div></div></div>`;
-        });
-        html += '</div>';
-        resultsEl.innerHTML = html;
-    } catch(e) {
-        resultsEl.innerHTML = '<div style="color:#ff5252;padding:20px;">שגיאה בטעינת נתונים</div>';
-    }
-};
-
 window.runComparison = async function() {
     const t1 = document.getElementById('compare-ticker-1').value.trim().toUpperCase();
     const t2 = document.getElementById('compare-ticker-2').value.trim().toUpperCase();
@@ -2268,20 +2207,12 @@ window.switchTab = function(tab, el) {
       if (!isApproved) { State.currentTab = 'pending'; renderApp(); return; }
   }
   
-  if (tab === 'screener') {
-      setTimeout(() => { 
-          const screenerHTML = document.getElementById('screener-results').innerHTML;
-          if(screenerHTML.includes('טוען')) window.loadScreener('day_gainers'); 
-      }, 50);
-  }
-  
   State.currentTab = tab;
   renderApp();
 };
 
 const TAB_NAMES = {
   'market': 'שוק',
-  'screener': 'סורק מניות',
   'compare': 'השוואת מניות',
   'shark': 'ניתוח AI',
   'portfolio': 'תיק השקעות',
@@ -2293,7 +2224,7 @@ const TAB_NAMES = {
 };
 
 function renderApp() {
-  ['section-market', 'section-screener', 'section-compare', 'section-pending', 'section-shark', 'section-admin', 'section-watchlist', 'section-community', 'section-portfolio', 'section-academy'].forEach(s => { const elem = document.getElementById(s); if(elem) elem.classList.add('hidden'); });
+  ['section-market', 'section-compare', 'section-pending', 'section-shark', 'section-admin', 'section-watchlist', 'section-community', 'section-portfolio', 'section-academy'].forEach(s => { const elem = document.getElementById(s); if(elem) elem.classList.add('hidden'); });
   
   const isLoggedIn = State.currentUser !== null;
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
@@ -2354,8 +2285,7 @@ function renderApp() {
   else if (State.currentTab === 'community') { const sec = document.getElementById('section-community'); if(sec) sec.classList.remove('hidden'); loadTopSetupsData(); }
   else if (State.currentTab === 'watchlist') { const sec = document.getElementById('section-watchlist'); if(sec) sec.classList.remove('hidden'); renderWatchlist(); loadWatchlistSnapshot(); startWatchlistRefresh(); }
   else if (State.currentTab === 'portfolio') { const sec = document.getElementById('section-portfolio'); if(sec) sec.classList.remove('hidden'); renderPortfolio(); }
-  else if (State.currentTab === 'academy') { const sec = document.getElementById('section-academy'); if(sec) sec.classList.remove('hidden'); }
-  else if (State.currentTab === 'screener') { const sec = document.getElementById('section-screener'); if(sec) sec.classList.remove('hidden'); }
+  else if (State.currentTab === 'academy') { const sec = document.getElementById('section-academy'); if(sec) sec.classList.remove('hidden'); renderAcademyCourses(); }
   else if (State.currentTab === 'compare') { const sec = document.getElementById('section-compare'); if(sec) sec.classList.remove('hidden'); }
   else { const sec = document.getElementById('section-market'); if(sec) sec.classList.remove('hidden'); }
   if (State.currentTab !== 'watchlist' && watchlistRefreshTimer) {
@@ -2365,7 +2295,6 @@ function renderApp() {
   
   const tabIconMap = {
     market: 'ph-squares-four',
-    screener: 'ph-funnel',
     compare: 'ph-scales',
     shark: 'ph-robot',
     portfolio: 'ph-briefcase',
