@@ -553,10 +553,11 @@ module.exports = async function(req, res) {
         const anthropicKey = process.env.ANTHROPIC_API_KEY ? process.env.ANTHROPIC_API_KEY.trim() : null; 
         const finnhubKey = process.env.FINNHUB_API_KEY;
 
-        if (!geminiKey || !finnhubKey) return res.status(200).json({ success: false, message: "Missing API Keys" });
+        if (!finnhubKey) return res.status(200).json({ success: false, message: "Missing FINNHUB API key" });
 
         // --- תיק מניות כריש ---
         if (action === 'shark_portfolio') {
+            if (!geminiKey) return res.status(200).json({ success: false, message: "Missing GEMINI API key" });
             const prompt = `You are "FinShark", an elite Wall Street AI hedge fund manager. 
             Construct a 5-stock model portfolio for today's market environment. 
             Choose real, highly traded US stocks. Balance it between Growth, Value, and Momentum.
@@ -662,6 +663,7 @@ module.exports = async function(req, res) {
         }
 
         if (action === 'compare') {
+            if (!geminiKey) return res.status(200).json({ success: false, message: "Missing GEMINI API key" });
             const t1 = (req.query.t1 || "").toUpperCase().trim();
             const t2 = (req.query.t2 || "").toUpperCase().trim();
             if (!t1 || !t2) return res.status(200).json({ success: false, message: "Missing tickers" });
@@ -798,7 +800,7 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         const geminiCacheKey = buildCacheKey('ai_gemini', `${ticker}:${aiMode}`);
         const claudeCacheKey = buildCacheKey('ai_claude', `${ticker}:${aiMode}`);
 
-        const geminiPromise = shouldRunAI ? getOrSetCacheIf(
+        const geminiPromise = (shouldRunAI && geminiKey) ? getOrSetCacheIf(
             geminiCacheKey,
             aiResponseCacheTtlMs,
             () => fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
@@ -831,6 +833,8 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         
         if (!shouldRunAI) {
             claudeDebugMsg = "מצב חסכון API: בוצע ניתוח כמותי ללא קריאת מודלי AI.";
+        } else if (!geminiKey) {
+            claudeDebugMsg = "מפתח GEMINI_API_KEY חסר. בוצע ניתוח כמותי עם Claude אם זמין.";
         } else if (!shouldRunClaude) {
             claudeDebugMsg = aiMode === 'full' ? "Claude אינו זמין כרגע, הניתוח נשען על Gemini ונתונים כמותיים." : "מצב Smart: הופעל מודל יחיד.";
         } else if (!anthropicKey) {

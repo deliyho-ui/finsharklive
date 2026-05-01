@@ -2286,6 +2286,7 @@ window.switchTab = function(tab, el) {
   const isLoggedIn = State.currentUser !== null;
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
   const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
+
   if (tab === 'admin' && !isAdmin) {
       if (!isLoggedIn) { window.openLogin(); return; }
       State.currentTab = isApproved ? 'shark' : 'pending';
@@ -2398,6 +2399,7 @@ function renderApp() {
     admin: 'ph-shield-check'
   };
   document.querySelectorAll('aside nav a').forEach(link => {
+    if (link.id === 'nav-admin' && !isAdmin) return;
     const icon = link.querySelector('i');
     const isActive = icon?.classList.contains(tabIconMap[State.currentTab]);
     const indicator = link.querySelector('div.absolute');
