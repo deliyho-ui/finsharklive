@@ -435,32 +435,14 @@
                 <div class="lg:col-span-2 glass-panel rounded-[14px] p-5 flex flex-col hover-lift">
                     <div class="flex justify-between items-center mb-4">
                         <div class="text-[10px] font-bold text-gray-400">ביצועים תקופתיים (S&P 500)</div>
-                        <div class="flex gap-[3px]">
-                            <button class="px-[10px] py-1 border border-glassBorder bg-transparent rounded text-[10px] font-bold text-gray-400 font-mono hover:text-white hover:border-gray-600 transition-colors">1D</button>
-                            <button class="px-[10px] py-1 border border-primary/30 bg-primaryDim rounded text-[10px] font-bold text-primary font-mono transition-colors">1M</button>
-                            <button class="px-[10px] py-1 border border-glassBorder bg-transparent rounded text-[10px] font-bold text-gray-400 font-mono hover:text-white hover:border-gray-600 transition-colors">3M</button>
-                            <button class="px-[10px] py-1 border border-glassBorder bg-transparent rounded text-[10px] font-bold text-gray-400 font-mono hover:text-white hover:border-gray-600 transition-colors">1Y</button>
+                        <div id="market-chart-timeframes" class="flex gap-[3px]">
+                            <button data-days="1" onclick="window.setMarketChartPeriod(1)" class="px-[10px] py-1 border border-glassBorder bg-transparent rounded text-[10px] font-bold text-gray-400 font-mono hover:text-white hover:border-gray-600 transition-colors">1D</button>
+                            <button data-days="30" onclick="window.setMarketChartPeriod(30)" class="px-[10px] py-1 border border-primary/30 bg-primaryDim rounded text-[10px] font-bold text-primary font-mono transition-colors">1M</button>
+                            <button data-days="90" onclick="window.setMarketChartPeriod(90)" class="px-[10px] py-1 border border-glassBorder bg-transparent rounded text-[10px] font-bold text-gray-400 font-mono hover:text-white hover:border-gray-600 transition-colors">3M</button>
+                            <button data-days="365" onclick="window.setMarketChartPeriod(365)" class="px-[10px] py-1 border border-glassBorder bg-transparent rounded text-[10px] font-bold text-gray-400 font-mono hover:text-white hover:border-gray-600 transition-colors">1Y</button>
                         </div>
                     </div>
-                    
-                    <!-- Simulated Chart Canvas Area -->
-                    <div class="chart-container bg-darker rounded-[8px] overflow-hidden border border-glassBorder relative isolate">
-                        <!-- Chart Grid background -->
-                        <div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
-                        
-                        <!-- Decorative Spline -->
-                        <svg class="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-                            <defs>
-                                <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.15"/>
-                                    <stop offset="100%" stop-color="#00e5ff" stop-opacity="0"/>
-                                </linearGradient>
-                            </defs>
-                            <path d="M0,70 Q10,65 20,75 T40,55 T60,65 T80,30 T100,20 L100,100 L0,100 Z" fill="url(#chartGradient)"></path>
-                            <path d="M0,70 Q10,65 20,75 T40,55 T60,65 T80,30 T100,20" fill="none" stroke="#00e5ff" stroke-width="0.5" class="drop-shadow-[0_0_8px_rgba(0,229,255,0.8)]"></path>
-                        </svg>
-
-                        <!-- Legend Overlay -->
+                    <div id="market-spx-chart" class="chart-container bg-darker rounded-[8px] overflow-hidden border border-glassBorder relative isolate">
                         <div class="absolute top-2.5 right-2.5 flex flex-col gap-1.5 z-10 pointer-events-none">
                             <div class="flex items-center gap-1.5 text-[9px] font-bold text-gray-400">
                                 <div class="w-2.5 h-[3px] rounded-sm bg-primary"></div> SPX Live
@@ -1231,6 +1213,13 @@ function getAnalyzeModeLabel(mode) {
     return 'Smart';
 }
 
+function isAdminUser(user) {
+    if (!user) return false;
+    const email = String(user.email || '').toLowerCase();
+    // Backward compatibility: some legacy user docs used isAdmin instead of role.
+    return user.role === 'admin' || user.isAdmin === true || email === 'admin@finshark.com';
+}
+
 function getAnalyzeModeQuotaState(user, mode) {
     const usage = getUserTodayUsage(user);
     const limit = DAILY_ANALYZE_LIMITS[mode] || 0;
@@ -1248,7 +1237,7 @@ function getAnalyzeModeQuotaState(user, mode) {
 function refreshAnalyzeQuotaUI(mode = State.aiMode || 'smart') {
     const quotaEl = document.getElementById('ai-mode-usage');
     const analyzeBtn = document.getElementById('btn-analyze');
-    const isAdmin = State.currentUser?.role === 'admin';
+    const isAdmin = isAdminUser(State.currentUser);
     if (isAdmin) {
         if (quotaEl) quotaEl.textContent = 'מנהל מערכת: ללא מגבלת שימוש יומית';
         if (analyzeBtn) {
@@ -1927,7 +1916,7 @@ onAuthStateChanged(auth, async (user) => {
         refreshAnalyzeQuotaUI(State.aiMode || 'smart');
 
         if (State.currentTab === 'pending' && userData.status === 'approved') State.currentTab = 'shark';
-        else if (State.currentTab === 'pending' && userData.role === 'admin') State.currentTab = 'admin';
+        else if (State.currentTab === 'pending' && isAdminUser(userData)) State.currentTab = 'admin';
         renderApp();
       }
     });
@@ -2228,7 +2217,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeLogin
 window.switchTab = function(tab, el) {
   const isLoggedIn = State.currentUser !== null;
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
-  const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
+  const isAdmin = isAdminUser(State.currentUser);
 
   if (tab === 'admin' && !isAdmin) {
       if (!isLoggedIn) { window.openLogin(); return; }
@@ -2263,7 +2252,7 @@ function renderApp() {
   
   const isLoggedIn = State.currentUser !== null;
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
-  const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
+  const isAdmin = isAdminUser(State.currentUser);
 
   if ((State.currentTab === 'shark' || State.currentTab === 'watchlist' || State.currentTab === 'community' || State.currentTab === 'portfolio') && !isAdmin && !isApproved) {
       State.currentTab = isLoggedIn ? 'pending' : 'market';
@@ -2385,6 +2374,65 @@ window.loadMarketWeather = async function() {
 };
 
 const mapSectorToHebrew = (engName) => { const map = { "Technology": "טכנולוגיה", "Healthcare": "בריאות", "Financials": "פיננסים", "Consumer Cyclical": "מוצרי צריכה", "Communication Services": "תקשורת", "Industrials": "תעשייה", "Consumer Defensive": "מוצרי יסוד", "Energy": "אנרגיה", "Real Estate": "נדל\"ן", "Utilities": "תשתיות", "Basic Materials": "חומרי גלם", "כללי": "כללי" }; return map[engName] || engName; };
+let activeMarketTf = '1M';
+function buildMarketPreviewSeries(basePrice = 510, dayChangePct = 0, tf = '1M') {
+  const pointsByTf = { '1D': 30, '1M': 45, '3M': 65, '1Y': 90 };
+  const points = pointsByTf[tf] || 45;
+  const series = [];
+  const drift = dayChangePct / 100;
+  let value = basePrice * (1 - drift * 0.7);
+  for (let i = 0; i < points; i++) {
+      const noise = (Math.random() - 0.5) * 0.9;
+      const trend = drift * ((i + 1) / points) * 1.8;
+      value = Math.max(1, value + noise + trend);
+      series.push(Number(value.toFixed(2)));
+  }
+  return series;
+}
+function renderMarketPreviewChart(indexes = [], tf = activeMarketTf) {
+  const container = document.getElementById('market-spx-chart');
+  if (!container) return;
+  const spx = indexes.find((x) => String(x.symbol).includes('S&P')) || indexes[0] || {};
+  const base = Number(spx.price || 510);
+  const chg = Number(spx.changesPercentage || 0);
+  const vals = buildMarketPreviewSeries(base, chg, tf);
+  const max = Math.max(...vals);
+  const min = Math.min(...vals);
+  const norm = (v) => ((v - min) / Math.max(1, max - min));
+  const step = 100 / Math.max(1, vals.length - 1);
+  const points = vals.map((v, i) => `${(i * step).toFixed(2)},${(82 - norm(v) * 52).toFixed(2)}`).join(' ');
+  const first = vals[0] || base;
+  const last = vals[vals.length - 1] || base;
+  const up = last >= first;
+  container.innerHTML = `
+    <svg class="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
+      <defs>
+        <linearGradient id="marketChartFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${up ? '#30d158' : '#ff453a'}" stop-opacity="0.22"/>
+          <stop offset="100%" stop-color="${up ? '#30d158' : '#ff453a'}" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <polyline points="${points} 100,100 0,100" fill="url(#marketChartFill)"></polyline>
+      <polyline points="${points}" fill="none" stroke="${up ? '#30d158' : '#ff453a'}" stroke-width="1.5"></polyline>
+    </svg>
+  `;
+}
+window.setMarketTimeframe = function(tf, btn) {
+  activeMarketTf = tf;
+  document.querySelectorAll('#market-chart-timeframes .market-tf-btn').forEach((el) => {
+      el.className = "market-tf-btn px-[10px] py-1 border border-glassBorder bg-transparent rounded text-[10px] font-bold text-gray-400 font-mono hover:text-white hover:border-gray-600 transition-colors";
+  });
+  if (btn) {
+      btn.className = "market-tf-btn px-[10px] py-1 border border-primary/30 bg-primaryDim rounded text-[10px] font-bold text-primary font-mono transition-colors";
+  }
+  renderMarketPreviewChart(window._lastMarketIndexes || [], activeMarketTf);
+};
+window.setMarketChartPeriod = function(days) {
+  const map = { 1: '1D', 30: '1M', 90: '3M', 365: '1Y' };
+  const tf = map[Number(days)] || '1M';
+  const btn = document.querySelector(`#market-chart-timeframes [data-days="${Number(days)}"]`);
+  window.setMarketTimeframe(tf, btn);
+};
 
 function renderMarketWeather(data) {
   let { indexes, sectors, news, gainers, losers } = data;
@@ -2404,6 +2452,8 @@ function renderMarketWeather(data) {
   }
   safeHTML('ticker-track', tickerHtml + tickerHtml);
   safeHTML('market-stats', statsHtml);
+  window._lastMarketIndexes = indexes;
+  renderMarketPreviewChart(indexes, activeMarketTf);
 
   if (sectors.length > 0) {
       const html = sectors.slice(0, 12).map(s => { const chg = parseFloat(s.changesPercentage); const isUp = chg > 0; const isNeutral = chg === 0; const cls = isNeutral ? 'neutral' : (isUp ? 'up' : 'down'); return `<div class="heatmap-cell ${cls}" title="${s.sector}"><div class="cell-name">${mapSectorToHebrew(s.sector)}</div><div class="cell-change ${cls}">${!isNaN(chg) ? (isUp?'+':'') + chg.toFixed(2) + '%' : '0%'}</div></div>`; }).join('');
@@ -2457,7 +2507,7 @@ window.analyzeStock = async function() {
   const warnEl = document.getElementById('rate-limit-warning');
   debugEl.style.display = 'none';
   warnEl.style.display = 'none';
-  const isAdmin = State.currentUser?.role === 'admin';
+  const isAdmin = isAdminUser(State.currentUser);
   const selectedMode = State.aiMode || 'smart';
 
   const cacheDoc = await getDoc(doc(db, 'ai_cache', ticker));
