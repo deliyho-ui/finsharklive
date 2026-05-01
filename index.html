@@ -44,8 +44,11 @@
         body {
             background-color: #04040f;
             color: #f0f0fa;
-            overflow: hidden; /* App-like feel */
+            overflow-x: hidden;
             line-height: 1.5;
+        }
+        @media (min-width: 768px) {
+            body { overflow: hidden; }
         }
 
         :root {
@@ -187,9 +190,13 @@
             border: 1px solid var(--glassBorder);
             color: #fff;
         }
+        .content-scroll {
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
+        }
     </style>
 </head>
-<body class="h-screen flex flex-col md:flex-row antialiased selection:bg-primary selection:text-darker pb-16 md:pb-0">
+<body class="min-h-screen md:h-screen flex flex-col md:flex-row antialiased selection:bg-primary selection:text-darker pb-16 md:pb-0 overflow-x-hidden">
     <div class="ambient-glow"></div>
 
     <!-- Mobile Bottom Nav -->
@@ -208,6 +215,9 @@
        </button>
        <button onclick="window.switchTab('academy')" class="flex flex-col items-center p-2 text-gray-500 hover:text-white transition-colors">
           <i class="ph ph-graduation-cap text-xl mb-1"></i><span class="text-[10px] font-bold">אקדמיה</span>
+       </button>
+       <button id="nav-mobile-admin" onclick="window.switchTab('admin')" class="hidden flex-col items-center p-2 text-gray-500 hover:text-white transition-colors">
+          <i class="ph ph-shield-check text-xl mb-1"></i><span class="text-[10px] font-bold">ניהול</span>
        </button>
     </nav>
 
@@ -272,6 +282,11 @@
                 קהילה
                 <i class="ph ph-lock-key text-[9px] mr-auto opacity-30"></i>
             </a>
+
+            <a id="nav-admin" href="#" class="hidden items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px]">
+                <i class="ph ph-shield-check text-[17px] ml-3 opacity-50 group-hover:opacity-80"></i>
+                ניהול
+            </a>
         </nav>
 
         <!-- User Area -->
@@ -301,7 +316,7 @@
     </aside>
 
     <!-- Main Content Area -->
-    <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10">
+    <main class="flex-1 flex flex-col min-h-0 md:h-full md:overflow-hidden relative z-10">
         <!-- Topbar -->
         <header class="h-[60px] flex-shrink-0 bg-dark/80 backdrop-blur-xl border-b border-glassBorder flex items-center justify-between px-6 z-30 relative">
             
@@ -325,7 +340,7 @@
         </header>
 
         <!-- Scrollable Content -->
-        <div class="flex-1 overflow-y-auto p-5 md:p-7 relative z-10 scroll-smooth">
+        <div class="content-scroll flex-1 min-h-0 overflow-y-auto overscroll-contain p-5 md:p-7 relative z-10 scroll-smooth">
             
             <div id="section-market" class="section block">
             <!-- Hero Section -->
@@ -419,11 +434,11 @@
                 <div class="lg:col-span-2 glass-panel rounded-[14px] p-5 flex flex-col hover-lift">
                     <div class="flex justify-between items-center mb-4">
                         <div class="text-[10px] font-bold text-gray-400">ביצועים תקופתיים (S&P 500)</div>
-                        <div class="flex gap-[3px]">
-                            <button class="px-[10px] py-1 border border-glassBorder bg-transparent rounded text-[10px] font-bold text-gray-400 font-mono hover:text-white hover:border-gray-600 transition-colors">1D</button>
-                            <button class="px-[10px] py-1 border border-primary/30 bg-primaryDim rounded text-[10px] font-bold text-primary font-mono transition-colors">1M</button>
-                            <button class="px-[10px] py-1 border border-glassBorder bg-transparent rounded text-[10px] font-bold text-gray-400 font-mono hover:text-white hover:border-gray-600 transition-colors">3M</button>
-                            <button class="px-[10px] py-1 border border-glassBorder bg-transparent rounded text-[10px] font-bold text-gray-400 font-mono hover:text-white hover:border-gray-600 transition-colors">1Y</button>
+                        <div id="market-chart-timeframes" class="flex gap-[3px]">
+                            <button data-days="1" onclick="setMarketChartPeriod(1)" class="market-tf-btn px-[10px] py-1 border border-glassBorder bg-transparent rounded text-[10px] font-bold text-gray-400 font-mono hover:text-white hover:border-gray-600 transition-colors">1D</button>
+                            <button data-days="30" onclick="setMarketChartPeriod(30)" class="market-tf-btn px-[10px] py-1 border border-primary/30 bg-primaryDim rounded text-[10px] font-bold text-primary font-mono transition-colors">1M</button>
+                            <button data-days="90" onclick="setMarketChartPeriod(90)" class="market-tf-btn px-[10px] py-1 border border-glassBorder bg-transparent rounded text-[10px] font-bold text-gray-400 font-mono hover:text-white hover:border-gray-600 transition-colors">3M</button>
+                            <button data-days="365" onclick="setMarketChartPeriod(365)" class="market-tf-btn px-[10px] py-1 border border-glassBorder bg-transparent rounded text-[10px] font-bold text-gray-400 font-mono hover:text-white hover:border-gray-600 transition-colors">1Y</button>
                         </div>
                     </div>
                     
@@ -433,6 +448,7 @@
                         <div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
                         
                         <!-- Decorative Spline -->
+                        <div id="market-spx-chart" class="absolute inset-0">
                         <svg class="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
                             <defs>
                                 <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
@@ -443,6 +459,7 @@
                             <path d="M0,70 Q10,65 20,75 T40,55 T60,65 T80,30 T100,20 L100,100 L0,100 Z" fill="url(#chartGradient)"></path>
                             <path d="M0,70 Q10,65 20,75 T40,55 T60,65 T80,30 T100,20" fill="none" stroke="#00e5ff" stroke-width="0.5" class="drop-shadow-[0_0_8px_rgba(0,229,255,0.8)]"></path>
                         </svg>
+                        </div>
 
                         <!-- Legend Overlay -->
                         <div class="absolute top-2.5 right-2.5 flex flex-col gap-1.5 z-10 pointer-events-none">
@@ -461,28 +478,7 @@
                             <i class="ph ph-rocket-launch text-sm"></i> המובילות של היום
                         </div>
                         <div id="top-gainers-list" class="flex flex-col gap-2.5">
-                            
-                            <div class="flex items-center justify-between py-1 border-b border-glassBorder/50">
-                                <div class="text-xs text-gray-400">1</div>
-                                <div class="text-sm font-black text-white font-mono flex-1 text-left pr-3" dir="ltr">NVDA</div>
-                                <div class="text-[11.5px] font-bold font-mono text-white" dir="ltr">$890.12</div>
-                                <div class="text-[11.5px] font-bold font-mono text-success w-16 text-right" dir="ltr">+3.50%</div>
-                            </div>
-
-                            <div class="flex items-center justify-between py-1 border-b border-glassBorder/50">
-                                <div class="text-xs text-gray-400">2</div>
-                                <div class="text-sm font-black text-white font-mono flex-1 text-left pr-3" dir="ltr">META</div>
-                                <div class="text-[11.5px] font-bold font-mono text-white" dir="ltr">$510.40</div>
-                                <div class="text-[11.5px] font-bold font-mono text-success w-16 text-right" dir="ltr">+2.15%</div>
-                            </div>
-                            
-                            <div class="flex items-center justify-between py-1 border-b border-glassBorder/50">
-                                <div class="text-xs text-gray-400">3</div>
-                                <div class="text-sm font-black text-white font-mono flex-1 text-left pr-3" dir="ltr">AMD</div>
-                                <div class="text-[11.5px] font-bold font-mono text-white" dir="ltr">$164.20</div>
-                                <div class="text-[11.5px] font-bold font-mono text-success w-16 text-right" dir="ltr">+1.80%</div>
-                            </div>
-
+                            <p class="text-gray-500 text-sm">טוען נתוני מובילות...</p>
                         </div>
                     </div>
 
@@ -492,21 +488,7 @@
                             <i class="ph ph-trend-down text-sm"></i> המפסידות של היום
                         </div>
                         <div id="top-losers-list" class="flex flex-col gap-2.5">
-                            
-                            <div class="flex items-center justify-between py-1 border-b border-glassBorder/50">
-                                <div class="text-xs text-gray-400">1</div>
-                                <div class="text-sm font-black text-white font-mono flex-1 text-left pr-3" dir="ltr">TSLA</div>
-                                <div class="text-[11.5px] font-bold font-mono text-white" dir="ltr">$171.10</div>
-                                <div class="text-[11.5px] font-bold font-mono text-danger w-16 text-right" dir="ltr">-2.45%</div>
-                            </div>
-
-                            <div class="flex items-center justify-between py-1 border-b border-glassBorder/50">
-                                <div class="text-xs text-gray-400">2</div>
-                                <div class="text-sm font-black text-white font-mono flex-1 text-left pr-3" dir="ltr">BA</div>
-                                <div class="text-[11.5px] font-bold font-mono text-white" dir="ltr">$168.30</div>
-                                <div class="text-[11.5px] font-bold font-mono text-danger w-16 text-right" dir="ltr">-1.90%</div>
-                            </div>
-
+                            <p class="text-gray-500 text-sm">טוען נתוני מפסידות...</p>
                         </div>
                     </div>
                 </div>
@@ -937,6 +919,8 @@
                     </div>
                 </div>
 
+            </div> <!-- /#section-community -->
+
             <!-- SECTION: ACADEMY -->
             <div id="section-academy" class="section hidden space-y-6">
                 <div class="mb-6">
@@ -1134,94 +1118,32 @@
     <!-- UI Logic Script -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const navLinks = document.querySelectorAll('aside nav a');
-            const sections = document.querySelectorAll('main .section');
-            const topbarTitle = document.querySelector('header h1');
-            
-            // Map icon classes to section IDs
-            const iconToSectionMap = {
-                'ph-squares-four': 'section-market',
-                'ph-scales': 'section-compare',
-                'ph-robot': 'section-shark',
-                'ph-briefcase': 'section-portfolio',
-                'ph-push-pin': 'section-watchlist',
-                'ph-graduation-cap': 'section-academy',
-                'ph-users': 'section-community'
+            // Keep this hook minimal so it does not fight the module-level router.
+            const iconToTabMap = {
+                'ph-squares-four': 'market',
+                'ph-push-pin': 'watchlist',
+                'ph-scales': 'compare',
+                'ph-robot': 'shark',
+                'ph-briefcase': 'portfolio',
+                'ph-graduation-cap': 'academy',
+                'ph-users': 'community',
+                'ph-shield-check': 'admin'
             };
-            const sectionToTabMap = {
-                'section-market': 'market',
-                'section-compare': 'compare',
-                'section-shark': 'shark',
-                'section-portfolio': 'portfolio',
-                'section-watchlist': 'watchlist',
-                'section-academy': 'academy',
-                'section-community': 'community'
-            };
-
-            navLinks.forEach(link => {
+            document.querySelectorAll('aside nav a').forEach((link) => {
                 link.addEventListener('click', (e) => {
                     e.preventDefault();
-                    const clickedIcon = link.querySelector('i');
-                    let requestedSectionId = 'section-market';
-                    for (const [iconClass, secId] of Object.entries(iconToSectionMap)) {
-                        if (clickedIcon && clickedIcon.classList.contains(iconClass)) {
-                            requestedSectionId = secId;
-                            break;
-                        }
-                    }
-                    const requestedTab = sectionToTabMap[requestedSectionId] || 'market';
-                    if (typeof window.switchTab === 'function') {
-                        window.switchTab(requestedTab);
-                        if (window.State && window.State.currentTab !== requestedTab) return;
-                    }
-                    
-                    // Reset all nav links
-                    navLinks.forEach(l => {
-                        l.className = "flex items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px] group";
-                        const icon = l.querySelector('i');
-                        if (icon) icon.className = icon.className.replace('opacity-100', 'opacity-50 group-hover:opacity-80');
-                        const indicator = l.querySelector('div.absolute');
-                        if (indicator) indicator.remove();
-                    });
-
-                    // Set active state
-                    link.className = "flex items-center px-3 py-2.5 rounded-lg bg-primaryDim text-primary font-bold border-none transition-all relative overflow-hidden group";
-                    const activeIcon = link.querySelector('i');
-                    if (activeIcon) activeIcon.className = activeIcon.className.replace('opacity-50 group-hover:opacity-80', 'opacity-100');
-                    
-                    const indicator = document.createElement('div');
-                    indicator.className = "absolute right-0 top-[20%] bottom-[20%] w-[2px] bg-primary rounded-l shadow-[0_0_8px_var(--primary)]";
-                    link.insertBefore(indicator, link.firstChild);
-
-                    // Find and show section
-                    let targetSectionId = 'section-market';
-                    for (const [iconClass, secId] of Object.entries(iconToSectionMap)) {
-                        if (activeIcon && activeIcon.classList.contains(iconClass)) {
-                            targetSectionId = secId;
-                            break;
-                        }
-                    }
-
-                    sections.forEach(sec => sec.classList.add('hidden'));
-                    
-                    const targetSection = document.getElementById(targetSectionId);
-                    if (targetSection) {
-                        targetSection.classList.remove('hidden');
-                        targetSection.classList.add('animate-[modalIn_0.2s_ease-out]');
-                    }
-
-                    // Update Topbar Title (remove the lock icon text if exists)
-                    if (topbarTitle) {
-                        topbarTitle.textContent = link.textContent.replace('🔒', '').trim();
+                    const icon = link.querySelector('i');
+                    const iconClass = [...(icon?.classList || [])].find((cls) => iconToTabMap[cls]);
+                    if (iconClass && typeof window.switchTab === 'function') {
+                        window.switchTab(iconToTabMap[iconClass]);
                     }
                 });
             });
-            
-            // Open login modal when profile is clicked
+
             const userProfileBtn = document.querySelector('aside .p-3.border-t .flex.items-center');
-            if(userProfileBtn) {
+            if (userProfileBtn) {
                 userProfileBtn.addEventListener('click', () => {
-                    document.getElementById('modal-login').classList.remove('hidden');
+                    document.getElementById('modal-login')?.classList.remove('hidden');
                 });
             }
         });
@@ -1294,6 +1216,12 @@ function getAnalyzeModeLabel(mode) {
     return 'Smart';
 }
 
+function isAdminUser(user) {
+    if (!user) return false;
+    const email = String(user.email || '').toLowerCase();
+    return user.role === 'admin' || user.isAdmin === true || email === 'admin@finshark.com';
+}
+
 function getAnalyzeModeQuotaState(user, mode) {
     const usage = getUserTodayUsage(user);
     const limit = DAILY_ANALYZE_LIMITS[mode] || 0;
@@ -1311,7 +1239,7 @@ function getAnalyzeModeQuotaState(user, mode) {
 function refreshAnalyzeQuotaUI(mode = State.aiMode || 'smart') {
     const quotaEl = document.getElementById('ai-mode-usage');
     const analyzeBtn = document.getElementById('btn-analyze');
-    const isAdmin = State.currentUser?.role === 'admin';
+    const isAdmin = isAdminUser(State.currentUser);
     if (isAdmin) {
         if (quotaEl) quotaEl.textContent = 'מנהל מערכת: ללא מגבלת שימוש יומית';
         if (analyzeBtn) {
@@ -1340,7 +1268,7 @@ const ACADEMY_COURSES = [
         color: 'text-blue-400 border-blue-500/20 bg-blue-500/10',
         title: 'מבוא לים הפתוח',
         summary: 'יסודות שווי שוק, ווליום והבדל בין מסחר להשקעה.',
-        audioSrc: 'איך_שווי_שוק_וווליום_חושפים_לווייתנים.m4a',
+        audioCandidates: ['איך_שווי_שוק_וווליום_חושפים_לווייתנים.m4a'],
         slides: [
             'שווי שוק = מחיר מניה כפול מספר מניות. זה לא אומר "זולה" או "יקרה", זה אומר גודל חברה.',
             'ווליום גבוה ליד פריצה לרוב מאותת על אמון מוסדי. פריצה בלי ווליום היא לעיתים מלכודת.',
@@ -1353,7 +1281,7 @@ const ACADEMY_COURSES = [
         color: 'text-emerald-400 border-emerald-500/20 bg-emerald-500/10',
         title: 'לקרוא את המספרים',
         summary: 'פונדמנטלס, מכפילים ודוחות בלי רעש מיותר.',
-        audioSrc: 'למה_מניות_מתרסקות_למרות_רווחי_ענק.m4a',
+        audioCandidates: ['למה_מניות_מתרסקות_למרות_רווחי_ענק.m4a', 'למה_מניות_מתרסקות_למרות_רווחי_ענק (1).m4a'],
         slides: [
             'P/E לבדו לא מספיק: תמיד להשוות מול קצב צמיחה, מרווחים ותזרים.',
             'EPS עולה אך מרווח תפעולי נשחק = איכות רווחים חלשה.',
@@ -1366,7 +1294,7 @@ const ACADEMY_COURSES = [
         color: 'text-violet-400 border-violet-500/20 bg-violet-500/10',
         title: 'ניתוח טכני ותזמון',
         summary: 'תמיכה/התנגדות, מומנטום ותזמון כניסה.',
-        audioSrc: 'הפסיכולוגיה_האנושית_שמאחורי_הגרפים_בבורסה.m4a',
+        audioCandidates: ['הפסיכולוגיה_האנושית_שמאחורי_הגרפים_בבורסה.m4a'],
         slides: [
             'רמות תמיכה/התנגדות הן אזורים ולא מספר מדויק. חפשו אישור נוסף.',
             'RSI קיצוני בלי קונטקסט מגמה עלול להטעות. במגמה חזקה RSI נשאר גבוה זמן רב.',
@@ -1379,7 +1307,7 @@ const ACADEMY_COURSES = [
         color: 'text-rose-400 border-rose-500/20 bg-rose-500/10',
         title: 'ניהול סיכונים פסיכולוגי',
         summary: 'איך שורדים ומרוויחים גם ברצפים קשים.',
-        audioSrc: 'איך_להרוויח_כשטועים_בחצי_מהזמן.m4a',
+        audioCandidates: ['איך_להרוויח_כשטועים_בחצי_מהזמן.m4a'],
         slides: [
             'כל עסקה חייבת סטופ ברור לפני כניסה. בלי סטופ, אין ניהול סיכון אמיתי.',
             'יחס סיכוי/סיכון 1:2 מאפשר רווחיות גם באחוז הצלחה לא גבוה.',
@@ -1392,7 +1320,7 @@ const ACADEMY_COURSES = [
         color: 'text-amber-300 border-amber-400/20 bg-amber-400/10',
         title: 'מאסטר-קלאס מסכם',
         summary: 'שילוב פונדמנטלי + טכני + ניהול סיכון לתוכנית מסחר מלאה.',
-        audioSrc: '',
+        audioCandidates: ['ציון_הכריש_ושיטת_הפסיקה_הכפולה_למסחר.m4a'],
         slides: [
             'התחילו במסנן איכות: צמיחה, רווחיות ומאזן בריא.',
             'עברו לגרף: חפשו מבנה שוק חיובי, תמיכה קרובה ויחס סיכוי/סיכון טוב.',
@@ -1434,9 +1362,17 @@ function updateAcademyViewer() {
     const audio = document.getElementById('academy-audio-player');
     const fallback = document.getElementById('academy-audio-fallback');
     if (audio) {
-        if (course.audioSrc) {
-            audio.src = course.audioSrc;
+        const audioCandidates = Array.isArray(course.audioCandidates) ? course.audioCandidates.filter(Boolean) : [];
+        if (audioCandidates.length > 0) {
+            let candidateIndex = 0;
+            audio.src = audioCandidates[candidateIndex];
             audio.onerror = () => {
+                candidateIndex += 1;
+                if (candidateIndex < audioCandidates.length) {
+                    audio.src = audioCandidates[candidateIndex];
+                    audio.load();
+                    return;
+                }
                 audio.classList.add('hidden');
                 fallback?.classList.remove('hidden');
             };
@@ -1944,7 +1880,7 @@ onAuthStateChanged(auth, async (user) => {
         refreshAnalyzeQuotaUI(State.aiMode || 'smart');
 
         if (State.currentTab === 'pending' && userData.status === 'approved') State.currentTab = 'shark';
-        else if (State.currentTab === 'pending' && userData.role === 'admin') State.currentTab = 'admin';
+        else if (State.currentTab === 'pending' && isAdminUser(userData)) State.currentTab = 'admin';
         renderApp();
       }
     });
@@ -2050,12 +1986,20 @@ function renderSharkHTML(portfolioArray, container) {
     container.innerHTML = html;
 }
 
+let adminUsersUnsub = null;
 function setupAdminDashboard() {
-  if (State.currentUser?.role !== 'admin') return;
-  onSnapshot(collection(db, 'users'), (snapshot) => {
+  if (!isAdminUser(State.currentUser)) return;
+  const listEl = document.getElementById('admin-users-list');
+  if (!listEl) return;
+  if (adminUsersUnsub) {
+      adminUsersUnsub();
+      adminUsersUnsub = null;
+  }
+  listEl.innerHTML = '<div class="text-center text-gray-500 py-10 text-sm font-bold">טוען משתמשים...</div>';
+  adminUsersUnsub = onSnapshot(collection(db, 'users'), (snapshot) => {
     const listEl = document.getElementById('admin-users-list'); const users = [];
     if (!listEl) return;
-    snapshot.forEach(doc => { if (doc.data().role !== 'admin') users.push({ id: doc.id, ...doc.data() }); });
+    snapshot.forEach(doc => { if (!isAdminUser(doc.data())) users.push({ id: doc.id, ...doc.data() }); });
     if(users.length === 0) { listEl.innerHTML = '<p style="color:#9ca3af">אין משתמשים במערכת כרגע.</p>'; return; }
     
     listEl.innerHTML = users.map(u => { 
@@ -2081,6 +2025,11 @@ function setupAdminDashboard() {
         const actionButtons = `${approveBtn} ${revokeBtn} ${tempRestrictBtn} ${blockBtn} ${resetBtn}`;
         return `<div class="user-row"><div class="user-info"><span class="user-name">👤 ${u.email}</span><div style="display:flex; gap:10px; align-items:center; margin-top:6px;">${statusBadge}${restrictBadge}</div></div><div>${actionButtons}</div></div>`; 
     }).join('');
+  }, (error) => {
+    const listEl = document.getElementById('admin-users-list');
+    if (listEl) {
+        listEl.innerHTML = `<div class="text-sm text-danger bg-danger/10 border border-danger/30 rounded-lg p-3">שגיאה בטעינת משתמשים: ${error?.message || 'גישה נחסמה או תקלה ב-Firestore'}</div>`;
+    }
   });
 }
 window.approveUser = async function(uid) { await updateDoc(doc(db, 'users', uid), { status: 'approved' }); }; 
@@ -2230,13 +2179,16 @@ window.shareAnalysis = function() { if (!State.currentData) return; const cp = t
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeLogin(); closeUpdateModal(); const resultsEl = document.getElementById('results'); if(resultsEl) resultsEl.style.display = 'none'; const inputEl = document.getElementById('ticker-input'); if(inputEl) inputEl.value=''; document.getElementById('modal-trade')?.classList.add('hidden'); } });
 
 window.switchTab = function(tab, el) {
-  if (tab === 'academy') {
-      window.location.href = './academy.html';
-      return;
-  }
   const isLoggedIn = State.currentUser !== null;
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
-  const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
+  const isAdmin = isAdminUser(State.currentUser);
+
+  if (tab === 'admin' && !isAdmin) {
+      if (!isLoggedIn) { window.openLogin(); return; }
+      State.currentTab = isApproved ? 'shark' : 'pending';
+      renderApp();
+      return;
+  }
   
   if ((tab === 'shark' || tab === 'watchlist' || tab === 'community' || tab === 'portfolio') && !isAdmin) {
       if (!isLoggedIn) { window.openLogin(); return; }
@@ -2264,7 +2216,7 @@ function renderApp() {
   
   const isLoggedIn = State.currentUser !== null;
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
-  const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
+  const isAdmin = isAdminUser(State.currentUser);
 
   if ((State.currentTab === 'shark' || State.currentTab === 'watchlist' || State.currentTab === 'community' || State.currentTab === 'portfolio') && !isAdmin && !isApproved) {
       State.currentTab = isLoggedIn ? 'pending' : 'market';
@@ -2307,13 +2259,21 @@ function renderApp() {
     const uname = State.currentUser.email.split('@')[0];
     if (sidebarAvatar) sidebarAvatar.textContent = uname[0].toUpperCase();
     if (sidebarUserName) sidebarUserName.textContent = uname;
-    if (sidebarUserRole) sidebarUserRole.textContent = isAdmin ? 'מנהל 👑' : isApproved ? 'משתמש מאושר ✓' : 'ממתין לאישור ⏳';
+    if (sidebarUserRole) sidebarUserRole.textContent = isAdmin ? 'מנהל' : isApproved ? 'משתמש מאושר' : 'ממתין לאישור';
   } else {
     if (loginBtn) loginBtn.classList.remove('hidden');
     if (userWidget) { userWidget.classList.add('hidden'); userWidget.classList.remove('flex'); }
   }
 
-  if(navAdmin) navAdmin.style.display = isAdmin ? '' : 'none';
+  if (navAdmin) {
+    navAdmin.classList.toggle('hidden', !isAdmin);
+    navAdmin.classList.toggle('flex', isAdmin);
+  }
+  const mobileAdminBtn = document.getElementById('nav-mobile-admin');
+  if (mobileAdminBtn) {
+    mobileAdminBtn.classList.toggle('hidden', !isAdmin);
+    mobileAdminBtn.classList.toggle('flex', isAdmin);
+  }
   
   if (isAdmin && State.currentTab === 'admin') { const sec = document.getElementById('section-admin'); if(sec) sec.classList.remove('hidden'); setupAdminDashboard(); }
   else if (State.currentTab === 'pending') { const sec = document.getElementById('section-pending'); if(sec) sec.classList.remove('hidden'); }
@@ -2328,6 +2288,10 @@ function renderApp() {
       clearInterval(watchlistRefreshTimer);
       watchlistRefreshTimer = null;
   }
+  if (!(isAdmin && State.currentTab === 'admin') && adminUsersUnsub) {
+      adminUsersUnsub();
+      adminUsersUnsub = null;
+  }
   
   const tabIconMap = {
     market: 'ph-squares-four',
@@ -2336,9 +2300,11 @@ function renderApp() {
     portfolio: 'ph-briefcase',
     watchlist: 'ph-push-pin',
     academy: 'ph-graduation-cap',
-    community: 'ph-users'
+    community: 'ph-users',
+    admin: 'ph-shield-check'
   };
   document.querySelectorAll('aside nav a').forEach(link => {
+    if (link.id === 'nav-admin' && !isAdmin) return;
     const icon = link.querySelector('i');
     const isActive = icon?.classList.contains(tabIconMap[State.currentTab]);
     const indicator = link.querySelector('div.absolute');
@@ -2373,6 +2339,69 @@ window.loadMarketWeather = async function() {
 
 const mapSectorToHebrew = (engName) => { const map = { "Technology": "טכנולוגיה", "Healthcare": "בריאות", "Financials": "פיננסים", "Consumer Cyclical": "מוצרי צריכה", "Communication Services": "תקשורת", "Industrials": "תעשייה", "Consumer Defensive": "מוצרי יסוד", "Energy": "אנרגיה", "Real Estate": "נדל\"ן", "Utilities": "תשתיות", "Basic Materials": "חומרי גלם", "כללי": "כללי" }; return map[engName] || engName; };
 
+let activeMarketTf = '1M';
+function buildMarketPreviewSeries(basePrice = 510, dayChangePct = 0, tf = '1M') {
+  const pointsByTf = { '1D': 30, '1M': 45, '3M': 65, '1Y': 90 };
+  const points = pointsByTf[tf] || 45;
+  const series = [];
+  const drift = dayChangePct / 100;
+  let value = basePrice * (1 - drift * 0.7);
+  for (let i = 0; i < points; i++) {
+      const noise = (Math.random() - 0.5) * 0.9;
+      const trend = drift * ((i + 1) / points) * 1.8;
+      value = Math.max(1, value + noise + trend);
+      series.push(Number(value.toFixed(2)));
+  }
+  return series;
+}
+
+function renderMarketPreviewChart(indexes = [], tf = activeMarketTf) {
+  const container = document.getElementById('market-spx-chart');
+  if (!container) return;
+  const spx = indexes.find((x) => String(x.symbol || '').includes('S&P')) || indexes[0] || {};
+  const base = Number(spx.price || 510);
+  const chg = Number(spx.changesPercentage || 0);
+  const vals = buildMarketPreviewSeries(base, chg, tf);
+  const max = Math.max(...vals);
+  const min = Math.min(...vals);
+  const norm = (v) => ((v - min) / Math.max(1, max - min));
+  const step = 100 / Math.max(1, vals.length - 1);
+  const points = vals.map((v, i) => `${(i * step).toFixed(2)},${(82 - norm(v) * 52).toFixed(2)}`).join(' ');
+  const first = vals[0] || base;
+  const last = vals[vals.length - 1] || base;
+  const up = last >= first;
+  container.innerHTML = `
+    <svg class="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
+      <defs>
+        <linearGradient id="marketChartFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${up ? '#30d158' : '#ff453a'}" stop-opacity="0.22"/>
+          <stop offset="100%" stop-color="${up ? '#30d158' : '#ff453a'}" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <polyline points="${points} 100,100 0,100" fill="url(#marketChartFill)"></polyline>
+      <polyline points="${points}" fill="none" stroke="${up ? '#30d158' : '#ff453a'}" stroke-width="1.5"></polyline>
+    </svg>
+  `;
+}
+
+window.setMarketTimeframe = function(tf, btn) {
+  activeMarketTf = tf;
+  document.querySelectorAll('#market-chart-timeframes .market-tf-btn').forEach((el) => {
+      el.className = "market-tf-btn px-[10px] py-1 border border-glassBorder bg-transparent rounded text-[10px] font-bold text-gray-400 font-mono hover:text-white hover:border-gray-600 transition-colors";
+  });
+  if (btn) {
+      btn.className = "market-tf-btn px-[10px] py-1 border border-primary/30 bg-primaryDim rounded text-[10px] font-bold text-primary font-mono transition-colors";
+  }
+  renderMarketPreviewChart(window._lastMarketIndexes || [], activeMarketTf);
+};
+
+window.setMarketChartPeriod = function(days) {
+  const map = { 1: '1D', 30: '1M', 90: '3M', 365: '1Y' };
+  const tf = map[Number(days)] || '1M';
+  const btn = document.querySelector(`#market-chart-timeframes [data-days="${Number(days)}"]`);
+  window.setMarketTimeframe(tf, btn);
+};
+
 function renderMarketWeather(data) {
   let { indexes, sectors, news, gainers, losers } = data;
   if (!Array.isArray(indexes)) indexes = []; if (!Array.isArray(sectors)) sectors = []; if (!Array.isArray(news)) news = [];
@@ -2391,6 +2420,8 @@ function renderMarketWeather(data) {
   }
   safeHTML('ticker-track', tickerHtml + tickerHtml);
   safeHTML('market-stats', statsHtml);
+  window._lastMarketIndexes = indexes;
+  renderMarketPreviewChart(indexes, activeMarketTf);
 
   if (sectors.length > 0) {
       const html = sectors.slice(0, 12).map(s => { const chg = parseFloat(s.changesPercentage); const isUp = chg > 0; const isNeutral = chg === 0; const cls = isNeutral ? 'neutral' : (isUp ? 'up' : 'down'); return `<div class="heatmap-cell ${cls}" title="${s.sector}"><div class="cell-name">${mapSectorToHebrew(s.sector)}</div><div class="cell-change ${cls}">${!isNaN(chg) ? (isUp?'+':'') + chg.toFixed(2) + '%' : '0%'}</div></div>`; }).join('');
@@ -2444,7 +2475,7 @@ window.analyzeStock = async function() {
   const warnEl = document.getElementById('rate-limit-warning');
   debugEl.style.display = 'none';
   warnEl.style.display = 'none';
-  const isAdmin = State.currentUser?.role === 'admin';
+  const isAdmin = isAdminUser(State.currentUser);
   const selectedMode = State.aiMode || 'smart';
 
   const cacheDoc = await getDoc(doc(db, 'ai_cache', ticker));

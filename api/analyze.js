@@ -115,10 +115,12 @@ async function fetchYahooScreener(scrId) {
                 changesPercentage: ((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose) * 100
             };
         }));
-        const quotes = results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
+        let quotes = results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
         if (scrId === 'day_losers') {
+            quotes = quotes.filter(q => Number(q.changesPercentage) < 0);
             quotes.sort((a,b) => a.changesPercentage - b.changesPercentage);
         } else if (scrId === 'day_gainers') {
+            quotes = quotes.filter(q => Number(q.changesPercentage) > 0);
             quotes.sort((a,b) => b.changesPercentage - a.changesPercentage);
         } else {
             quotes.sort((a,b) => Math.abs(b.changesPercentage) - Math.abs(a.changesPercentage));
