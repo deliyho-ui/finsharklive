@@ -931,6 +931,12 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
                 claude: claudeData?.scores?.overall ?? null
             }
         };
+        finalVerdict.model_runtime = {
+            gemini: geminiData ? "active" : "missing",
+            claude: claudeData ? "active" : "missing",
+            claude_model: claudeModelUsed || null,
+            claude_note: claudeDebugMsg || null
+        };
 
         return res.status(200).json({
             success: true, isDataComplete: true, ticker, name: profile?.name || ticker, industry: profile?.finnhubIndustry || "N/A", sector: profile?.finnhubIndustry || "N/A",
