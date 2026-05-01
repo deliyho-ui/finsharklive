@@ -26,6 +26,14 @@ async function getOrSetCache(cacheKey, ttlMs, fetcher) {
     return setCached(cacheKey, value, ttlMs);
 }
 
+async function getOrSetCacheIf(cacheKey, ttlMs, fetcher, shouldCache) {
+    const fromCache = getCached(cacheKey);
+    if (fromCache !== null) return fromCache;
+    const value = await fetcher();
+    if (shouldCache(value)) setCached(cacheKey, value, ttlMs);
+    return value;
+}
+
 async function fetchFinnhub(endpoint, params = "") {
     const token = process.env.FINNHUB_API_KEY;
     if (!token) return null;
@@ -471,27 +479,49 @@ function cleanJSON(text) {
 }
 
 async function fetchClaudeJson(anthropicKey, promptText) {
-    const invoke = async (userPrompt) => fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-        body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
-            max_tokens: 1200,
-            temperature: 0.05,
-            system: "Return strictly valid minified JSON only. No markdown, no prose, no code fences.",
-            messages: [{ role: 'user', content: userPrompt }]
-        })
-    }).then(r => r.json());
+    const modelCandidates = [
+        process.env.ANTHROPIC_MODEL,
+        'claude-haiku-4-5-20251001',
+        'claude-3-5-haiku-latest',
+        'claude-3-5-haiku-20241022'
+    ].filter(Boolean);
 
-    const first = await invoke(promptText);
-    const parsedFirst = cleanJSON(first?.content?.[0]?.text || '');
-    if (parsedFirst) return { parsed: parsedFirst };
+    const invoke = async (userPrompt, model) => {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'x-api-key': anthropicKey,
+                'anthropic-version': '2023-06-01',
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify({
+                model,
+                max_tokens: 1000,
+                temperature: 0.05,
+                system: "Return strictly valid minified JSON only. No markdown, no prose, no code fences.",
+                messages: [{ role: 'user', content: userPrompt }]
+            })
+        });
+        const payload = await response.json().catch(() => ({}));
+        return { ok: response.ok, status: response.status, payload, model };
+    };
 
-    const retryPrompt = `${promptText}\n\nIMPORTANT: Output one valid JSON object only.`;
-    const second = await invoke(retryPrompt);
-    const parsedSecond = cleanJSON(second?.content?.[0]?.text || '');
-    if (parsedSecond) return { parsed: parsedSecond };
-    return { parsed: null, error: second?.error || first?.error || null };
+    let lastError = null;
+    for (const model of modelCandidates) {
+        const first = await invoke(promptText, model);
+        const parsedFirst = cleanJSON(first?.payload?.content?.[0]?.text || '');
+        if (parsedFirst) return { parsed: parsedFirst, model };
+
+        const retryPrompt = `${promptText}\n\nIMPORTANT: Output one valid JSON object only.`;
+        const second = await invoke(retryPrompt, model);
+        const parsedSecond = cleanJSON(second?.payload?.content?.[0]?.text || '');
+        if (parsedSecond) return { parsed: parsedSecond, model };
+
+        lastError = second?.payload?.error || first?.payload?.error || {
+            message: `Claude model ${model} failed (HTTP ${second?.status || first?.status || 'unknown'})`
+        };
+    }
+    return { parsed: null, error: lastError };
 }
 
 module.exports = async function(req, res) {
@@ -751,20 +781,35 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
 {"ai_scratchpad":"מחשבות לוגיות קצרות...","confidence_score":85,"internal_logic":"משפט קצר על הדירוג","identity":"תיאור חברה קצר","technical":"ניתוח טכני טהור","long_term":{"summary":"מסקנה","intrinsic_value":"שווי הוגן","accumulation_zone":"טווח","price_target":"יעד 12M"},"short_term":{"summary":"תוכנית סווינג","entry_price":"${formatDollar(currPrice)}","target_price":"${formatDollar(quantScorecard.risk_levels.target)}","stop_loss":"${formatDollar(quantScorecard.risk_levels.stop)}"},"pros":["זכות1"],"cons":["סיכון1"],"news_sentiment_score":8,"scores":${fixedScores},"rating":"${ratingFromScore(quantScorecard.scores.overall)}"}`;
 
         const shouldRunClaude = shouldRunAI && aiMode === 'full' && Boolean(anthropicKey);
-        const geminiPromise = shouldRunAI ? fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: promptText }] }],
-                generationConfig: { temperature: aiMode === 'full' ? 0.1 : 0.05, responseMimeType: "application/json" }
-            })
-        }).then(r => r.json()) : Promise.resolve(null);
+        const aiResponseCacheTtlMs = 7 * 24 * 60 * 60 * 1000;
+        const geminiCacheKey = buildCacheKey('ai_gemini', `${ticker}:${aiMode}`);
+        const claudeCacheKey = buildCacheKey('ai_claude', `${ticker}:${aiMode}`);
 
-        const claudePromise = shouldRunClaude ? fetchClaudeJson(anthropicKey, promptText) : Promise.resolve(null);
+        const geminiPromise = shouldRunAI ? getOrSetCacheIf(
+            geminiCacheKey,
+            aiResponseCacheTtlMs,
+            () => fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: promptText }] }],
+                    generationConfig: { temperature: aiMode === 'full' ? 0.1 : 0.05, responseMimeType: "application/json" }
+                })
+            }).then(r => r.json()),
+            (value) => Boolean(value?.candidates?.[0]?.content?.parts?.[0]?.text)
+        ) : Promise.resolve(null);
+
+        const claudePromise = shouldRunClaude ? getOrSetCacheIf(
+            claudeCacheKey,
+            aiResponseCacheTtlMs,
+            () => fetchClaudeJson(anthropicKey, promptText),
+            (value) => Boolean(value?.parsed)
+        ) : Promise.resolve(null);
 
         const [geminiRes, claudeRes] = await Promise.all([geminiPromise, claudePromise].map(p => p.catch(e => ({ error: { message: e.message } }))));
 
         let geminiData = null;
         let claudeData = null;
+        let claudeModelUsed = null;
         let claudeDebugMsg = null; 
 
         if (geminiRes?.candidates?.length > 0 && geminiRes.candidates[0]?.content?.parts?.[0]?.text) {
@@ -779,6 +824,7 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
             claudeDebugMsg = "מפתח ANTHROPIC_API_KEY חסר ב-Vercel!";
         } else if (claudeRes && claudeRes.parsed) {
             claudeData = claudeRes.parsed;
+            claudeModelUsed = claudeRes.model || null;
         } else if (claudeRes && claudeRes.error) {
             claudeDebugMsg = `שגיאת הרשאות: ${claudeRes.error.message || JSON.stringify(claudeRes.error)}`;
         } else if (!claudeRes) {
@@ -873,7 +919,7 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         finalVerdict.rating = modelPenalty >= 18 ? "מעורב / סיכון גבוה" : ratingFromScore(finalDataScore);
         finalVerdict.short_term = normalizeTradePlan(finalVerdict.short_term, currPrice, quantScorecard.risk_levels);
         finalVerdict.long_term = normalizeLongTermPlan(finalVerdict.long_term, priceTargetData);
-        finalVerdict.internal_logic = `${finalVerdict.internal_logic || ""} | ציון נתונים: ${Math.round(finalDataScore)}/100 | הסכמת מודלים: ${modelAgreement}`.trim();
+        finalVerdict.internal_logic = `${finalVerdict.internal_logic || ""} | ציון נתונים: ${Math.round(finalDataScore)}/100 | הסכמת מודלים: ${modelAgreement}${claudeModelUsed ? ` | Claude: ${claudeModelUsed}` : ""}`.trim();
         finalVerdict.scorecard = {
             data_quality: quantScorecard.data_quality,
             risk_levels: quantScorecard.risk_levels,
