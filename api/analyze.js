@@ -450,18 +450,48 @@ function buildQuantScorecard({ fundamentals, currPrice, chartPointsDaily, spyPoi
 
 function cleanJSON(text) {
     try {
-        let cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+        let cleaned = String(text || '')
+            .replace(/```json/gi, '')
+            .replace(/```/g, '')
+            .replace(/[“”]/g, '"')
+            .replace(/[‘’]/g, "'")
+            .trim();
         const start = cleaned.indexOf('{');
         const end = cleaned.lastIndexOf('}');
         if (start !== -1 && end !== -1) {
-            return JSON.parse(cleaned.substring(start, end + 1));
+            cleaned = cleaned.substring(start, end + 1);
         }
+        cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
         return JSON.parse(cleaned);
     } catch (e) { 
         console.error("❌ שגיאת JSON מקלוד:", e.message);
         console.error("📝 הטקסט המלא שגרם לקריסה:\n", text); 
         return null; 
     }
+}
+
+async function fetchClaudeJson(anthropicKey, promptText) {
+    const invoke = async (userPrompt) => fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 1200,
+            temperature: 0.05,
+            system: "Return strictly valid minified JSON only. No markdown, no prose, no code fences.",
+            messages: [{ role: 'user', content: userPrompt }]
+        })
+    }).then(r => r.json());
+
+    const first = await invoke(promptText);
+    const parsedFirst = cleanJSON(first?.content?.[0]?.text || '');
+    if (parsedFirst) return { parsed: parsedFirst };
+
+    const retryPrompt = `${promptText}\n\nIMPORTANT: Output one valid JSON object only.`;
+    const second = await invoke(retryPrompt);
+    const parsedSecond = cleanJSON(second?.content?.[0]?.text || '');
+    if (parsedSecond) return { parsed: parsedSecond };
+    return { parsed: null, error: second?.error || first?.error || null };
 }
 
 module.exports = async function(req, res) {
@@ -484,11 +514,6 @@ module.exports = async function(req, res) {
 
         // --- תיק מניות כריש ---
         if (action === 'shark_portfolio') {
-            const twoWeeksMs = 14 * 24 * 60 * 60 * 1000;
-            const sharkCached = getCached(buildCacheKey('shark_portfolio', 'default'));
-            if (sharkCached) {
-                return res.status(200).json({ success: true, portfolio: sharkCached });
-            }
             const prompt = `You are "FinShark", an elite Wall Street AI hedge fund manager. 
             Construct a 5-stock model portfolio for today's market environment. 
             Choose real, highly traded US stocks. Balance it between Growth, Value, and Momentum.
@@ -509,13 +534,9 @@ module.exports = async function(req, res) {
                 let text = aiData.candidates[0].content.parts[0].text;
                 let s = text.indexOf('['); let e = text.lastIndexOf(']');
                 if (s !== -1 && e !== -1) text = text.substring(s, e + 1);
-                const parsedPortfolio = JSON.parse(text);
-                setCached(buildCacheKey('shark_portfolio', 'default'), parsedPortfolio, twoWeeksMs);
-                return res.status(200).json({ success: true, portfolio: parsedPortfolio });
+                return res.status(200).json({ success: true, portfolio: JSON.parse(text) });
             } catch (e) {
-                const fallbackPortfolio = [{"ticker": "NVDA", "weight": 30, "role": "מנוע צמיחה ומומנטום", "reason": "שליטה ב-AI"}, {"ticker": "MSFT", "weight": 20, "role": "עוגן ויציבות", "reason": "תזרים יציב"}];
-                setCached(buildCacheKey('shark_portfolio', 'default'), fallbackPortfolio, twoWeeksMs);
-                return res.status(200).json({ success: true, portfolio: fallbackPortfolio });
+                return res.status(200).json({ success: true, portfolio: [{"ticker": "NVDA", "weight": 30, "role": "מנוע צמיחה ומומנטום", "reason": "שליטה ב-AI"}, {"ticker": "MSFT", "weight": 20, "role": "עוגן ויציבות", "reason": "תזרים יציב"}]});
             }
         }
 
@@ -726,12 +747,11 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
 המניה: ${ticker} ($${currPrice}). מאקרו: ${marketContext}. קונצנזוס: ${analystConsensus}. חדשות: ${recentNews || 'אין'}. 
 טכני(סווינג): יומי $${currPrice}, MA50=$${lastPointDaily.ma50}, MA200=$${lastPointDaily.ma200}. מומנטום: RSI=${rsiVal.toFixed(1)}, תבנית: ${patternObj.text}. פונדמנטלס: P/E=${fundamentals.peRatio || 'N/A'}, צמיחה=${fundamentals.revenueGrowth || 'N/A'}%. ${earningsStreak}.
 ציון כמותי מחושב מנתוני שוק, לא לשנות: ${fixedScores}. רמות סווינג מחושבות: יעד ${formatDollar(quantScorecard.risk_levels.target)}, סטופ ${formatDollar(quantScorecard.risk_levels.stop)}.
-הנחיות: 1. להסביר את הציון לפי הנתונים בלבד, 2. technical לגרף בלבד, 3. בלי המלצה אישית או הבטחת תשואה, 4. ללא מרכאות כפולות בתוך טקסטים, 5. לסימולטור Paper Trading וללמידה בלבד, 6. אם נתון חסר החזר N/A ולא תמציא מספרים. החזר JSON תקין ומכווץ במבנה הבא:
+הנחיות: 1. להסביר את הציון לפי הנתונים בלבד, 2. technical לגרף בלבד, 3. בלי המלצה אישית או הבטחת תשואה, 4. ללא מרכאות כפולות בתוך טקסטים, 5. לסימולטור Paper Trading וללמידה בלבד. החזר JSON תקין ומכווץ במבנה הבא:
 {"ai_scratchpad":"מחשבות לוגיות קצרות...","confidence_score":85,"internal_logic":"משפט קצר על הדירוג","identity":"תיאור חברה קצר","technical":"ניתוח טכני טהור","long_term":{"summary":"מסקנה","intrinsic_value":"שווי הוגן","accumulation_zone":"טווח","price_target":"יעד 12M"},"short_term":{"summary":"תוכנית סווינג","entry_price":"${formatDollar(currPrice)}","target_price":"${formatDollar(quantScorecard.risk_levels.target)}","stop_loss":"${formatDollar(quantScorecard.risk_levels.stop)}"},"pros":["זכות1"],"cons":["סיכון1"],"news_sentiment_score":8,"scores":${fixedScores},"rating":"${ratingFromScore(quantScorecard.scores.overall)}"}`;
+
         const shouldRunClaude = shouldRunAI && aiMode === 'full' && Boolean(anthropicKey);
-        const aiResponseCacheKey = buildCacheKey('ai_response', `${ticker}:${aiMode}`);
-        const cachedAiPayload = shouldRunAI ? getCached(aiResponseCacheKey) : null;
-        const geminiPromise = cachedAiPayload ? Promise.resolve(null) : shouldRunAI ? fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+        const geminiPromise = shouldRunAI ? fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{ parts: [{ text: promptText }] }],
@@ -739,17 +759,7 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
             })
         }).then(r => r.json()) : Promise.resolve(null);
 
-        const claudePromise = cachedAiPayload ? Promise.resolve(null) : shouldRunClaude ? fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: { 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-            body: JSON.stringify({
-                model: 'claude-haiku-4-5-20251001',
-                max_tokens: 1200,
-                temperature: 0.1,
-                system: "You are an elite AI financial analyst. Respond ONLY with valid JSON. No markdown, no preambles.",
-                messages: [{ role: 'user', content: promptText }]
-            })
-        }).then(r => r.json()) : Promise.resolve(null);
+        const claudePromise = shouldRunClaude ? fetchClaudeJson(anthropicKey, promptText) : Promise.resolve(null);
 
         const [geminiRes, claudeRes] = await Promise.all([geminiPromise, claudePromise].map(p => p.catch(e => ({ error: { message: e.message } }))));
 
@@ -757,31 +767,24 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         let claudeData = null;
         let claudeDebugMsg = null; 
 
-        if (cachedAiPayload) {
-            geminiData = cachedAiPayload.geminiData || null;
-            claudeData = cachedAiPayload.claudeData || null;
-            claudeDebugMsg = "נעשה שימוש במטמון AI לשיפור מהירות וחיסכון בטוקנים.";
-        } else if (geminiRes?.candidates?.length > 0 && geminiRes.candidates[0]?.content?.parts?.[0]?.text) {
+        if (geminiRes?.candidates?.length > 0 && geminiRes.candidates[0]?.content?.parts?.[0]?.text) {
             geminiData = cleanJSON(geminiRes.candidates[0].content.parts[0].text);
         }
         
         if (!shouldRunAI) {
             claudeDebugMsg = "מצב חסכון API: בוצע ניתוח כמותי ללא קריאת מודלי AI.";
         } else if (!shouldRunClaude) {
-            claudeDebugMsg = aiMode === 'full' ? "Claude אינו זמין כרגע, הניתוח נשען על Gemini ונתונים כמותיים." : "מצב Smart: הופעל מודל יחיד לחיסכון בטוקנים.";
+            claudeDebugMsg = aiMode === 'full' ? "Claude אינו זמין כרגע, הניתוח נשען על Gemini ונתונים כמותיים." : "מצב Smart: הופעל מודל יחיד.";
         } else if (!anthropicKey) {
             claudeDebugMsg = "מפתח ANTHROPIC_API_KEY חסר ב-Vercel!";
-        } else if (claudeRes && claudeRes.content && claudeRes.content[0].text) {
-            claudeData = cleanJSON(claudeRes.content[0].text);
-            if (!claudeData) claudeDebugMsg = "קלוד החזיר טקסט שאינו JSON תקין.";
+        } else if (claudeRes && claudeRes.parsed) {
+            claudeData = claudeRes.parsed;
         } else if (claudeRes && claudeRes.error) {
             claudeDebugMsg = `שגיאת הרשאות: ${claudeRes.error.message || JSON.stringify(claudeRes.error)}`;
         } else if (!claudeRes) {
             claudeDebugMsg = "אין תשובה מהשרת של קלוד.";
-        }
-
-        if (!cachedAiPayload && shouldRunAI && (geminiData || claudeData)) {
-            setCached(aiResponseCacheKey, { geminiData, claudeData }, aiMode === 'full' ? 2 * 60 * 60 * 1000 : 6 * 60 * 60 * 1000);
+        } else {
+            claudeDebugMsg = "קלוד לא החזיר JSON תקין גם אחרי ניסיון תיקון.";
         }
 
         let finalVerdict = { isError: true, identity: "שגיאה בניתוח המניה.", technical: "לא התקבלו נתונים." };
@@ -837,8 +840,7 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
                 rating: finalRating
             };
         } else if (geminiData) {
-            let debugHtml = claudeDebugMsg ? `<br><br><span style="color:var(--red); font-size:0.85em; font-weight:bold;">🔍 שגיאת אבחון (קלוד נכשל): ${claudeDebugMsg}</span>` : "";
-            finalVerdict = { ...geminiData, isError: false, ai_scratchpad: `<span style="color:#0a84ff; font-weight:bold;">🔵 Gemini:</span> ${geminiData.ai_scratchpad}${debugHtml}` };
+            finalVerdict = { ...geminiData, isError: false, ai_scratchpad: `<span style="color:#0a84ff; font-weight:bold;">🔵 Gemini:</span> ${geminiData.ai_scratchpad}` };
         } else if (claudeData) {
             finalVerdict = { ...claudeData, isError: false, ai_scratchpad: `<span style="color:#e67e22; font-weight:bold;">🟠 Claude:</span> ${claudeData.ai_scratchpad}` };
         }
