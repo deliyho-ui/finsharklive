@@ -494,7 +494,6 @@ function cleanJSON(text) {
 async function fetchClaudeJson(anthropicKey, promptText) {
     const modelCandidates = [
         process.env.ANTHROPIC_MODEL,
-        'claude-sonnet-4-5-20250929',
         'claude-haiku-4-5-20251001',
         'claude-3-5-haiku-latest',
         'claude-3-5-haiku-20241022'
@@ -552,6 +551,7 @@ module.exports = async function(req, res) {
         const action = req.query.action;
         const shouldRunAI = req.query.ai !== '0';
         const aiMode = String(req.query.ai_mode || 'smart').toLowerCase();
+        const geminiModel = process.env.GEMINI_MODEL || 'gemini-2.5-pro';
         
         const geminiKey = process.env.GEMINI_API_KEY;
         const anthropicKey = process.env.ANTHROPIC_API_KEY ? process.env.ANTHROPIC_API_KEY.trim() : null; 
@@ -573,7 +573,7 @@ module.exports = async function(req, res) {
             ]`;
 
             try {
-                const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+                const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.7, responseMimeType: "application/json" }})
                 });
@@ -708,7 +708,7 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
 {"winner":"TICKER","reasoning":"2-3 משפטים מבוססי נתונים למה היא עדיפה"}`;
 
             try {
-                const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+                const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }], generationConfig: { temperature: 0.1, responseMimeType: "application/json" }})
                 });
@@ -807,7 +807,7 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         const geminiPromise = (shouldRunAI && geminiKey) ? getOrSetCacheIf(
             geminiCacheKey,
             aiResponseCacheTtlMs,
-            () => fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+            () => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: promptText }] }],
