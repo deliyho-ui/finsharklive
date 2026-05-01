@@ -189,7 +189,7 @@
         }
     </style>
 </head>
-<body class="min-h-screen md:h-screen flex flex-col md:flex-row antialiased selection:bg-primary selection:text-darker pb-16 md:pb-0">
+<body class="min-h-screen md:h-screen flex flex-col md:flex-row antialiased selection:bg-primary selection:text-darker pb-16 md:pb-0 overflow-x-hidden">
     <div class="ambient-glow"></div>
 
     <!-- Mobile Bottom Nav -->
@@ -311,7 +311,7 @@
     </aside>
 
     <!-- Main Content Area -->
-    <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10">
+    <main class="flex-1 flex flex-col min-h-0 md:h-full md:overflow-hidden relative z-10">
         <!-- Topbar -->
         <header class="h-[60px] flex-shrink-0 bg-dark/80 backdrop-blur-xl border-b border-glassBorder flex items-center justify-between px-6 z-30 relative">
             
@@ -341,7 +341,7 @@
         </header>
 
         <!-- Scrollable Content -->
-        <div class="flex-1 overflow-y-auto p-5 md:p-7 relative z-10 scroll-smooth">
+        <div class="content-scroll flex-1 min-h-0 overflow-y-auto p-5 md:p-7 relative z-10 scroll-smooth overscroll-contain">
             
             <div id="section-market" class="section block">
             <!-- Hero Section -->
@@ -1150,94 +1150,11 @@
     <!-- UI Logic Script -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const navLinks = document.querySelectorAll('aside nav a');
-            const sections = document.querySelectorAll('main .section');
-            const topbarTitle = document.querySelector('header h1');
-            
-            // Map icon classes to section IDs
-            const iconToSectionMap = {
-                'ph-squares-four': 'section-market',
-                'ph-scales': 'section-compare',
-                'ph-robot': 'section-shark',
-                'ph-briefcase': 'section-portfolio',
-                'ph-push-pin': 'section-watchlist',
-                'ph-graduation-cap': 'section-academy',
-                'ph-users': 'section-community'
-            };
-            const sectionToTabMap = {
-                'section-market': 'market',
-                'section-compare': 'compare',
-                'section-shark': 'shark',
-                'section-portfolio': 'portfolio',
-                'section-watchlist': 'watchlist',
-                'section-academy': 'academy',
-                'section-community': 'community'
-            };
-
-            navLinks.forEach(link => {
-                link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const clickedIcon = link.querySelector('i');
-                    let requestedSectionId = 'section-market';
-                    for (const [iconClass, secId] of Object.entries(iconToSectionMap)) {
-                        if (clickedIcon && clickedIcon.classList.contains(iconClass)) {
-                            requestedSectionId = secId;
-                            break;
-                        }
-                    }
-                    const requestedTab = sectionToTabMap[requestedSectionId] || 'market';
-                    if (typeof window.switchTab === 'function') {
-                        window.switchTab(requestedTab);
-                        if (window.State && window.State.currentTab !== requestedTab) return;
-                    }
-                    
-                    // Reset all nav links
-                    navLinks.forEach(l => {
-                        l.className = "flex items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px] group";
-                        const icon = l.querySelector('i');
-                        if (icon) icon.className = icon.className.replace('opacity-100', 'opacity-50 group-hover:opacity-80');
-                        const indicator = l.querySelector('div.absolute');
-                        if (indicator) indicator.remove();
-                    });
-
-                    // Set active state
-                    link.className = "flex items-center px-3 py-2.5 rounded-lg bg-primaryDim text-primary font-bold border-none transition-all relative overflow-hidden group";
-                    const activeIcon = link.querySelector('i');
-                    if (activeIcon) activeIcon.className = activeIcon.className.replace('opacity-50 group-hover:opacity-80', 'opacity-100');
-                    
-                    const indicator = document.createElement('div');
-                    indicator.className = "absolute right-0 top-[20%] bottom-[20%] w-[2px] bg-primary rounded-l shadow-[0_0_8px_var(--primary)]";
-                    link.insertBefore(indicator, link.firstChild);
-
-                    // Find and show section
-                    let targetSectionId = 'section-market';
-                    for (const [iconClass, secId] of Object.entries(iconToSectionMap)) {
-                        if (activeIcon && activeIcon.classList.contains(iconClass)) {
-                            targetSectionId = secId;
-                            break;
-                        }
-                    }
-
-                    sections.forEach(sec => sec.classList.add('hidden'));
-                    
-                    const targetSection = document.getElementById(targetSectionId);
-                    if (targetSection) {
-                        targetSection.classList.remove('hidden');
-                        targetSection.classList.add('animate-[modalIn_0.2s_ease-out]');
-                    }
-
-                    // Update Topbar Title (remove the lock icon text if exists)
-                    if (topbarTitle) {
-                        topbarTitle.textContent = link.textContent.replace('🔒', '').trim();
-                    }
-                });
-            });
-            
-            // Open login modal when profile is clicked
+            // Keep this hook minimal to avoid conflicting with module-level routing/rendering.
             const userProfileBtn = document.querySelector('aside .p-3.border-t .flex.items-center');
-            if(userProfileBtn) {
+            if (userProfileBtn) {
                 userProfileBtn.addEventListener('click', () => {
-                    document.getElementById('modal-login').classList.remove('hidden');
+                    document.getElementById('modal-login')?.classList.remove('hidden');
                 });
             }
         });
@@ -1260,6 +1177,10 @@
         @keyframes modalIn {
             from { opacity: 0; transform: translateY(16px) scale(0.97); }
             to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .content-scroll {
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
         }
     </style>
 
@@ -2112,9 +2033,17 @@ function renderSharkHTML(portfolioArray, container) {
     container.innerHTML = html;
 }
 
+let adminUsersUnsub = null;
 function setupAdminDashboard() {
   if (State.currentUser?.role !== 'admin') return;
-  onSnapshot(collection(db, 'users'), (snapshot) => {
+  const listEl = document.getElementById('admin-users-list');
+  if (!listEl) return;
+  if (adminUsersUnsub) {
+      adminUsersUnsub();
+      adminUsersUnsub = null;
+  }
+  listEl.innerHTML = '<div class="text-center text-gray-500 py-10 text-sm font-bold">טוען משתמשים...</div>';
+  adminUsersUnsub = onSnapshot(collection(db, 'users'), (snapshot) => {
     const listEl = document.getElementById('admin-users-list'); const users = [];
     if (!listEl) return;
     snapshot.forEach(doc => { if (doc.data().role !== 'admin') users.push({ id: doc.id, ...doc.data() }); });
@@ -2143,6 +2072,11 @@ function setupAdminDashboard() {
         const actionButtons = `${approveBtn} ${revokeBtn} ${tempRestrictBtn} ${blockBtn} ${resetBtn}`;
         return `<div class="user-row"><div class="user-info"><span class="user-name">👤 ${u.email}</span><div style="display:flex; gap:10px; align-items:center; margin-top:6px;">${statusBadge}${restrictBadge}</div></div><div>${actionButtons}</div></div>`; 
     }).join('');
+  }, (error) => {
+    const listEl = document.getElementById('admin-users-list');
+    if (listEl) {
+        listEl.innerHTML = `<div class="text-sm text-danger bg-danger/10 border border-danger/30 rounded-lg p-3">שגיאה בטעינת משתמשים: ${error?.message || 'גישה נחסמה או תקלה ב-Firestore'}</div>`;
+    }
   });
 }
 window.approveUser = async function(uid) { await updateDoc(doc(db, 'users', uid), { status: 'approved' }); }; 
@@ -2400,6 +2334,10 @@ function renderApp() {
   if (State.currentTab !== 'watchlist' && watchlistRefreshTimer) {
       clearInterval(watchlistRefreshTimer);
       watchlistRefreshTimer = null;
+  }
+  if (!(isAdmin && State.currentTab === 'admin') && adminUsersUnsub) {
+      adminUsersUnsub();
+      adminUsersUnsub = null;
   }
   
   const tabIconMap = {
