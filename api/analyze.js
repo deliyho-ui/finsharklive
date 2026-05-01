@@ -348,10 +348,25 @@ function normalizeTradePlan(plan, currPrice, riskLevels) {
     return next;
 }
 
-function normalizeLongTermPlan(plan, priceTargetData) {
+function normalizeLongTermPlan(plan, priceTargetData, currPrice, quantScorecard) {
     const next = { ...(plan || {}) };
     if (Number.isFinite(Number(priceTargetData?.targetMedian))) {
         next.price_target = formatDollar(Number(priceTargetData.targetMedian));
+    } else {
+        const existingTarget = parsePrice(next.price_target);
+        if (!existingTarget && Number.isFinite(currPrice) && currPrice > 0) {
+            const score = Number(quantScorecard?.scores?.overall || 50);
+            let multiplier = 1.03;
+            if (score >= 65) multiplier = 1.10 + Math.min(0.18, (score - 65) / 100);
+            else if (score <= 38) multiplier = 0.88;
+            next.price_target = formatDollar(currPrice * multiplier);
+        }
+    }
+    if (!parsePrice(next.intrinsic_value) && Number.isFinite(currPrice) && currPrice > 0) {
+        next.intrinsic_value = formatDollar(currPrice * 1.04);
+    }
+    if ((!next.accumulation_zone || next.accumulation_zone === "N/A") && Number.isFinite(currPrice) && currPrice > 0) {
+        next.accumulation_zone = `${formatDollar(currPrice * 0.92)} - ${formatDollar(currPrice * 0.98)}`;
     }
     return next;
 }
@@ -485,7 +500,8 @@ async function fetchClaudeJson(anthropicKey, promptText) {
         process.env.ANTHROPIC_MODEL,
         'claude-haiku-4-5-20251001',
         'claude-3-5-haiku-latest',
-        'claude-3-5-haiku-20241022'
+        'claude-3-5-haiku-20241022',
+        'claude-3-haiku-20240307'
     ].filter(Boolean);
 
     const invoke = async (userPrompt, model) => {
@@ -920,7 +936,7 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         finalVerdict.confidence_score = Math.round(finalConfidence);
         finalVerdict.rating = modelPenalty >= 18 ? "מעורב / סיכון גבוה" : ratingFromScore(finalDataScore);
         finalVerdict.short_term = normalizeTradePlan(finalVerdict.short_term, currPrice, quantScorecard.risk_levels);
-        finalVerdict.long_term = normalizeLongTermPlan(finalVerdict.long_term, priceTargetData);
+        finalVerdict.long_term = normalizeLongTermPlan(finalVerdict.long_term, priceTargetData, currPrice, quantScorecard);
         finalVerdict.internal_logic = `${finalVerdict.internal_logic || ""} | ציון נתונים: ${Math.round(finalDataScore)}/100 | הסכמת מודלים: ${modelAgreement}${claudeModelUsed ? ` | Claude: ${claudeModelUsed}` : ""}`.trim();
         finalVerdict.scorecard = {
             data_quality: quantScorecard.data_quality,
