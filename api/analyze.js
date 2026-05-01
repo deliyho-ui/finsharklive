@@ -1,3 +1,31 @@
+const responseCache = new Map();
+
+function buildCacheKey(namespace, payload = "") {
+    return `${namespace}::${payload}`;
+}
+
+function getCached(cacheKey) {
+    const cached = responseCache.get(cacheKey);
+    if (!cached) return null;
+    if (Date.now() > cached.expiresAt) {
+        responseCache.delete(cacheKey);
+        return null;
+    }
+    return cached.value;
+}
+
+function setCached(cacheKey, value, ttlMs) {
+    responseCache.set(cacheKey, { value, expiresAt: Date.now() + ttlMs });
+    return value;
+}
+
+async function getOrSetCache(cacheKey, ttlMs, fetcher) {
+    const fromCache = getCached(cacheKey);
+    if (fromCache !== null) return fromCache;
+    const value = await fetcher();
+    return setCached(cacheKey, value, ttlMs);
+}
+
 async function fetchFinnhub(endpoint, params = "") {
     const token = process.env.FINNHUB_API_KEY;
     if (!token) return null;
@@ -55,18 +83,39 @@ async function fetchYahooQuote(ticker) {
     } catch (e) { return null; }
 }
 
+const SCREENER_UNIVERSES = {
+    day_gainers: ['NVDA','TSLA','META','AMZN','GOOGL','MSFT','AAPL','AMD','PLTR','ARM','SMCI','AVGO','TSM','MSTR','COIN'],
+    day_losers: ['INTC','BA','PFE','WBA','VFC','MRK','CVS','T','F','GM','PARA','RIVN','NIO','PYPL','PINS'],
+    most_actives: ['SPY','QQQ','AAPL','TSLA','NVDA','AMD','BAC','F','PLTR','SOFI','NIO','AAL','RIVN','MARA','RIOT'],
+    undervalued_growth_equities: ['META','GOOGL','BABA','JD','PYPL','EBAY','WBD','QCOM','MU','AMAT','CSCO','HPQ','IBM','WDC','NTAP'],
+    aggressive_small_caps: ['IONQ','RGTI','QUBT','SOUN','BBAI','SERV','RKLB','ACHR','OPEN','CLOV','HIMS','HOOD','UPST','U','DNA']
+};
+
 async function fetchYahooScreener(scrId) {
+    const tickers = SCREENER_UNIVERSES[scrId] || SCREENER_UNIVERSES.day_gainers;
     try {
-        const url = `https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=false&lang=en-US&region=US&scrIds=${scrId}&count=5`;
-        const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-        const data = await res.json();
-        if(data?.finance?.result?.[0]) {
-            return data.finance.result[0].quotes.map(q => ({
-                symbol: q.symbol, name: q.shortName || q.longName || q.symbol,
-                price: q.regularMarketPrice, changesPercentage: q.regularMarketChangePercent
-            }));
+        const results = await Promise.allSettled(tickers.map(async (sym) => {
+            const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=2d`;
+            const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+            const data = await res.json();
+            const meta = data?.chart?.result?.[0]?.meta;
+            if (!meta?.regularMarketPrice || !meta?.chartPreviousClose) return null;
+            return {
+                symbol: sym,
+                name: meta.longName || meta.shortName || sym,
+                price: Number(meta.regularMarketPrice),
+                changesPercentage: ((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose) * 100
+            };
+        }));
+        const quotes = results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
+        if (scrId === 'day_losers') {
+            quotes.sort((a,b) => a.changesPercentage - b.changesPercentage);
+        } else if (scrId === 'day_gainers') {
+            quotes.sort((a,b) => b.changesPercentage - a.changesPercentage);
+        } else {
+            quotes.sort((a,b) => Math.abs(b.changesPercentage) - Math.abs(a.changesPercentage));
         }
-        return [];
+        return quotes.slice(0, 12);
     } catch(e) { return []; }
 }
 
@@ -182,6 +231,223 @@ function calculateRelativeStrength(stockPoints, spyPoints) {
     return ((stockReturn - spyReturn) * 100).toFixed(2);
 }
 
+function clampNumber(value, min = 0, max = 100, fallback = 50) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(min, Math.min(max, n));
+}
+
+function scoreLowerBetter(value, good, bad) {
+    if (value === null || value === undefined || value === '') return null;
+    if (!Number.isFinite(Number(value))) return null;
+    const v = Number(value);
+    if (v <= good) return 95;
+    if (v >= bad) return 20;
+    return Math.round(95 - ((v - good) / (bad - good)) * 75);
+}
+
+function scoreHigherBetter(value, bad, good) {
+    if (value === null || value === undefined || value === '') return null;
+    if (!Number.isFinite(Number(value))) return null;
+    const v = Number(value);
+    if (v >= good) return 95;
+    if (v <= bad) return 20;
+    return Math.round(20 + ((v - bad) / (good - bad)) * 75);
+}
+
+function scoreRange(value, low, high, idealLow, idealHigh) {
+    if (value === null || value === undefined || value === '') return null;
+    if (!Number.isFinite(Number(value))) return null;
+    const v = Number(value);
+    if (v >= idealLow && v <= idealHigh) return 90;
+    if (v < low || v > high) return 25;
+    if (v < idealLow) return Math.round(25 + ((v - low) / (idealLow - low)) * 65);
+    return Math.round(90 - ((v - idealHigh) / (high - idealHigh)) * 65);
+}
+
+function weightedAverage(items, fallback = 50) {
+    const valid = items.filter(item => Number.isFinite(item.score));
+    if (valid.length === 0) return fallback;
+    const totalWeight = valid.reduce((sum, item) => sum + (item.weight || 1), 0);
+    const total = valid.reduce((sum, item) => sum + item.score * (item.weight || 1), 0);
+    return Math.round(total / totalWeight);
+}
+
+function trailingReturn(points, sessions) {
+    if (!Array.isArray(points) || points.length <= sessions) return null;
+    const last = points[points.length - 1]?.close;
+    const prior = points[points.length - 1 - sessions]?.close;
+    if (!last || !prior) return null;
+    return ((last / prior) - 1) * 100;
+}
+
+function calculateATR(points, period = 14) {
+    if (!Array.isArray(points) || points.length <= period) return null;
+    const slice = points.slice(-(period + 1));
+    let total = 0;
+    for (let i = 1; i < slice.length; i++) {
+        const current = slice[i];
+        const previous = slice[i - 1];
+        const trueRange = Math.max(
+            current.high - current.low,
+            Math.abs(current.high - previous.close),
+            Math.abs(current.low - previous.close)
+        );
+        total += trueRange;
+    }
+    return total / period;
+}
+
+function ratingFromScore(score) {
+    if (score >= 82) return "קנייה חזקה";
+    if (score >= 65) return "קנייה";
+    if (score <= 38) return "מכירה";
+    return "החזקה";
+}
+
+function formatDollar(value) {
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? `$${n.toFixed(2)}` : "N/A";
+}
+
+function parsePrice(value) {
+    const n = Number(String(value || "").replace(/[^0-9.]/g, ""));
+    return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function buildRiskLevels(currPrice, chartPoints, keyLevels) {
+    const atr = calculateATR(chartPoints) || currPrice * 0.035;
+    const resistance = (keyLevels || []).filter(l => l.type.includes('התנגדות') && l.price > currPrice).sort((a,b) => a.price - b.price)[0]?.price;
+    const support = (keyLevels || []).filter(l => l.type.includes('תמיכה') && l.price < currPrice).sort((a,b) => b.price - a.price)[0]?.price;
+    const target = resistance || Math.max(currPrice + atr * 2.2, currPrice * 1.06);
+    const stop = support || Math.max(currPrice - atr * 1.6, currPrice * 0.9);
+    return {
+        atr: Number(atr.toFixed(2)),
+        target: Number(target.toFixed(2)),
+        stop: Number(Math.min(stop, currPrice * 0.98).toFixed(2))
+    };
+}
+
+function normalizeTradePlan(plan, currPrice, riskLevels) {
+    const next = { ...(plan || {}) };
+    const target = parsePrice(next.target_price);
+    const stop = parsePrice(next.stop_loss);
+    next.entry_price = formatDollar(currPrice);
+    if (!target || target <= currPrice || target > currPrice * 1.45) next.target_price = formatDollar(riskLevels.target);
+    if (!stop || stop >= currPrice || stop < currPrice * 0.65) next.stop_loss = formatDollar(riskLevels.stop);
+    return next;
+}
+
+function normalizeLongTermPlan(plan, priceTargetData) {
+    const next = { ...(plan || {}) };
+    if (Number.isFinite(Number(priceTargetData?.targetMedian))) {
+        next.price_target = formatDollar(Number(priceTargetData.targetMedian));
+    }
+    return next;
+}
+
+function buildQuantScorecard({ fundamentals, currPrice, chartPointsDaily, spyPointsDaily, rsiVal, relativeStrength, keyLevels, priceTargetData, earningsData, insiderSentiment }) {
+    const lastPoint = chartPointsDaily[chartPointsDaily.length - 1] || {};
+    const above50 = Number.isFinite(lastPoint.ma50) && currPrice >= lastPoint.ma50;
+    const above200 = Number.isFinite(lastPoint.ma200) && currPrice >= lastPoint.ma200;
+    const oneMonth = trailingReturn(chartPointsDaily, 21);
+    const sixMonth = trailingReturn(chartPointsDaily, 126);
+    const rs = Number(relativeStrength);
+    const peGood = fundamentals.revenueGrowth > 18 ? 28 : 18;
+    const peBad = fundamentals.revenueGrowth > 18 ? 70 : 45;
+    const analystUpside = Number.isFinite(Number(priceTargetData?.targetMedian)) ? ((Number(priceTargetData.targetMedian) / currPrice) - 1) * 100 : null;
+    const recentEarnings = Array.isArray(earningsData) ? earningsData.slice(0, 4).filter(e => Number.isFinite(Number(e.surprisePercent))) : [];
+    const earningsBeatRate = recentEarnings.length ? (recentEarnings.filter(e => e.surprisePercent > 0).length / recentEarnings.length) * 100 : null;
+
+    const valuation = weightedAverage([
+        { score: scoreLowerBetter(fundamentals.peRatio, peGood, peBad), weight: 1.5 },
+        { score: scoreLowerBetter(fundamentals.psRatio, 3, 14), weight: 1 },
+        { score: scoreLowerBetter(fundamentals.pbRatio, 3, 12), weight: 0.8 },
+        { score: scoreHigherBetter(analystUpside, -15, 30), weight: 1.2 }
+    ]);
+
+    const financials = weightedAverage([
+        { score: scoreHigherBetter(fundamentals.currentRatio, 0.8, 2.2), weight: 1 },
+        { score: scoreHigherBetter(fundamentals.quickRatio, 0.6, 1.5), weight: 1 },
+        { score: scoreLowerBetter(fundamentals.debtToEquity, 0.6, 3), weight: 1.4 },
+        { score: scoreRange(fundamentals.beta, 0, 2.6, 0.7, 1.4), weight: 0.6 }
+    ]);
+
+    const profitability = weightedAverage([
+        { score: scoreHigherBetter(fundamentals.grossMargin, 15, 55), weight: 0.8 },
+        { score: scoreHigherBetter(fundamentals.operatingMargin, 3, 28), weight: 1.2 },
+        { score: scoreHigherBetter(fundamentals.netMargin, 0, 22), weight: 1.2 },
+        { score: scoreHigherBetter(fundamentals.roe, 5, 25), weight: 1 },
+        { score: scoreHigherBetter(fundamentals.roic, 4, 18), weight: 1.2 }
+    ]);
+
+    const growth = weightedAverage([
+        { score: scoreHigherBetter(fundamentals.revenueGrowth, -5, 25), weight: 1.3 },
+        { score: scoreHigherBetter(fundamentals.epsGrowth5Y, -5, 25), weight: 1 },
+        { score: scoreHigherBetter(earningsBeatRate, 25, 90), weight: 0.8 }
+    ]);
+
+    const momentum = weightedAverage([
+        { score: above50 ? 76 : 34, weight: 1 },
+        { score: above200 ? 80 : 30, weight: 1.1 },
+        { score: scoreHigherBetter(rs, -12, 18), weight: 1.3 },
+        { score: scoreRange(rsiVal, 20, 85, 42, 66), weight: 0.9 },
+        { score: scoreHigherBetter(oneMonth, -12, 16), weight: 0.8 },
+        { score: scoreHigherBetter(sixMonth, -25, 35), weight: 0.8 }
+    ]);
+
+    const quality = weightedAverage([
+        { score: profitability, weight: 1.4 },
+        { score: financials, weight: 1 },
+        { score: growth, weight: 0.8 }
+    ]);
+
+    let overall = weightedAverage([
+        { score: valuation, weight: 0.18 },
+        { score: financials, weight: 0.15 },
+        { score: profitability, weight: 0.22 },
+        { score: growth, weight: 0.2 },
+        { score: momentum, weight: 0.25 }
+    ]);
+
+    if (insiderSentiment === 'שלילי (מכירות)') overall = Math.max(0, overall - 4);
+    if (insiderSentiment === 'חיובי (קניות)') overall = Math.min(100, overall + 3);
+
+    const metricValues = [
+        fundamentals.peRatio, fundamentals.psRatio, fundamentals.pbRatio, fundamentals.revenueGrowth,
+        fundamentals.operatingMargin, fundamentals.netMargin, fundamentals.roe, fundamentals.roic,
+        fundamentals.currentRatio, fundamentals.quickRatio, fundamentals.debtToEquity, lastPoint.ma50,
+        lastPoint.ma200, rsiVal, relativeStrength, priceTargetData?.targetMedian
+    ];
+    const availableMetrics = metricValues.filter(v => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v))).length;
+    const confidence = clampNumber(35 + availableMetrics * 3.5 + (chartPointsDaily.length >= 200 ? 10 : 0) + (recentEarnings.length >= 2 ? 6 : 0), 35, 92);
+    const riskLevels = buildRiskLevels(currPrice, chartPointsDaily, keyLevels);
+
+    return {
+        scores: {
+            overall: Math.round(overall),
+            valuation, value: valuation,
+            financials,
+            profitability, quality,
+            growth,
+            momentum
+        },
+        confidence_score: Math.round(confidence),
+        data_quality: {
+            available_metrics: availableMetrics,
+            total_metrics: metricValues.length,
+            chart_points: chartPointsDaily.length
+        },
+        risk_levels: riskLevels,
+        drivers: [
+            { label: "מומנטום", value: above50 && above200 ? "המחיר מעל MA50 ו-MA200" : !above50 && !above200 ? "המחיר מתחת לשני הממוצעים" : "המגמה מעורבת", score: momentum },
+            { label: "עוצמה יחסית", value: `${rs > 0 ? "+" : ""}${Number.isFinite(rs) ? rs.toFixed(2) : "0.00"}% מול SPY בחודש`, score: scoreHigherBetter(rs, -12, 18) || 50 },
+            { label: "תמחור", value: `P/E ${fundamentals.peRatio || "N/A"} · P/S ${fundamentals.psRatio || "N/A"}`, score: valuation },
+            { label: "רווחיות", value: `Operating ${fundamentals.operatingMargin || "N/A"}% · ROIC ${fundamentals.roic || "N/A"}%`, score: profitability }
+        ]
+    };
+}
+
 function cleanJSON(text) {
     try {
         let cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -207,6 +473,8 @@ module.exports = async function(req, res) {
     try {
         const ticker = (req.query.ticker || req.query.symbol || "").toUpperCase().trim();
         const action = req.query.action;
+        const shouldRunAI = req.query.ai !== '0';
+        const aiMode = String(req.query.ai_mode || 'smart').toLowerCase();
         
         const geminiKey = process.env.GEMINI_API_KEY;
         const anthropicKey = process.env.ANTHROPIC_API_KEY ? process.env.ANTHROPIC_API_KEY.trim() : null; 
@@ -216,6 +484,11 @@ module.exports = async function(req, res) {
 
         // --- תיק מניות כריש ---
         if (action === 'shark_portfolio') {
+            const twoWeeksMs = 14 * 24 * 60 * 60 * 1000;
+            const sharkCached = getCached(buildCacheKey('shark_portfolio', 'default'));
+            if (sharkCached) {
+                return res.status(200).json({ success: true, portfolio: sharkCached });
+            }
             const prompt = `You are "FinShark", an elite Wall Street AI hedge fund manager. 
             Construct a 5-stock model portfolio for today's market environment. 
             Choose real, highly traded US stocks. Balance it between Growth, Value, and Momentum.
@@ -236,83 +509,145 @@ module.exports = async function(req, res) {
                 let text = aiData.candidates[0].content.parts[0].text;
                 let s = text.indexOf('['); let e = text.lastIndexOf(']');
                 if (s !== -1 && e !== -1) text = text.substring(s, e + 1);
-                return res.status(200).json({ success: true, portfolio: JSON.parse(text) });
+                const parsedPortfolio = JSON.parse(text);
+                setCached(buildCacheKey('shark_portfolio', 'default'), parsedPortfolio, twoWeeksMs);
+                return res.status(200).json({ success: true, portfolio: parsedPortfolio });
             } catch (e) {
-                return res.status(200).json({ success: true, portfolio: [{"ticker": "NVDA", "weight": 30, "role": "מנוע צמיחה ומומנטום", "reason": "שליטה ב-AI"}, {"ticker": "MSFT", "weight": 20, "role": "עוגן ויציבות", "reason": "תזרים יציב"}]});
+                const fallbackPortfolio = [{"ticker": "NVDA", "weight": 30, "role": "מנוע צמיחה ומומנטום", "reason": "שליטה ב-AI"}, {"ticker": "MSFT", "weight": 20, "role": "עוגן ויציבות", "reason": "תזרים יציב"}];
+                setCached(buildCacheKey('shark_portfolio', 'default'), fallbackPortfolio, twoWeeksMs);
+                return res.status(200).json({ success: true, portfolio: fallbackPortfolio });
             }
         }
 
         // --- נתוני שוק ---
-if (action === 'market' || (!action && !ticker)) {
-            const [spy, qqq, dia, iwm, xlk, xlv, xlf, xle, xly, xli, newsData, topGainers, topLosers] = await Promise.all([
-                fetchFinnhub('quote', 'symbol=SPY'), fetchFinnhub('quote', 'symbol=QQQ'), fetchFinnhub('quote', 'symbol=DIA'), fetchFinnhub('quote', 'symbol=IWM'), 
-                fetchFinnhub('quote', 'symbol=XLK'), fetchFinnhub('quote', 'symbol=XLV'), fetchFinnhub('quote', 'symbol=XLF'), fetchFinnhub('quote', 'symbol=XLE'), 
-                fetchFinnhub('quote', 'symbol=XLY'), fetchFinnhub('quote', 'symbol=XLI'), fetchFinnhub('news', 'category=business'),
-                fetchYahooScreener('day_gainers'), fetchYahooScreener('day_losers')
-            ]);
-            return res.status(200).json({
-                success: true, marketData: {
+        if (action === 'market' || (!ticker && action !== 'analyze')) {
+            const marketData = await getOrSetCache(buildCacheKey('market', 'homepage'), 45 * 1000, async () => {
+                const [spy, qqq, dia, iwm, xlk, xlv, xlf, xle, xly, xli, newsData, topGainers, topLosers] = await Promise.all([
+                    fetchFinnhub('quote', 'symbol=SPY'), fetchFinnhub('quote', 'symbol=QQQ'), fetchFinnhub('quote', 'symbol=DIA'), fetchFinnhub('quote', 'symbol=IWM'),
+                    fetchFinnhub('quote', 'symbol=XLK'), fetchFinnhub('quote', 'symbol=XLV'), fetchFinnhub('quote', 'symbol=XLF'), fetchFinnhub('quote', 'symbol=XLE'),
+                    fetchFinnhub('quote', 'symbol=XLY'), fetchFinnhub('quote', 'symbol=XLI'), fetchFinnhub('news', 'category=business'),
+                    fetchYahooScreener('day_gainers'), fetchYahooScreener('day_losers')
+                ]);
+                return {
                     indexes: [{ symbol: 'S&P 500', price: spy?.c, changesPercentage: spy?.dp }, { symbol: 'NASDAQ', price: qqq?.c, changesPercentage: qqq?.dp }, { symbol: 'DOW 30', price: dia?.c, changesPercentage: dia?.dp }, { symbol: 'RUSSELL 2000', price: iwm?.c, changesPercentage: iwm?.dp }],
                     sectors: [{ sector: "Technology", changesPercentage: String(xlk?.dp) }, { sector: "Healthcare", changesPercentage: String(xlv?.dp) }, { sector: "Financials", changesPercentage: String(xlf?.dp) }, { sector: "Industrials", changesPercentage: String(xli?.dp) }, { sector: "Consumer Cyclical", changesPercentage: String(xly?.dp) }, { sector: "Energy", changesPercentage: String(xle?.dp) }],
                     gainers: topGainers, losers: topLosers,
                     news: (Array.isArray(newsData) ? newsData : []).slice(0, 5).map(item => ({ title: item.headline, url: item.url, source: item.source, date: new Date(item.datetime * 1000).toISOString() }))
-                }
+                };
             });
+            return res.status(200).json({ success: true, marketData });
         }
 
         if (action === 'screener') {
             const type = req.query.type || 'day_gainers';
-            const data = await fetchYahooScreener(type);
+            const data = await getOrSetCache(buildCacheKey('screener', type), 45 * 1000, async () => fetchYahooScreener(type));
             return res.status(200).json({ success: true, data });
         }
 
-        // --- השוואת מניות מעודכנת עם נתונים ---
+        if (action === 'watchlist_data') {
+            const rawSymbols = String(req.query.symbols || "")
+                .split(',')
+                .map(s => s.trim().toUpperCase())
+                .filter(Boolean);
+            const symbols = [...new Set(rawSymbols)].slice(0, 40);
+            if (symbols.length === 0) return res.status(200).json({ success: true, data: [] });
+
+            const rows = await Promise.all(symbols.map(async (sym) => {
+                const rowKey = buildCacheKey('watchlist_row', sym);
+                return getOrSetCache(rowKey, 20 * 1000, async () => {
+                    const [quote, chartPoints] = await Promise.all([
+                        fetchYahooQuote(sym),
+                        fetchYahooData(sym, '3mo', '1d')
+                    ]);
+                    const miniSeries = chartPoints.slice(-20).map(point => Number(point.close)).filter(Number.isFinite);
+                    return {
+                        ticker: sym,
+                        price: Number(quote?.c || 0),
+                        changePercentage: Number(quote?.dp || 0),
+                        volume: Number(chartPoints[chartPoints.length - 1]?.volume || 0),
+                        miniSeries
+                    };
+                });
+            }));
+            return res.status(200).json({ success: true, data: rows.filter(Boolean) });
+        }
+
+        if (action === 'symbol_search') {
+            const q = String(req.query.q || "").trim().toUpperCase();
+            if (!q || q.length < 1) return res.status(200).json({ success: true, data: [] });
+            const fallback = [
+                'AAPL','MSFT','NVDA','AMZN','GOOGL','META','TSLA','AMD','AVGO','PLTR',
+                'SPY','QQQ','DIA','IWM','SMCI','TSM','NFLX','INTC','COIN','MSTR'
+            ]
+                .filter((s) => s.includes(q))
+                .slice(0, 10)
+                .map((symbol) => ({ symbol, description: symbol }));
+            const data = await getOrSetCache(buildCacheKey('symbol_search', q), 60 * 1000, async () => {
+                const fromFinnhub = await fetchFinnhub('search', `q=${encodeURIComponent(q)}`);
+                const list = Array.isArray(fromFinnhub?.result) ? fromFinnhub.result : [];
+                if (!list.length) return fallback;
+                return list
+                    .filter((item) => item?.symbol && item?.type === 'Common Stock')
+                    .slice(0, 10)
+                    .map((item) => ({
+                        symbol: String(item.symbol || '').toUpperCase(),
+                        description: item.description || item.displaySymbol || item.symbol
+                    }));
+            });
+            return res.status(200).json({ success: true, data });
+        }
+
         if (action === 'compare') {
             const t1 = (req.query.t1 || "").toUpperCase().trim();
             const t2 = (req.query.t2 || "").toUpperCase().trim();
             if (!t1 || !t2) return res.status(200).json({ success: false, message: "Missing tickers" });
+            const spyComparePointsPromise = fetchYahooData('SPY', '6mo', '1d');
+
+            const fetchLiveSnap = async (sym) => {
+                const [quote, chart] = await Promise.all([
+                    fetchFinnhub('quote', `symbol=${sym}`),
+                    fetchYahooData(sym, '6mo', '1d')
+                ]);
+                if (!quote?.c || !Array.isArray(chart) || chart.length < 30) return null;
+                const spyComparePoints = await spyComparePointsPromise;
+                const last = chart[chart.length - 1] || {};
+                const rsi = calculateRSI(chart.map(p => p.close));
+                const rel = sym === 'SPY' ? 0 : Number(calculateRelativeStrength(chart, spyComparePoints));
+                const aboveMa50 = Number.isFinite(last.ma50) && quote.c >= last.ma50;
+                const aboveMa200 = Number.isFinite(last.ma200) && quote.c >= last.ma200;
+                return {
+                    ticker: sym,
+                    price: Number(quote.c).toFixed(2),
+                    change: Number(quote.dp || 0).toFixed(2),
+                    rsi: Number(rsi).toFixed(1),
+                    ma50: last.ma50 ? Number(last.ma50).toFixed(2) : 'N/A',
+                    ma200: last.ma200 ? Number(last.ma200).toFixed(2) : 'N/A',
+                    trend: aboveMa50 && aboveMa200 ? 'עולה מעל שני ממוצעים' : !aboveMa50 && !aboveMa200 ? 'מתחת לשני ממוצעים' : 'מעורב',
+                    relativeStrength: Number.isFinite(rel) ? rel.toFixed(2) : '0.00',
+                    pattern: detectAllPatterns(chart).text || 'לא זוהתה תבנית'
+                };
+            };
+
+            const [snap1, snap2] = await Promise.all([fetchLiveSnap(t1), fetchLiveSnap(t2)]);
+            if (!snap1 || !snap2) return res.status(200).json({ success: false, message: "לא ניתן למשוך נתונים לאחד הסימולים." });
+
+            const promptText = `אתה אנליסט מניות בכיר. השווה בין שתי המניות רק לפי הנתונים הבאים:
+${t1}: מחיר $${snap1.price} | שינוי יומי ${snap1.change}% | RSI ${snap1.rsi} | מגמה: ${snap1.trend} | עוצמה יחסית ${snap1.relativeStrength}% | תבנית: ${snap1.pattern}
+${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${snap2.rsi} | מגמה: ${snap2.trend} | עוצמה יחסית ${snap2.relativeStrength}% | תבנית: ${snap2.pattern}
+החלט מי עדיפה לטווח קצר-בינוני ללמידה ו-Paper Trading בלבד. החזר JSON בלבד:
+{"winner":"TICKER","reasoning":"2-3 משפטים מבוססי נתונים למה היא עדיפה"}`;
 
             try {
-                // 1. שאיבת נתונים טכניים בזמן אמת לשתי המניות (מחיר + גרפים)
-                const [q1, q2, chart1, chart2] = await Promise.all([
-                    fetchYahooQuote(t1), fetchYahooQuote(t2),
-                    fetchYahooData(t1, '2y', '1d'), fetchYahooData(t2, '2y', '1d')
-                ]);
-
-                // פונקציית עזר להכנת הנתונים ל-AI
-                const formatData = (ticker, q, chart) => {
-                    if (!q || !chart || chart.length === 0) return `${ticker}: אין נתונים זמינים.`;
-                    const rsi = calculateRSI(chart.map(p => p.close));
-                    const last = chart[chart.length - 1];
-                    return `${ticker} - מחיר: $${q.c.toFixed(2)} (שינוי יומי: ${q.dp.toFixed(2)}%), RSI: ${rsi.toFixed(1)}, MA50: $${last.ma50}, MA200: $${last.ma200}`;
-                };
-
-                const data1 = formatData(t1, q1, chart1);
-                const data2 = formatData(t2, q2, chart2);
-
-                // 2. הפרומפט החדש: מכיל את נתוני האמת!
-                const promptText = `אתה סוחר מניות בכיר. משתמש מתלבט בין שתי מניות: ${t1} לבין ${t2}.
-הנה הנתונים שלהן בזמן אמת כרגע:
-1. ${data1}
-2. ${data2}
-
-אנא החזר מבנה JSON תקין המסכם מי המנצחת (בטווח הקצר/בינוני) ומדוע, במבנה הבא בדיוק (ללא רווחים מיותרים, בלי Markdown):
-{"winner":"TICKER","reasoning":"משפט אחד קולע למה היא עדיפה מבוסס על הנתונים שקיבלת"}`;
-
                 const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }], generationConfig: { temperature: 0.2, responseMimeType: "application/json" }})
+                    body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }], generationConfig: { temperature: 0.1, responseMimeType: "application/json" }})
                 });
                 const aiData = await aiRes.json();
                 const text = aiData?.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (!text) throw new Error("Empty response from AI");
-                
+                if (!text) throw new Error("Empty response");
                 const parsed = cleanJSON(text);
-                if (!parsed || !parsed.winner) throw new Error("JSON Parse failed");
-                
                 return res.status(200).json({ success: true, comparison: parsed });
             } catch (e) {
-                console.error("Compare Error:", e);
                 return res.status(200).json({ success: false, message: "שגיאה בניתוח ההשוואה." });
             }
         }
@@ -321,16 +656,20 @@ if (action === 'market' || (!action && !ticker)) {
 
         // --- Cache / Live Data ---
         if (action === 'live_data') {
-            const quote = await fetchYahooQuote(ticker);
-            if (!quote) return res.status(200).json({ success: false, message: "לא ניתן למשוך מחיר למניה זו" });
-            const chartPoints = await fetchYahooData(ticker, '2y', '1d');
-            const lastChartPoint = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1] : {};
-            const patternObj = detectAllPatterns(chartPoints);
-            return res.status(200).json({
-                success: true, ticker, price: Number(quote.c), changePercentage: Number(quote.dp),
-                ma50: lastChartPoint.ma50 || null, ma200: lastChartPoint.ma200 || null, volume: Number(lastChartPoint.volume || 0), 
-                pattern: patternObj.text, patternLines: patternObj.lines, rsi: calculateRSI(chartPoints.map(p=>p.close)), chartData: chartPoints 
+            const liveData = await getOrSetCache(buildCacheKey('live_data', ticker), 20 * 1000, async () => {
+                const quote = await fetchYahooQuote(ticker);
+                if (!quote) return null;
+                const chartPoints = await fetchYahooData(ticker, '2y', '1d');
+                const lastChartPoint = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1] : {};
+                const patternObj = detectAllPatterns(chartPoints);
+                return {
+                    success: true, ticker, price: Number(quote.c), changePercentage: Number(quote.dp),
+                    ma50: lastChartPoint.ma50 || null, ma200: lastChartPoint.ma200 || null, volume: Number(lastChartPoint.volume || 0),
+                    pattern: patternObj.text, patternLines: patternObj.lines, rsi: calculateRSI(chartPoints.map(p=>p.close)), chartData: chartPoints
+                };
             });
+            if (!liveData) return res.status(200).json({ success: false, message: "לא ניתן למשוך מחיר למניה זו" });
+            return res.status(200).json(liveData);
         }
 
         // --- התחלת תהליך ניתוח עומק (Analyze) ---
@@ -380,28 +719,32 @@ if (action === 'market' || (!action && !ticker)) {
 
         const marketContext = `אג"ח 10 שנים: ${tnxQuote?.c||'N/A'}%. VIX: ${vixQuote?.c||'N/A'}. עוצמה יחסית מול השוק בחודש האחרון: ${relativeStrength > 0 ? '+' : ''}${relativeStrength}%.`;
         const recentNews = (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 3).map(n => n.headline).join(" | ");
+        const quantScorecard = buildQuantScorecard({ fundamentals, currPrice, chartPointsDaily, spyPointsDaily, rsiVal, relativeStrength, keyLevels, priceTargetData, earningsData, insiderSentiment });
+        const fixedScores = JSON.stringify(quantScorecard.scores);
 
         const promptText = `אתה "FinShark" - אנליסט מניות בוול סטריט.
 המניה: ${ticker} ($${currPrice}). מאקרו: ${marketContext}. קונצנזוס: ${analystConsensus}. חדשות: ${recentNews || 'אין'}. 
 טכני(סווינג): יומי $${currPrice}, MA50=$${lastPointDaily.ma50}, MA200=$${lastPointDaily.ma200}. מומנטום: RSI=${rsiVal.toFixed(1)}, תבנית: ${patternObj.text}. פונדמנטלס: P/E=${fundamentals.peRatio || 'N/A'}, צמיחה=${fundamentals.revenueGrowth || 'N/A'}%. ${earningsStreak}.
-הנחיות: 1. למלא ai_scratchpad, 2. technical לגרף בלבד, 3. ללא מרכאות כפולות בטקסט, 4. ללא ירידת שורה בטקסט, 5. לסימולטור Paper Trading בלבד. החזר JSON תקין ומכווץ (ללא רווחים מיותרים) במבנה הבא:
-{"ai_scratchpad":"מחשבות לוגיות...","confidence_score":85,"internal_logic":"משפט קצר על הדירוג","identity":"תיאור חברה קצר","technical":"ניתוח טכני טהור","long_term":{"summary":"מסקנה","intrinsic_value":"שווי הוגן","accumulation_zone":"טווח","price_target":"יעד 12M"},"short_term":{"summary":"תוכנית סווינג","entry_price":"${currPrice}","target_price":"יעד קרוב","stop_loss":"סטופ לוס"},"pros":["זכות1"],"cons":["סיכון1"],"news_sentiment_score":8,"scores":{"overall":80,"growth":80,"value":80,"momentum":80,"quality":80},"rating":"קנייה / החזקה / מכירה"}`;
-
-        const geminiPromise = fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ 
-                contents: [{ parts: [{ text: promptText }] }], 
-                generationConfig: { temperature: 0.1, responseMimeType: "application/json" }
+ציון כמותי מחושב מנתוני שוק, לא לשנות: ${fixedScores}. רמות סווינג מחושבות: יעד ${formatDollar(quantScorecard.risk_levels.target)}, סטופ ${formatDollar(quantScorecard.risk_levels.stop)}.
+הנחיות: 1. להסביר את הציון לפי הנתונים בלבד, 2. technical לגרף בלבד, 3. בלי המלצה אישית או הבטחת תשואה, 4. ללא מרכאות כפולות בתוך טקסטים, 5. לסימולטור Paper Trading וללמידה בלבד, 6. אם נתון חסר החזר N/A ולא תמציא מספרים. החזר JSON תקין ומכווץ במבנה הבא:
+{"ai_scratchpad":"מחשבות לוגיות קצרות...","confidence_score":85,"internal_logic":"משפט קצר על הדירוג","identity":"תיאור חברה קצר","technical":"ניתוח טכני טהור","long_term":{"summary":"מסקנה","intrinsic_value":"שווי הוגן","accumulation_zone":"טווח","price_target":"יעד 12M"},"short_term":{"summary":"תוכנית סווינג","entry_price":"${formatDollar(currPrice)}","target_price":"${formatDollar(quantScorecard.risk_levels.target)}","stop_loss":"${formatDollar(quantScorecard.risk_levels.stop)}"},"pros":["זכות1"],"cons":["סיכון1"],"news_sentiment_score":8,"scores":${fixedScores},"rating":"${ratingFromScore(quantScorecard.scores.overall)}"}`;
+        const shouldRunClaude = shouldRunAI && aiMode === 'full' && Boolean(anthropicKey);
+        const aiResponseCacheKey = buildCacheKey('ai_response', `${ticker}:${aiMode}`);
+        const cachedAiPayload = shouldRunAI ? getCached(aiResponseCacheKey) : null;
+        const geminiPromise = cachedAiPayload ? Promise.resolve(null) : shouldRunAI ? fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: promptText }] }],
+                generationConfig: { temperature: aiMode === 'full' ? 0.1 : 0.05, responseMimeType: "application/json" }
             })
-        }).then(r => r.json());
+        }).then(r => r.json()) : Promise.resolve(null);
 
-        // --- קריאה לקלוד עם המודל החדש (Claude Haiku 4.5) ---
-        const claudePromise = anthropicKey ? fetch('https://api.anthropic.com/v1/messages', {
+        const claudePromise = cachedAiPayload ? Promise.resolve(null) : shouldRunClaude ? fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: { 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
             body: JSON.stringify({
                 model: 'claude-haiku-4-5-20251001',
-                max_tokens: 1500,
+                max_tokens: 1200,
                 temperature: 0.1,
                 system: "You are an elite AI financial analyst. Respond ONLY with valid JSON. No markdown, no preambles.",
                 messages: [{ role: 'user', content: promptText }]
@@ -414,11 +757,19 @@ if (action === 'market' || (!action && !ticker)) {
         let claudeData = null;
         let claudeDebugMsg = null; 
 
-        if (geminiRes?.candidates?.length > 0 && geminiRes.candidates[0]?.content?.parts?.[0]?.text) {
+        if (cachedAiPayload) {
+            geminiData = cachedAiPayload.geminiData || null;
+            claudeData = cachedAiPayload.claudeData || null;
+            claudeDebugMsg = "נעשה שימוש במטמון AI לשיפור מהירות וחיסכון בטוקנים.";
+        } else if (geminiRes?.candidates?.length > 0 && geminiRes.candidates[0]?.content?.parts?.[0]?.text) {
             geminiData = cleanJSON(geminiRes.candidates[0].content.parts[0].text);
         }
         
-        if (!anthropicKey) {
+        if (!shouldRunAI) {
+            claudeDebugMsg = "מצב חסכון API: בוצע ניתוח כמותי ללא קריאת מודלי AI.";
+        } else if (!shouldRunClaude) {
+            claudeDebugMsg = aiMode === 'full' ? "Claude אינו זמין כרגע, הניתוח נשען על Gemini ונתונים כמותיים." : "מצב Smart: הופעל מודל יחיד לחיסכון בטוקנים.";
+        } else if (!anthropicKey) {
             claudeDebugMsg = "מפתח ANTHROPIC_API_KEY חסר ב-Vercel!";
         } else if (claudeRes && claudeRes.content && claudeRes.content[0].text) {
             claudeData = cleanJSON(claudeRes.content[0].text);
@@ -429,6 +780,10 @@ if (action === 'market' || (!action && !ticker)) {
             claudeDebugMsg = "אין תשובה מהשרת של קלוד.";
         }
 
+        if (!cachedAiPayload && shouldRunAI && (geminiData || claudeData)) {
+            setCached(aiResponseCacheKey, { geminiData, claudeData }, aiMode === 'full' ? 2 * 60 * 60 * 1000 : 6 * 60 * 60 * 1000);
+        }
+
         let finalVerdict = { isError: true, identity: "שגיאה בניתוח המניה.", technical: "לא התקבלו נתונים." };
 
         if (geminiData && claudeData) {
@@ -437,6 +792,10 @@ if (action === 'market' || (!action && !ticker)) {
             const diff = Math.abs(gScore - cScore);
             let finalScore = Math.round((gScore + cScore) / 2);
             let finalRating = finalScore >= 80 ? "קנייה חזקה 🔥" : finalScore >= 60 ? "קנייה ✓" : finalScore <= 40 ? "מכירה ✗" : "החזקה —";
+            const gLong = geminiData.long_term || {};
+            const cLong = claudeData.long_term || {};
+            const gShort = geminiData.short_term || {};
+            const cShort = claudeData.short_term || {};
             
             let scratchpadCombined = `<span style="color:#0a84ff; font-weight:bold;">🔵 Gemini:</span> ${geminiData.ai_scratchpad}<br><br><span style="color:#e67e22; font-weight:bold;">🟠 Claude:</span> ${claudeData.ai_scratchpad}`;
             
@@ -453,16 +812,16 @@ if (action === 'market' || (!action && !ticker)) {
                 identity: geminiData.identity,
                 technical: `<span style="color:#0a84ff; font-weight:bold;">מנוע Gemini:</span> ${geminiData.technical}<br><br><span style="color:#e67e22; font-weight:bold;">מנוע Claude:</span> ${claudeData.technical}`,
                 long_term: {
-                    summary: geminiData.long_term.summary,
-                    intrinsic_value: geminiData.long_term.intrinsic_value,
-                    accumulation_zone: geminiData.long_term.accumulation_zone,
-                    price_target: Math.min(Number(String(geminiData.long_term.price_target).replace(/[^0-9.]/g, '')||0), Number(String(claudeData.long_term.price_target).replace(/[^0-9.]/g, '')||0)) || geminiData.long_term.price_target
+                    summary: gLong.summary || cLong.summary || "אין מספיק נתונים.",
+                    intrinsic_value: gLong.intrinsic_value || cLong.intrinsic_value || "N/A",
+                    accumulation_zone: gLong.accumulation_zone || cLong.accumulation_zone || "N/A",
+                    price_target: Math.min(Number(String(gLong.price_target).replace(/[^0-9.]/g, '')||0), Number(String(cLong.price_target).replace(/[^0-9.]/g, '')||0)) || gLong.price_target || cLong.price_target
                 },
                 short_term: {
-                    summary: claudeData.short_term.summary,
+                    summary: cShort.summary || gShort.summary || "אין מספיק נתונים.",
                     entry_price: currPrice,
-                    target_price: geminiData.short_term.target_price,
-                    stop_loss: Math.max(Number(String(geminiData.short_term.stop_loss).replace(/[^0-9.]/g, '')||0), Number(String(claudeData.short_term.stop_loss).replace(/[^0-9.]/g, '')||0)) || geminiData.short_term.stop_loss
+                    target_price: gShort.target_price || cShort.target_price,
+                    stop_loss: Math.max(Number(String(gShort.stop_loss).replace(/[^0-9.]/g, '')||0), Number(String(cShort.stop_loss).replace(/[^0-9.]/g, '')||0)) || gShort.stop_loss || cShort.stop_loss
                 },
                 pros: [...new Set([...(geminiData.pros||[]), ...(claudeData.pros||[])])].slice(0, 4),
                 cons: [...new Set([...(geminiData.cons||[]), ...(claudeData.cons||[])])].slice(0, 4),
@@ -483,6 +842,47 @@ if (action === 'market' || (!action && !ticker)) {
         } else if (claudeData) {
             finalVerdict = { ...claudeData, isError: false, ai_scratchpad: `<span style="color:#e67e22; font-weight:bold;">🟠 Claude:</span> ${claudeData.ai_scratchpad}` };
         }
+
+        const modelScores = [geminiData?.scores?.overall, claudeData?.scores?.overall].map(Number).filter(Number.isFinite);
+        const modelDiff = modelScores.length === 2 ? Math.abs(modelScores[0] - modelScores[1]) : null;
+        const modelPenalty = modelDiff !== null && modelDiff > 30 ? 18 : modelDiff !== null && modelDiff > 18 ? 8 : 0;
+        const noModelPenalty = modelScores.length === 0 ? 12 : 0;
+        const finalDataScore = clampNumber(quantScorecard.scores.overall - modelPenalty, 0, 100, quantScorecard.scores.overall);
+        const finalConfidence = clampNumber(Math.min(quantScorecard.confidence_score, finalVerdict.confidence_score || quantScorecard.confidence_score) - modelPenalty - noModelPenalty, 25, 95, quantScorecard.confidence_score);
+        const modelAgreement = modelDiff === null ? "מודל יחיד / חסר" : modelDiff <= 18 ? "גבוהה" : modelDiff <= 30 ? "בינונית" : "נמוכה";
+
+        if (finalVerdict.isError) {
+            finalVerdict = {
+                isError: false,
+                ai_scratchpad: "מנועי ה-AI לא החזירו JSON תקין, לכן הופעל ניתוח כמותי מבוסס נתונים בלבד.",
+                internal_logic: "Fallback quantitative scorecard",
+                identity: `${profile?.name || ticker}: ניתוח מבוסס נתוני מחיר, מומנטום ופונדמנטלס זמינים.`,
+                technical: `${patternObj.text}. RSI ${rsiVal.toFixed(1)}, מחיר ${currPrice >= (lastPointDaily.ma50 || Infinity) ? "מעל" : "מתחת"} MA50 ו-${currPrice >= (lastPointDaily.ma200 || Infinity) ? "מעל" : "מתחת"} MA200.`,
+                long_term: { summary: "הערכת הטווח הארוך מבוססת על תמחור, צמיחה, רווחיות ובריאות מאזנית.", intrinsic_value: "לא חושב DCF מלא", accumulation_zone: "קרוב לתמיכה טכנית", price_target: priceTargetData?.targetMedian ? formatDollar(priceTargetData.targetMedian) : "N/A" },
+                short_term: { summary: "תוכנית הסווינג מבוססת על ATR, ממוצעים נעים ורמות תמיכה/התנגדות.", entry_price: formatDollar(currPrice), target_price: formatDollar(quantScorecard.risk_levels.target), stop_loss: formatDollar(quantScorecard.risk_levels.stop) },
+                pros: quantScorecard.drivers.filter(d => d.score >= 60).map(d => `${d.label}: ${d.value}`).slice(0, 3),
+                cons: quantScorecard.drivers.filter(d => d.score < 55).map(d => `${d.label}: ${d.value}`).slice(0, 3),
+                news_sentiment_score: 5
+            };
+        }
+
+        finalVerdict.scores = { ...quantScorecard.scores, overall: Math.round(finalDataScore) };
+        finalVerdict.confidence_score = Math.round(finalConfidence);
+        finalVerdict.rating = modelPenalty >= 18 ? "מעורב / סיכון גבוה" : ratingFromScore(finalDataScore);
+        finalVerdict.short_term = normalizeTradePlan(finalVerdict.short_term, currPrice, quantScorecard.risk_levels);
+        finalVerdict.long_term = normalizeLongTermPlan(finalVerdict.long_term, priceTargetData);
+        finalVerdict.internal_logic = `${finalVerdict.internal_logic || ""} | ציון נתונים: ${Math.round(finalDataScore)}/100 | הסכמת מודלים: ${modelAgreement}`.trim();
+        finalVerdict.scorecard = {
+            data_quality: quantScorecard.data_quality,
+            risk_levels: quantScorecard.risk_levels,
+            drivers: quantScorecard.drivers,
+            model_agreement: {
+                label: modelAgreement,
+                diff: modelDiff,
+                gemini: geminiData?.scores?.overall ?? null,
+                claude: claudeData?.scores?.overall ?? null
+            }
+        };
 
         return res.status(200).json({
             success: true, isDataComplete: true, ticker, name: profile?.name || ticker, industry: profile?.finnhubIndustry || "N/A", sector: profile?.finnhubIndustry || "N/A",
