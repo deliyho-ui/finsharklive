@@ -1000,7 +1000,7 @@
             <div id="section-admin" class="section hidden space-y-6">
                 <div class="mb-6">
                     <h2 class="text-2xl font-black text-white flex items-center gap-2 mb-1"><i class="ph-fill ph-shield-check text-primary"></i> לוח ניהול (Admin)</h2>
-                    <p class="text-sm text-gray-400">ניהול משתמשים וניקוי מטמון (Cache).</p>
+                    <p class="text-sm text-gray-400">ניהול משתמשים, חסימות, איפוס היסטוריה וניקוי מטמון (Cache).</p>
                 </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2060,11 +2060,25 @@ function setupAdminDashboard() {
     
     listEl.innerHTML = users.map(u => { 
         const isApproved = u.status === 'approved'; 
+        const isBlocked = u.status === 'blocked';
         const isRestricted = u.restrictedUntil && Date.now() < u.restrictedUntil;
         const count = u.analysisCount || 0;
-        const statusBadge = isApproved ? `<span class="user-status status-approved">מאושר ✓</span>` : `<span class="user-status status-pending">ממתין לאישור ⏳</span>`;
+        const statusBadge = isBlocked
+            ? `<span class="user-status" style="background:rgba(255,69,58,0.1); color:#ff5252; border:1px solid rgba(255,69,58,0.3)">חסום 🚫</span>`
+            : isApproved
+                ? `<span class="user-status status-approved">מאושר ✓</span>`
+                : `<span class="user-status status-pending">ממתין לאישור ⏳</span>`;
         const restrictBadge = isRestricted ? `<span style="color:#ff5252; font-size:0.8rem; background:rgba(255,69,58,0.1); padding:4px 8px; border-radius:6px; border:1px solid rgba(255,69,58,0.3)">🚫 מוגבל זמנית</span>` : `<span style="color:#9ca3af; font-size:0.8rem; border:1px solid rgba(255,255,255,0.06); padding:4px 8px; border-radius:6px;">📊 הרצות: ${count}/6</span>`;
-        const actionButtons = !isApproved ? `<button class="btn btn-primary" onclick="approveUser('${u.id}')">אשר משתמש</button>` : `<button class="btn btn-ghost" onclick="revokeUser('${u.id}')">הסר הרשאה</button> ${isRestricted ? `<button class="btn btn-primary" style="margin-right:8px;" onclick="removeRestriction('${u.id}')">שחרר חסימה</button>` : ''}`;
+        const approveBtn = !isApproved && !isBlocked ? `<button class="btn btn-primary" onclick="approveUser('${u.id}')">אשר משתמש</button>` : '';
+        const revokeBtn = isApproved ? `<button class="btn btn-ghost" onclick="revokeUser('${u.id}')">הסר הרשאה</button>` : '';
+        const tempRestrictBtn = isRestricted
+            ? `<button class="btn btn-primary" onclick="removeRestriction('${u.id}')">שחרר חסימה זמנית</button>`
+            : `<button class="btn btn-ghost" onclick="restrictUser('${u.id}')">חסום זמנית 24ש</button>`;
+        const blockBtn = isBlocked
+            ? `<button class="btn btn-primary" onclick="unblockUser('${u.id}')">בטל חסימה</button>`
+            : `<button class="btn btn-ghost" onclick="blockUser('${u.id}')">חסום משתמש</button>`;
+        const resetBtn = `<button class="btn btn-ghost" onclick="resetUserHistory('${u.id}')">אפס היסטוריה</button>`;
+        const actionButtons = `${approveBtn} ${revokeBtn} ${tempRestrictBtn} ${blockBtn} ${resetBtn}`;
         return `<div class="user-row"><div class="user-info"><span class="user-name">👤 ${u.email}</span><div style="display:flex; gap:10px; align-items:center; margin-top:6px;">${statusBadge}${restrictBadge}</div></div><div>${actionButtons}</div></div>`; 
     }).join('');
   });
@@ -2072,6 +2086,18 @@ function setupAdminDashboard() {
 window.approveUser = async function(uid) { await updateDoc(doc(db, 'users', uid), { status: 'approved' }); }; 
 window.revokeUser = async function(uid) { await updateDoc(doc(db, 'users', uid), { status: 'pending' }); };
 window.removeRestriction = async function(uid) { await updateDoc(doc(db, 'users', uid), { restrictedUntil: null, analysisCount: 0 }); };
+window.restrictUser = async function(uid) { await updateDoc(doc(db, 'users', uid), { restrictedUntil: Date.now() + 24 * 60 * 60 * 1000 }); };
+window.blockUser = async function(uid) { await updateDoc(doc(db, 'users', uid), { status: 'blocked' }); };
+window.unblockUser = async function(uid) { await updateDoc(doc(db, 'users', uid), { status: 'approved' }); };
+window.resetUserHistory = async function(uid) {
+    await updateDoc(doc(db, 'users', uid), {
+        analysisCount: 0,
+        analysisUsageByDate: {},
+        portfolio: {},
+        realPortfolio: {},
+        watchlist: []
+    });
+};
 
 window.adminClearCache = async function() {
     const t = document.getElementById('admin-cache-input').value.trim().toUpperCase();
@@ -2204,6 +2230,10 @@ window.shareAnalysis = function() { if (!State.currentData) return; const cp = t
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeLogin(); closeUpdateModal(); const resultsEl = document.getElementById('results'); if(resultsEl) resultsEl.style.display = 'none'; const inputEl = document.getElementById('ticker-input'); if(inputEl) inputEl.value=''; document.getElementById('modal-trade')?.classList.add('hidden'); } });
 
 window.switchTab = function(tab, el) {
+  if (tab === 'academy') {
+      window.location.href = './academy.html';
+      return;
+  }
   const isLoggedIn = State.currentUser !== null;
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
   const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
@@ -2889,6 +2919,7 @@ safeHTML('chart-buttons-container', chartBtns);
   const quality = scorecard.data_quality || {};
   const modelAgreement = scorecard.model_agreement || {};
   const reliabilityFlags = [];
+  const runtime = safeAnalysis.model_runtime || {};
   if ((safeAnalysis.confidence_score || 0) < 60) reliabilityFlags.push({ level: 'warn', text: 'רמת ביטחון נמוכה יחסית - מומלץ לוודא ידנית לפני החלטה.' });
   if ((quality.available_metrics || 0) < Math.max(8, Math.floor((quality.total_metrics || 0) * 0.55))) reliabilityFlags.push({ level: 'warn', text: 'חלק מהמדדים חסרים - הניתוח נשען על דאטה חלקית.' });
   if ((quality.chart_points || 0) < 120) reliabilityFlags.push({ level: 'warn', text: 'היסטוריית גרף קצרה יחסית - האותות הטכניים חלשים יותר.' });
@@ -2912,6 +2943,12 @@ safeHTML('chart-buttons-container', chartBtns);
           <div class="text-xs text-gray-400 leading-relaxed">${driver.value || ''}</div>
       </div>
   `).join('');
+  const runtimeBadges = [
+      `<span class="text-xs font-black px-3 py-1 rounded-lg border ${runtime.gemini === 'active' ? 'bg-success/10 text-success border-success/30' : 'bg-danger/10 text-danger border-danger/30'}">Gemini: ${runtime.gemini === 'active' ? 'פעיל' : 'לא פעיל'}</span>`,
+      `<span class="text-xs font-black px-3 py-1 rounded-lg border ${runtime.claude === 'active' ? 'bg-success/10 text-success border-success/30' : 'bg-warning/10 text-warning border-warning/30'}">Claude: ${runtime.claude === 'active' ? 'פעיל' : 'לא פעיל'}</span>`
+  ].join('');
+  const runtimeNote = runtime.claude_note ? `<div class="text-[11px] text-gray-400 mt-2">${runtime.claude_note}</div>` : '';
+
   safeHTML('analysis-quality-panel', `
       <div class="glass-panel rounded-2xl p-5 border border-glassBorder">
           <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
@@ -2923,8 +2960,10 @@ safeHTML('chart-buttons-container', chartBtns);
                   <span class="text-xs font-black px-3 py-1 rounded-lg border ${scoreTone(safeAnalysis.confidence_score)}">ביטחון ${safeAnalysis.confidence_score || 0}/100</span>
                   <span class="text-xs font-black px-3 py-1 rounded-lg border bg-primary/10 text-primary border-primary/30">${quality.available_metrics || 0}/${quality.total_metrics || 0} מדדים</span>
                   <span class="text-xs font-black px-3 py-1 rounded-lg border bg-gray-500/10 text-gray-300 border-gray-500/30">הסכמת מודלים: ${modelAgreement.label || 'לא זמין'}</span>
+                  ${runtimeBadges}
               </div>
           </div>
+          ${runtimeNote}
           <div class="grid grid-cols-1 gap-2 mb-4">${reliabilityFlagsHtml}</div>
           <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">${driversHtml}</div>
       </div>
@@ -2936,11 +2975,11 @@ safeHTML('chart-buttons-container', chartBtns);
       lTerm.summary = lTerm.summary || "התחזית הארוכה מבוססת על שילוב ביצועים עסקיים, תמחור וסביבת שוק.";
   }
 
-  let upside = 0;
+  let upside = null;
   const target12M = lTerm.price_target;
   if (target12M && p > 0 && !isError) {
       const tPriceNum = Number(String(target12M).replace(/[^0-9.]/g, ''));
-      if (!isNaN(tPriceNum) && tPriceNum > 0) upside = (((tPriceNum / p) - 1) * 100).toFixed(1);
+      if (!isNaN(tPriceNum) && tPriceNum > 0) upside = (((tPriceNum / p) - 1) * 100);
   }
 
 safeHTML('ai-short-term', `
@@ -3009,11 +3048,11 @@ const profileHtml = `
     </div>
     
     <!-- Upside Potential -->
-    ${!isError ? `
+    ${!isError && Number.isFinite(upside) ? `
     <div class="bg-warning/10 border border-warning/30 p-6 rounded-2xl text-center shadow-[0_8px_32px_rgba(255,215,64,0.06)] mb-8">
          <div class="text-xs text-warning font-black mb-2 uppercase tracking-widest">🎯 פוטנציאל רווח (מול תחזית 12 חודשים)</div>
-         <div class="text-xl font-black ${parseFloat(upside) >= 0 ? 'text-success' : 'text-danger'}" dir="ltr">
-            ${parseFloat(upside) >= 0 ? '▲ אפסייד:' : '▼ דאונסייד:'} ${parseFloat(upside) >= 0 ? '+' : ''}${upside}%
+         <div class="text-xl font-black ${upside >= 0 ? 'text-success' : 'text-danger'}" dir="ltr">
+            ${upside >= 0 ? '▲ אפסייד:' : '▼ דאונסייד:'} ${upside >= 0 ? '+' : ''}${upside.toFixed(1)}%
          </div>
     </div>` : ''}
 `;
