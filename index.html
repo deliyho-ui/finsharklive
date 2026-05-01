@@ -1406,7 +1406,8 @@ const AcademyState = { activeCourseId: null, slideIndex: 0 };
 function renderAcademyCourses() {
     const grid = document.getElementById('academy-courses-grid');
     if (!grid) return;
-    grid.innerHTML = ACADEMY_COURSES.map((course) => `
+    try {
+        grid.innerHTML = ACADEMY_COURSES.map((course) => `
         <div class="glass-panel rounded-[16px] p-5 border border-glassBorder hover:border-primary/30 transition-colors">
             <div class="w-11 h-11 rounded-xl ${course.color} flex items-center justify-center mb-4 border">
                 <i class="ph ${course.icon} text-xl"></i>
@@ -1416,6 +1417,9 @@ function renderAcademyCourses() {
             <button onclick="openAcademyCourse(${course.id})" class="mt-4 w-full py-2.5 rounded-lg border border-glassBorder text-white hover:border-primary/30 hover:text-primary transition-colors text-sm font-bold">פתח שיעור</button>
         </div>
     `).join('');
+    } catch (err) {
+        grid.innerHTML = '<div class="text-sm text-warning">אירעה תקלה בטעינת שיעורי האקדמיה. רענן את הדף ונסה שוב.</div>';
+    }
 }
 
 function updateAcademyViewer() {
@@ -2204,7 +2208,7 @@ window.switchTab = function(tab, el) {
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
   const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
   
-  if ((tab === 'shark' || tab === 'watchlist' || tab === 'community' || tab === 'portfolio' || tab === 'academy') && !isAdmin) {
+  if ((tab === 'shark' || tab === 'watchlist' || tab === 'community' || tab === 'portfolio') && !isAdmin) {
       if (!isLoggedIn) { window.openLogin(); return; }
       if (!isApproved) { State.currentTab = 'pending'; renderApp(); return; }
   }
@@ -2232,7 +2236,7 @@ function renderApp() {
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
   const isAdmin = isLoggedIn && State.currentUser.role === 'admin';
 
-  if ((State.currentTab === 'shark' || State.currentTab === 'watchlist' || State.currentTab === 'community' || State.currentTab === 'portfolio' || State.currentTab === 'academy') && !isAdmin && !isApproved) {
+  if ((State.currentTab === 'shark' || State.currentTab === 'watchlist' || State.currentTab === 'community' || State.currentTab === 'portfolio') && !isAdmin && !isApproved) {
       State.currentTab = isLoggedIn ? 'pending' : 'market';
   }
   if (State.currentTab === 'pending' && (isApproved || isAdmin)) {
@@ -2243,7 +2247,7 @@ function renderApp() {
   const btnLogout = document.getElementById('btn-logout'); if(btnLogout) btnLogout.style.display = isLoggedIn ? '' : 'none';
   
   // Lock icons
-  ['lock-shark', 'lock-watch', 'lock-comm', 'lock-port', 'lock-acad'].forEach(id => {
+  ['lock-shark', 'lock-watch', 'lock-comm', 'lock-port'].forEach(id => {
       const lock = document.getElementById(id);
       if (lock) lock.style.display = (isApproved || isAdmin) ? 'none' : 'inline';
   });
