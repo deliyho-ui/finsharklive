@@ -542,6 +542,40 @@ async function fetchClaudeJson(anthropicKey, promptText) {
     return { parsed: null, error: lastError };
 }
 
+async function fetchGeminiJson(geminiKey, promptText, temperature = 0.05) {
+    const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+    const invoke = async (userPrompt) => {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: userPrompt }] }],
+                generationConfig: { temperature, responseMimeType: "application/json" }
+            })
+        });
+        const payload = await response.json().catch(() => ({}));
+        return { ok: response.ok, status: response.status, payload, model };
+    };
+
+    const first = await invoke(promptText);
+    const firstText = first?.payload?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const parsedFirst = cleanJSON(firstText);
+    if (parsedFirst) return { parsed: parsedFirst, model };
+
+    const retryPrompt = `${promptText}\n\nIMPORTANT: Output one valid minified JSON object only.`;
+    const second = await invoke(retryPrompt);
+    const secondText = second?.payload?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const parsedSecond = cleanJSON(secondText);
+    if (parsedSecond) return { parsed: parsedSecond, model };
+
+    return {
+        parsed: null,
+        error: second?.payload?.error || first?.payload?.error || {
+            message: firstText || secondText || `Gemini model ${model} failed (HTTP ${second?.status || first?.status || 'unknown'})`
+        }
+    };
+}
+
 module.exports = async function(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -806,14 +840,8 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         const geminiPromise = shouldRunAI ? getOrSetCacheIf(
             geminiCacheKey,
             aiResponseCacheTtlMs,
-            () => fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: promptText }] }],
-                    generationConfig: { temperature: aiMode === 'full' ? 0.1 : 0.05, responseMimeType: "application/json" }
-                })
-            }).then(r => r.json()),
-            (value) => Boolean(value?.candidates?.[0]?.content?.parts?.[0]?.text)
+            () => fetchGeminiJson(geminiKey, promptText, aiMode === 'full' ? 0.1 : 0.05),
+            (value) => Boolean(value?.parsed)
         ) : Promise.resolve(null);
 
         const claudePromise = shouldRunClaude ? getOrSetCacheIf(
@@ -826,12 +854,19 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         const [geminiRes, claudeRes] = await Promise.all([geminiPromise, claudePromise].map(p => p.catch(e => ({ error: { message: e.message } }))));
 
         let geminiData = null;
+        let geminiModelUsed = null;
+        let geminiDebugMsg = null;
         let claudeData = null;
         let claudeModelUsed = null;
         let claudeDebugMsg = null; 
 
-        if (geminiRes?.candidates?.length > 0 && geminiRes.candidates[0]?.content?.parts?.[0]?.text) {
-            geminiData = cleanJSON(geminiRes.candidates[0].content.parts[0].text);
+        if (geminiRes?.parsed) {
+            geminiData = geminiRes.parsed;
+            geminiModelUsed = geminiRes.model || null;
+        } else if (shouldRunAI && geminiRes?.error) {
+            geminiDebugMsg = `שגיאת Gemini: ${geminiRes.error.message || JSON.stringify(geminiRes.error)}`;
+        } else if (!shouldRunAI) {
+            geminiDebugMsg = "מצב חסכון API: הניתוח נשען על מנוע כמותי בלבד.";
         }
         
         if (!shouldRunAI) {
@@ -952,6 +987,8 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         finalVerdict.model_runtime = {
             gemini: geminiData ? "active" : "missing",
             claude: claudeData ? "active" : "missing",
+            gemini_model: geminiModelUsed || null,
+            gemini_note: geminiDebugMsg || null,
             claude_model: claudeModelUsed || null,
             claude_note: claudeDebugMsg || null
         };
