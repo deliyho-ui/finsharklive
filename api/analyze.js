@@ -115,10 +115,12 @@ async function fetchYahooScreener(scrId) {
                 changesPercentage: ((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose) * 100
             };
         }));
-        const quotes = results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
+        let quotes = results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
         if (scrId === 'day_losers') {
+            quotes = quotes.filter(q => Number(q.changesPercentage) < 0);
             quotes.sort((a,b) => a.changesPercentage - b.changesPercentage);
         } else if (scrId === 'day_gainers') {
+            quotes = quotes.filter(q => Number(q.changesPercentage) > 0);
             quotes.sort((a,b) => b.changesPercentage - a.changesPercentage);
         } else {
             quotes.sort((a,b) => Math.abs(b.changesPercentage) - Math.abs(a.changesPercentage));
@@ -346,10 +348,25 @@ function normalizeTradePlan(plan, currPrice, riskLevels) {
     return next;
 }
 
-function normalizeLongTermPlan(plan, priceTargetData) {
+function normalizeLongTermPlan(plan, priceTargetData, currPrice, quantScorecard) {
     const next = { ...(plan || {}) };
     if (Number.isFinite(Number(priceTargetData?.targetMedian))) {
         next.price_target = formatDollar(Number(priceTargetData.targetMedian));
+    } else {
+        const existingTarget = parsePrice(next.price_target);
+        if (!existingTarget && Number.isFinite(currPrice) && currPrice > 0) {
+            const score = Number(quantScorecard?.scores?.overall || 50);
+            let multiplier = 1.03;
+            if (score >= 65) multiplier = 1.10 + Math.min(0.18, (score - 65) / 100);
+            else if (score <= 38) multiplier = 0.88;
+            next.price_target = formatDollar(currPrice * multiplier);
+        }
+    }
+    if (!parsePrice(next.intrinsic_value) && Number.isFinite(currPrice) && currPrice > 0) {
+        next.intrinsic_value = formatDollar(currPrice * 1.04);
+    }
+    if ((!next.accumulation_zone || next.accumulation_zone === "N/A") && Number.isFinite(currPrice) && currPrice > 0) {
+        next.accumulation_zone = `${formatDollar(currPrice * 0.92)} - ${formatDollar(currPrice * 0.98)}`;
     }
     return next;
 }
@@ -483,7 +500,8 @@ async function fetchClaudeJson(anthropicKey, promptText) {
         process.env.ANTHROPIC_MODEL,
         'claude-haiku-4-5-20251001',
         'claude-3-5-haiku-latest',
-        'claude-3-5-haiku-20241022'
+        'claude-3-5-haiku-20241022',
+        'claude-3-haiku-20240307'
     ].filter(Boolean);
 
     const invoke = async (userPrompt, model) => {
@@ -522,6 +540,40 @@ async function fetchClaudeJson(anthropicKey, promptText) {
         };
     }
     return { parsed: null, error: lastError };
+}
+
+async function fetchGeminiJson(geminiKey, promptText, temperature = 0.05) {
+    const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+    const invoke = async (userPrompt) => {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: userPrompt }] }],
+                generationConfig: { temperature, responseMimeType: "application/json" }
+            })
+        });
+        const payload = await response.json().catch(() => ({}));
+        return { ok: response.ok, status: response.status, payload, model };
+    };
+
+    const first = await invoke(promptText);
+    const firstText = first?.payload?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const parsedFirst = cleanJSON(firstText);
+    if (parsedFirst) return { parsed: parsedFirst, model };
+
+    const retryPrompt = `${promptText}\n\nIMPORTANT: Output one valid minified JSON object only.`;
+    const second = await invoke(retryPrompt);
+    const secondText = second?.payload?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const parsedSecond = cleanJSON(secondText);
+    if (parsedSecond) return { parsed: parsedSecond, model };
+
+    return {
+        parsed: null,
+        error: second?.payload?.error || first?.payload?.error || {
+            message: firstText || secondText || `Gemini model ${model} failed (HTTP ${second?.status || first?.status || 'unknown'})`
+        }
+    };
 }
 
 module.exports = async function(req, res) {
@@ -788,14 +840,8 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         const geminiPromise = shouldRunAI ? getOrSetCacheIf(
             geminiCacheKey,
             aiResponseCacheTtlMs,
-            () => fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: promptText }] }],
-                    generationConfig: { temperature: aiMode === 'full' ? 0.1 : 0.05, responseMimeType: "application/json" }
-                })
-            }).then(r => r.json()),
-            (value) => Boolean(value?.candidates?.[0]?.content?.parts?.[0]?.text)
+            () => fetchGeminiJson(geminiKey, promptText, aiMode === 'full' ? 0.1 : 0.05),
+            (value) => Boolean(value?.parsed)
         ) : Promise.resolve(null);
 
         const claudePromise = shouldRunClaude ? getOrSetCacheIf(
@@ -808,12 +854,19 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         const [geminiRes, claudeRes] = await Promise.all([geminiPromise, claudePromise].map(p => p.catch(e => ({ error: { message: e.message } }))));
 
         let geminiData = null;
+        let geminiModelUsed = null;
+        let geminiDebugMsg = null;
         let claudeData = null;
         let claudeModelUsed = null;
         let claudeDebugMsg = null; 
 
-        if (geminiRes?.candidates?.length > 0 && geminiRes.candidates[0]?.content?.parts?.[0]?.text) {
-            geminiData = cleanJSON(geminiRes.candidates[0].content.parts[0].text);
+        if (geminiRes?.parsed) {
+            geminiData = geminiRes.parsed;
+            geminiModelUsed = geminiRes.model || null;
+        } else if (shouldRunAI && geminiRes?.error) {
+            geminiDebugMsg = `שגיאת Gemini: ${geminiRes.error.message || JSON.stringify(geminiRes.error)}`;
+        } else if (!shouldRunAI) {
+            geminiDebugMsg = "מצב חסכון API: הניתוח נשען על מנוע כמותי בלבד.";
         }
         
         if (!shouldRunAI) {
@@ -918,7 +971,7 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         finalVerdict.confidence_score = Math.round(finalConfidence);
         finalVerdict.rating = modelPenalty >= 18 ? "מעורב / סיכון גבוה" : ratingFromScore(finalDataScore);
         finalVerdict.short_term = normalizeTradePlan(finalVerdict.short_term, currPrice, quantScorecard.risk_levels);
-        finalVerdict.long_term = normalizeLongTermPlan(finalVerdict.long_term, priceTargetData);
+        finalVerdict.long_term = normalizeLongTermPlan(finalVerdict.long_term, priceTargetData, currPrice, quantScorecard);
         finalVerdict.internal_logic = `${finalVerdict.internal_logic || ""} | ציון נתונים: ${Math.round(finalDataScore)}/100 | הסכמת מודלים: ${modelAgreement}${claudeModelUsed ? ` | Claude: ${claudeModelUsed}` : ""}`.trim();
         finalVerdict.scorecard = {
             data_quality: quantScorecard.data_quality,
@@ -934,6 +987,8 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         finalVerdict.model_runtime = {
             gemini: geminiData ? "active" : "missing",
             claude: claudeData ? "active" : "missing",
+            gemini_model: geminiModelUsed || null,
+            gemini_note: geminiDebugMsg || null,
             claude_model: claudeModelUsed || null,
             claude_note: claudeDebugMsg || null
         };
