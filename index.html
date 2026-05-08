@@ -48,6 +48,17 @@
             line-height: 1.5;
         }
 
+        html, body {
+            height: 100%;
+            overscroll-behavior-y: none;
+        }
+
+        @supports (height: 100dvh) {
+            body {
+                height: 100dvh;
+            }
+        }
+
         :root {
             --card: rgba(13, 13, 32, 0.72);
             --glassBorder: rgba(255, 255, 255, 0.07);
@@ -104,6 +115,20 @@
             position: relative;
             height: 340px;
             width: 100%;
+            touch-action: pan-y;
+        }
+
+        .app-scroll {
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain;
+            touch-action: pan-y;
+            scroll-padding-bottom: 96px;
+            padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+        }
+
+        #tv-chart,
+        #tv-chart canvas {
+            touch-action: pan-y !important;
         }
         
         /* Neon text glow */
@@ -325,7 +350,7 @@
         </header>
 
         <!-- Scrollable Content -->
-        <div class="flex-1 overflow-y-auto p-5 md:p-7 relative z-10 scroll-smooth">
+        <div class="app-scroll flex-1 overflow-y-auto p-5 md:p-7 relative z-10 scroll-smooth">
             
             <div id="section-market" class="section block">
             <!-- Hero Section -->
@@ -2454,15 +2479,19 @@ window.analyzeStock = async function() {
   } catch(e) { console.error("Error fetching live price", e); }
 
   if (cacheDoc.exists() && liveData && liveData.success) {
-      const cached = cacheDoc.data().data;
+      const cachedDocData = cacheDoc.data();
+      const cached = cachedDocData.data;
+      const cachedMode = cachedDocData.analysisMode || cached.analysisMode || 'unknown';
+      const cachedClaudeActive = cached.analysis?.model_runtime?.claude === 'active';
+      const canUseCachedForMode = selectedMode !== 'full' || (cachedMode === 'full' && cachedClaudeActive);
       const cachedPrice = cached.price;
       const currentPrice = liveData.price;
       
       const priceChangePct = Math.abs((currentPrice - cachedPrice) / cachedPrice);
       const ANALYSIS_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-      const timePassed = Date.now() - (cacheDoc.data().lastUpdated || 0);
+      const timePassed = Date.now() - (cachedDocData.lastUpdated || 0);
 
-      if (timePassed < ANALYSIS_CACHE_TTL_MS && priceChangePct <= 0.05) {
+      if (canUseCachedForMode && timePassed < ANALYSIS_CACHE_TTL_MS && priceChangePct <= 0.05) {
           animateLoadingSteps(['נמצא ניתוח שמור ל-7 ימים...', 'המחיר יציב (פחות מ-5%), מרענן נתוני מחיר בלי לבזבז קריאות AI...']);
           
           cached.price = currentPrice;
@@ -2473,6 +2502,7 @@ window.analyzeStock = async function() {
           cached.ma200 = liveData.ma200;
           
           hideLoading();
+          sanitizeAnalysisTargets(cached);
           State.currentData = cached; 
           renderResults(cached, cached.analysis, cached.chartData, cached.tickerNews || []);
           return;
@@ -2510,6 +2540,8 @@ window.analyzeStock = async function() {
           return;
       }
       
+      data.analysisMode = selectedMode;
+      sanitizeAnalysisTargets(data);
       State.currentData = data;
       if (!isAdmin) {
           const usageState = getUserTodayUsage(State.currentUser);
@@ -2528,7 +2560,7 @@ window.analyzeStock = async function() {
           refreshAnalyzeQuotaUI(selectedMode);
       }
       if (data.isDataComplete) {
-          await setDoc(doc(db, 'ai_cache', ticker), { ticker, data, lastUpdated: Date.now() });
+          await setDoc(doc(db, 'ai_cache', ticker), { ticker, data, analysisMode: selectedMode, lastUpdated: Date.now() });
           if (data.analysis && !data.analysis.isError && data.analysis.scores && data.analysis.scores.overall >= 70) {
               await setDoc(doc(db, 'ai_setups', ticker), {
                   ticker, score: data.analysis.scores.overall, rating: data.analysis.rating || 'קנייה',
@@ -2551,6 +2583,27 @@ function showLoading() { const ls = document.getElementById('loading-steps'); if
 function setLoadingText(t) { safeText('loading-text', t); }
 function hideLoading() { const lo = document.getElementById('loading'); if(lo) { lo.classList.remove('active'); lo.classList.add('hidden'); } }
 async function animateLoadingSteps(steps) { const container = document.getElementById('loading-steps'); if(!container) return; container.innerHTML = ''; for (let i = 0; i < steps.length; i++) { await sleep(400); const prev = container.querySelector('.loading-step:not(.done)'); if (prev) { prev.classList.add('done'); prev.textContent = '✓ ' + prev.textContent; } setLoadingText(steps[i]); const el = document.createElement('div'); el.className = 'loading-step'; el.textContent = steps[i]; container.appendChild(el); if (container.children.length > 5) container.removeChild(container.firstChild); } }
+
+function parsePriceValue(value) {
+  const n = Number(String(value || '').replace(/[^0-9.]/g, ''));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function isPlausibleLongTermTarget(value, currentPrice) {
+  const target = Number(value);
+  const price = Number(currentPrice);
+  if (!Number.isFinite(target) || !Number.isFinite(price) || target <= 0 || price <= 0) return false;
+  return target >= price * 0.5 && target <= price * 2.5;
+}
+
+function sanitizeAnalysisTargets(data) {
+  const price = Number(data?.price);
+  const target = parsePriceValue(data?.analysis?.long_term?.price_target);
+  if (data?.analysis?.long_term && !isPlausibleLongTermTarget(target, price)) {
+      data.analysis.long_term.price_target = 'N/A';
+  }
+  return data;
+}
 
 let tvChart = null;
 let candleSeries = null;
@@ -2602,8 +2655,8 @@ function renderChart(historyData, months, fullDataObj) {
         rightPriceScale: { borderVisible: false },
         timeScale: { borderVisible: false, fixLeftEdge: true, fixRightEdge: true },
         crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-        handleScroll: { mouseWheel: false, pressedMouseMove: true },
-        handleScale: { mouseWheel: false, pinch: true },
+        handleScroll: { mouseWheel: false, pressedMouseMove: false, horzTouchDrag: false, vertTouchDrag: false },
+        handleScale: { mouseWheel: false, pinch: false, axisPressedMouseMove: false },
     });
     
     if (legendHtml) {
@@ -2943,9 +2996,12 @@ safeHTML('chart-buttons-container', chartBtns);
           <div class="text-xs text-gray-400 leading-relaxed">${driver.value || ''}</div>
       </div>
   `).join('');
+  const claudeIsActive = runtime.claude === 'active';
+  const claudeModeText = claudeIsActive ? 'פעיל' : (runtime.mode === 'smart' ? 'כבוי ב-Smart' : runtime.mode === 'eco' ? 'כבוי בחסכוני' : 'לא פעיל');
+  const claudeTone = claudeIsActive ? 'bg-success/10 text-success border-success/30' : (runtime.mode === 'smart' || runtime.mode === 'eco') ? 'bg-primary/10 text-primary border-primary/30' : 'bg-warning/10 text-warning border-warning/30';
   const runtimeBadges = [
       `<span class="text-xs font-black px-3 py-1 rounded-lg border ${runtime.gemini === 'active' ? 'bg-success/10 text-success border-success/30' : 'bg-danger/10 text-danger border-danger/30'}">Gemini: ${runtime.gemini === 'active' ? 'פעיל' : 'לא פעיל'}</span>`,
-      `<span class="text-xs font-black px-3 py-1 rounded-lg border ${runtime.claude === 'active' ? 'bg-success/10 text-success border-success/30' : 'bg-warning/10 text-warning border-warning/30'}">Claude: ${runtime.claude === 'active' ? 'פעיל' : 'לא פעיל'}</span>`
+      `<span class="text-xs font-black px-3 py-1 rounded-lg border ${claudeTone}">Claude: ${claudeModeText}</span>`
   ].join('');
   const runtimeNote = runtime.claude_note ? `<div class="text-[11px] text-gray-400 mt-2">${runtime.claude_note}</div>` : '';
 

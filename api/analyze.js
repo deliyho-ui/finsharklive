@@ -323,6 +323,27 @@ function parsePrice(value) {
     return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+function isPlausibleLongTermTarget(value, currPrice) {
+    const target = Number(value);
+    const price = Number(currPrice);
+    if (!Number.isFinite(target) || !Number.isFinite(price) || target <= 0 || price <= 0) return false;
+    return target >= price * 0.5 && target <= price * 2.5;
+}
+
+function pickAnalystPriceTarget(priceTargetData, currPrice) {
+    const candidates = [
+        priceTargetData?.targetMedian,
+        priceTargetData?.targetMean,
+        priceTargetData?.targetHigh,
+        priceTargetData?.targetLow
+    ];
+    const valid = candidates
+        .map(Number)
+        .filter(target => isPlausibleLongTermTarget(target, currPrice));
+    if (valid.length === 0) return null;
+    return valid[0];
+}
+
 function buildRiskLevels(currPrice, chartPoints, keyLevels) {
     const atr = calculateATR(chartPoints) || currPrice * 0.035;
     const resistance = (keyLevels || []).filter(l => l.type.includes('התנגדות') && l.price > currPrice).sort((a,b) => a.price - b.price)[0]?.price;
@@ -346,11 +367,15 @@ function normalizeTradePlan(plan, currPrice, riskLevels) {
     return next;
 }
 
-function normalizeLongTermPlan(plan, priceTargetData) {
+function normalizeLongTermPlan(plan, priceTargetData, currPrice) {
     const next = { ...(plan || {}) };
-    if (Number.isFinite(Number(priceTargetData?.targetMedian))) {
-        next.price_target = formatDollar(Number(priceTargetData.targetMedian));
+    const analystTarget = pickAnalystPriceTarget(priceTargetData, currPrice);
+    if (analystTarget) {
+        next.price_target = formatDollar(analystTarget);
+        return next;
     }
+    const modelTarget = parsePrice(next.price_target);
+    next.price_target = isPlausibleLongTermTarget(modelTarget, currPrice) ? formatDollar(modelTarget) : "N/A";
     return next;
 }
 
@@ -363,7 +388,8 @@ function buildQuantScorecard({ fundamentals, currPrice, chartPointsDaily, spyPoi
     const rs = Number(relativeStrength);
     const peGood = fundamentals.revenueGrowth > 18 ? 28 : 18;
     const peBad = fundamentals.revenueGrowth > 18 ? 70 : 45;
-    const analystUpside = Number.isFinite(Number(priceTargetData?.targetMedian)) ? ((Number(priceTargetData.targetMedian) / currPrice) - 1) * 100 : null;
+    const analystTarget = pickAnalystPriceTarget(priceTargetData, currPrice);
+    const analystUpside = analystTarget ? ((analystTarget / currPrice) - 1) * 100 : null;
     const recentEarnings = Array.isArray(earningsData) ? earningsData.slice(0, 4).filter(e => Number.isFinite(Number(e.surprisePercent))) : [];
     const earningsBeatRate = recentEarnings.length ? (recentEarnings.filter(e => e.surprisePercent > 0).length / recentEarnings.length) * 100 : null;
 
@@ -481,9 +507,9 @@ function cleanJSON(text) {
 async function fetchClaudeJson(anthropicKey, promptText) {
     const modelCandidates = [
         process.env.ANTHROPIC_MODEL,
-        'claude-haiku-4-5-20251001',
         'claude-3-5-haiku-latest',
-        'claude-3-5-haiku-20241022'
+        'claude-3-5-haiku-20241022',
+        'claude-3-haiku-20240307'
     ].filter(Boolean);
 
     const invoke = async (userPrompt, model) => {
@@ -766,7 +792,8 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
             const rec = recommendationData[0];
             analystConsensus = `${rec.buy + rec.strongBuy} המלצות קנייה, ${rec.hold} החזקה, ${rec.sell + rec.strongSell} מכירה.`;
         }
-        if (priceTargetData?.targetMedian) analystConsensus += ` יעד חציוני: $${priceTargetData.targetMedian.toFixed(2)}.`;
+        const analystPromptTarget = pickAnalystPriceTarget(priceTargetData, currPrice);
+        if (analystPromptTarget) analystConsensus += ` יעד חציוני: ${formatDollar(analystPromptTarget)}.`;
 
         const marketContext = `אג"ח 10 שנים: ${tnxQuote?.c||'N/A'}%. VIX: ${vixQuote?.c||'N/A'}. עוצמה יחסית מול השוק בחודש האחרון: ${relativeStrength > 0 ? '+' : ''}${relativeStrength}%.`;
         const recentNews = (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 3).map(n => n.headline).join(" | ");
@@ -818,10 +845,10 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         
         if (!shouldRunAI) {
             claudeDebugMsg = "מצב חסכון API: בוצע ניתוח כמותי ללא קריאת מודלי AI.";
+        } else if (aiMode === 'full' && !anthropicKey) {
+            claudeDebugMsg = "מפתח ANTHROPIC_API_KEY חסר ב-Vercel!";
         } else if (!shouldRunClaude) {
             claudeDebugMsg = aiMode === 'full' ? "Claude אינו זמין כרגע, הניתוח נשען על Gemini ונתונים כמותיים." : "מצב Smart: הופעל מודל יחיד.";
-        } else if (!anthropicKey) {
-            claudeDebugMsg = "מפתח ANTHROPIC_API_KEY חסר ב-Vercel!";
         } else if (claudeRes && claudeRes.parsed) {
             claudeData = claudeRes.parsed;
             claudeModelUsed = claudeRes.model || null;
@@ -918,7 +945,7 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         finalVerdict.confidence_score = Math.round(finalConfidence);
         finalVerdict.rating = modelPenalty >= 18 ? "מעורב / סיכון גבוה" : ratingFromScore(finalDataScore);
         finalVerdict.short_term = normalizeTradePlan(finalVerdict.short_term, currPrice, quantScorecard.risk_levels);
-        finalVerdict.long_term = normalizeLongTermPlan(finalVerdict.long_term, priceTargetData);
+        finalVerdict.long_term = normalizeLongTermPlan(finalVerdict.long_term, priceTargetData, currPrice);
         finalVerdict.internal_logic = `${finalVerdict.internal_logic || ""} | ציון נתונים: ${Math.round(finalDataScore)}/100 | הסכמת מודלים: ${modelAgreement}${claudeModelUsed ? ` | Claude: ${claudeModelUsed}` : ""}`.trim();
         finalVerdict.scorecard = {
             data_quality: quantScorecard.data_quality,
@@ -932,6 +959,7 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
             }
         };
         finalVerdict.model_runtime = {
+            mode: aiMode,
             gemini: geminiData ? "active" : "missing",
             claude: claudeData ? "active" : "missing",
             claude_model: claudeModelUsed || null,
