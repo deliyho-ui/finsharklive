@@ -344,6 +344,21 @@ function pickAnalystPriceTarget(priceTargetData, currPrice) {
     return valid[0];
 }
 
+function buildFallbackLongTermTarget(currPrice, quantScorecard) {
+    const price = Number(currPrice);
+    if (!Number.isFinite(price) || price <= 0) return null;
+    const score = Number(quantScorecard?.scores?.overall);
+    const overall = Number.isFinite(score) ? score : 50;
+    let multiplier = 1.04;
+    if (overall >= 82) multiplier = 1.22;
+    else if (overall >= 65) multiplier = 1.14;
+    else if (overall >= 50) multiplier = 1.06;
+    else if (overall >= 40) multiplier = 1.0;
+    else multiplier = 0.92;
+    const target = price * multiplier;
+    return isPlausibleLongTermTarget(target, price) ? Number(target.toFixed(2)) : null;
+}
+
 function buildRiskLevels(currPrice, chartPoints, keyLevels) {
     const atr = calculateATR(chartPoints) || currPrice * 0.035;
     const resistance = (keyLevels || []).filter(l => l.type.includes('התנגדות') && l.price > currPrice).sort((a,b) => a.price - b.price)[0]?.price;
@@ -367,7 +382,7 @@ function normalizeTradePlan(plan, currPrice, riskLevels) {
     return next;
 }
 
-function normalizeLongTermPlan(plan, priceTargetData, currPrice) {
+function normalizeLongTermPlan(plan, priceTargetData, currPrice, quantScorecard) {
     const next = { ...(plan || {}) };
     const analystTarget = pickAnalystPriceTarget(priceTargetData, currPrice);
     if (analystTarget) {
@@ -375,7 +390,12 @@ function normalizeLongTermPlan(plan, priceTargetData, currPrice) {
         return next;
     }
     const modelTarget = parsePrice(next.price_target);
-    next.price_target = isPlausibleLongTermTarget(modelTarget, currPrice) ? formatDollar(modelTarget) : "N/A";
+    if (isPlausibleLongTermTarget(modelTarget, currPrice)) {
+        next.price_target = formatDollar(modelTarget);
+        return next;
+    }
+    const fallbackTarget = buildFallbackLongTermTarget(currPrice, quantScorecard);
+    next.price_target = fallbackTarget ? formatDollar(fallbackTarget) : "N/A";
     return next;
 }
 
@@ -506,10 +526,9 @@ function cleanJSON(text) {
 
 async function fetchClaudeJson(anthropicKey, promptText) {
     const modelCandidates = [
-        process.env.ANTHROPIC_MODEL,
+        process.env.ANTHROPIC_MODEL && !process.env.ANTHROPIC_MODEL.includes('claude-3-haiku-20240307') ? process.env.ANTHROPIC_MODEL : null,
         'claude-3-5-haiku-latest',
-        'claude-3-5-haiku-20241022',
-        'claude-3-haiku-20240307'
+        'claude-3-5-haiku-20241022'
     ].filter(Boolean);
 
     const invoke = async (userPrompt, model) => {
@@ -945,7 +964,7 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         finalVerdict.confidence_score = Math.round(finalConfidence);
         finalVerdict.rating = modelPenalty >= 18 ? "מעורב / סיכון גבוה" : ratingFromScore(finalDataScore);
         finalVerdict.short_term = normalizeTradePlan(finalVerdict.short_term, currPrice, quantScorecard.risk_levels);
-        finalVerdict.long_term = normalizeLongTermPlan(finalVerdict.long_term, priceTargetData, currPrice);
+        finalVerdict.long_term = normalizeLongTermPlan(finalVerdict.long_term, priceTargetData, currPrice, quantScorecard);
         finalVerdict.internal_logic = `${finalVerdict.internal_logic || ""} | ציון נתונים: ${Math.round(finalDataScore)}/100 | הסכמת מודלים: ${modelAgreement}${claudeModelUsed ? ` | Claude: ${claudeModelUsed}` : ""}`.trim();
         finalVerdict.scorecard = {
             data_quality: quantScorecard.data_quality,

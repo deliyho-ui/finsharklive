@@ -2596,11 +2596,26 @@ function isPlausibleLongTermTarget(value, currentPrice) {
   return target >= price * 0.5 && target <= price * 2.5;
 }
 
+function buildFallbackLongTermTarget(data) {
+  const price = Number(data?.price);
+  if (!Number.isFinite(price) || price <= 0) return null;
+  const score = Number(data?.analysis?.scores?.overall);
+  const overall = Number.isFinite(score) ? score : 50;
+  let multiplier = 1.04;
+  if (overall >= 82) multiplier = 1.22;
+  else if (overall >= 65) multiplier = 1.14;
+  else if (overall >= 50) multiplier = 1.06;
+  else if (overall >= 40) multiplier = 1.0;
+  else multiplier = 0.92;
+  const target = price * multiplier;
+  return isPlausibleLongTermTarget(target, price) ? `$${target.toFixed(2)}` : null;
+}
+
 function sanitizeAnalysisTargets(data) {
   const price = Number(data?.price);
   const target = parsePriceValue(data?.analysis?.long_term?.price_target);
   if (data?.analysis?.long_term && !isPlausibleLongTermTarget(target, price)) {
-      data.analysis.long_term.price_target = 'N/A';
+      data.analysis.long_term.price_target = buildFallbackLongTermTarget(data) || 'N/A';
   }
   return data;
 }
