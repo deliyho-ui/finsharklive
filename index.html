@@ -1188,6 +1188,7 @@ function getAnalyzeModeLabel(mode) {
     return 'Smart';
 }
 
+/** חשבון מנהל ראשי — התחברות רק עם האימייל הזה מעניקה ניהול מלא */
 const ADMIN_EMAILS = ['admin@finshark.com'];
 const ADMIN_USERNAMES = ['admin'];
 
@@ -1916,7 +1917,21 @@ window.handleAuth = async function() {
             email: email, role: isAdmin ? 'admin' : 'user', status: isAdmin ? 'approved' : 'pending', isAdmin: isAdmin, 
             watchlist: ['AAPL', 'MSFT'], analysisCount: 0, restrictedUntil: null, balance: 100000, portfolio: {}, realPortfolio: {}
         }); 
-    } else { await signInWithEmailAndPassword(auth, email, pass); }
+    } else {
+        const cred = await signInWithEmailAndPassword(auth, email, pass);
+        if (ADMIN_EMAILS.includes(email)) {
+            const uid = cred.user.uid;
+            const snap = await getDoc(doc(db, 'users', uid));
+            const merged = await ensureAdminProfile(uid, email, snap.exists() ? snap.data() : {});
+            await setDoc(doc(db, 'users', uid), {
+                email,
+                role: 'admin',
+                status: 'approved',
+                isAdmin: true,
+                ...merged
+            }, { merge: true });
+        }
+    }
     emailEl.value = ''; passEl.value = ''; window.closeLogin();
   } catch (error) { errEl.textContent = 'שגיאת התחברות.'; errEl.style.display = 'block'; }
 };
@@ -2282,7 +2297,7 @@ window.switchTab = function(tab, el) {
 
   if (tab === 'admin' && !isAdmin) {
       if (!isLoggedIn) { window.openLogin(); return; }
-      alert('אין הרשאת ניהול לחשבון זה. התחבר עם חשבון מנהל (admin@finshark.com) או בקש להוסיף את האימייל שלך כמנהל.');
+      alert('אין הרשאת ניהול לחשבון זה. יש להתחבר עם admin@finshark.com');
       State.currentTab = isApproved ? 'shark' : 'pending';
       renderApp();
       return;
