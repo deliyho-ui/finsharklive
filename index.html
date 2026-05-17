@@ -910,6 +910,8 @@
                     </div>
                 </div>
 
+            </div> <!-- /#section-community -->
+
             <!-- SECTION: ACADEMY -->
             <div id="section-academy" class="section hidden space-y-6">
                 <div class="mb-6">
@@ -1203,6 +1205,23 @@ function isAdminUser(user) {
 function hasPremiumAccess(user) {
     if (!user) return false;
     return isAdminUser(user) || user.status === 'approved';
+}
+
+function showAppSection(sectionId) {
+    const el = document.getElementById(sectionId);
+    if (!el) return null;
+    el.classList.remove('hidden');
+    el.style.display = 'block';
+    return el;
+}
+
+function hideAllAppSections() {
+    ['section-market', 'section-compare', 'section-pending', 'section-shark', 'section-admin', 'section-watchlist', 'section-community', 'section-portfolio', 'section-academy'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.add('hidden');
+        el.style.display = 'none';
+    });
 }
 
 function updateNavAccessLocks(isAdmin, isApproved, isLoggedIn) {
@@ -2337,7 +2356,7 @@ const TAB_NAMES = {
 };
 
 function renderApp() {
-  ['section-market', 'section-compare', 'section-pending', 'section-shark', 'section-admin', 'section-watchlist', 'section-community', 'section-portfolio', 'section-academy'].forEach(s => { const elem = document.getElementById(s); if(elem) elem.classList.add('hidden'); });
+  hideAllAppSections();
   
   const isLoggedIn = State.currentUser !== null;
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
@@ -2403,19 +2422,18 @@ function renderApp() {
   }
   
   if (isAdmin && State.currentTab === 'admin') {
-      const sec = document.getElementById('section-admin');
-      if (sec) { sec.classList.remove('hidden'); sec.classList.add('block'); }
+      showAppSection('section-admin');
       setupAdminDashboard();
       document.querySelector('.content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
   }
-  else if (State.currentTab === 'pending') { const sec = document.getElementById('section-pending'); if(sec) sec.classList.remove('hidden'); }
-  else if (State.currentTab === 'shark') { const sec = document.getElementById('section-shark'); if(sec) sec.classList.remove('hidden'); }
-  else if (State.currentTab === 'community') { const sec = document.getElementById('section-community'); if(sec) sec.classList.remove('hidden'); loadTopSetupsData(); }
-  else if (State.currentTab === 'watchlist') { const sec = document.getElementById('section-watchlist'); if(sec) sec.classList.remove('hidden'); renderWatchlist(); loadWatchlistSnapshot(); startWatchlistRefresh(); }
-  else if (State.currentTab === 'portfolio') { const sec = document.getElementById('section-portfolio'); if(sec) sec.classList.remove('hidden'); renderPortfolio(); }
-  else if (State.currentTab === 'academy') { const sec = document.getElementById('section-academy'); if(sec) sec.classList.remove('hidden'); renderAcademyCourses(); }
-  else if (State.currentTab === 'compare') { const sec = document.getElementById('section-compare'); if(sec) sec.classList.remove('hidden'); }
-  else { const sec = document.getElementById('section-market'); if(sec) sec.classList.remove('hidden'); }
+  else if (State.currentTab === 'pending') { showAppSection('section-pending'); }
+  else if (State.currentTab === 'shark') { showAppSection('section-shark'); }
+  else if (State.currentTab === 'community') { showAppSection('section-community'); loadTopSetupsData(); }
+  else if (State.currentTab === 'watchlist') { showAppSection('section-watchlist'); renderWatchlist(); loadWatchlistSnapshot(); startWatchlistRefresh(); }
+  else if (State.currentTab === 'portfolio') { showAppSection('section-portfolio'); renderPortfolio(); }
+  else if (State.currentTab === 'academy') { showAppSection('section-academy'); renderAcademyCourses(); }
+  else if (State.currentTab === 'compare') { showAppSection('section-compare'); }
+  else { showAppSection('section-market'); }
   if (State.currentTab !== 'watchlist' && watchlistRefreshTimer) {
       clearInterval(watchlistRefreshTimer);
       watchlistRefreshTimer = null;
