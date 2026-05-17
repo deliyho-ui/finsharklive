@@ -970,7 +970,7 @@
             </div>
 
             <!-- SECTION: ADMIN -->
-            <div id="section-admin" class="section hidden space-y-6">
+            <div id="section-admin" class="section hidden block space-y-6">
                 <div class="mb-6">
                     <h2 class="text-2xl font-black text-white flex items-center gap-2 mb-1"><i class="ph-fill ph-shield-check text-primary"></i> לוח ניהול (Admin)</h2>
                     <p class="text-sm text-gray-400">ניהול משתמשים, חסימות, איפוס היסטוריה וניקוי מטמון (Cache).</p>
@@ -1188,11 +1188,31 @@ function getAnalyzeModeLabel(mode) {
     return 'Smart';
 }
 
+const ADMIN_EMAILS = ['admin@finshark.com'];
+
 function isAdminUser(user) {
     if (!user) return false;
-    const email = String(user.email || '').toLowerCase();
-    // Backward compatibility: some legacy user docs used isAdmin instead of role.
-    return user.role === 'admin' || user.isAdmin === true || email === 'admin@finshark.com';
+    const email = String(user.email || auth.currentUser?.email || '').toLowerCase().trim();
+    const role = String(user.role || '').toLowerCase();
+    return role === 'admin' || user.isAdmin === true || ADMIN_EMAILS.includes(email);
+}
+
+async function ensureAdminProfile(uid, authEmail, userData = {}) {
+    const email = String(authEmail || userData.email || '').toLowerCase().trim();
+    const shouldBeAdmin = ADMIN_EMAILS.includes(email) || userData.isAdmin === true || String(userData.role || '').toLowerCase() === 'admin';
+    if (!shouldBeAdmin) {
+        return { ...userData, email: email || userData.email };
+    }
+    const patch = {};
+    if (String(userData.role || '').toLowerCase() !== 'admin') patch.role = 'admin';
+    if (userData.status !== 'approved') patch.status = 'approved';
+    if (userData.isAdmin !== true) patch.isAdmin = true;
+    if (email && userData.email !== email) patch.email = email;
+    if (Object.keys(patch).length === 0) {
+        return { ...userData, email: email || userData.email };
+    }
+    await updateDoc(doc(db, 'users', uid), patch);
+    return { ...userData, ...patch, email: email || userData.email };
 }
 
 function getAnalyzeModeQuotaState(user, mode) {
@@ -1866,9 +1886,9 @@ window.handleAuth = async function() {
     if (authMode === 'register') { 
         const userCredential = await createUserWithEmailAndPassword(auth, email, pass); 
         const user = userCredential.user; 
-        const isAdmin = email === 'admin@finshark.com'; 
+        const isAdmin = ADMIN_EMAILS.includes(email); 
         await setDoc(doc(db, 'users', user.uid), { 
-            email: email, role: isAdmin ? 'admin' : 'user', status: isAdmin ? 'approved' : 'pending', 
+            email: email, role: isAdmin ? 'admin' : 'user', status: isAdmin ? 'approved' : 'pending', isAdmin: isAdmin, 
             watchlist: ['AAPL', 'MSFT'], analysisCount: 0, restrictedUntil: null, balance: 100000, portfolio: {}, realPortfolio: {}
         }); 
     } else { await signInWithEmailAndPassword(auth, email, pass); }
@@ -1881,18 +1901,35 @@ onAuthStateChanged(auth, async (user) => {
   if (user) {
     onSnapshot(doc(db, 'users', user.uid), async (docSnap) => {
       if (docSnap.exists()) {
-        const userData = docSnap.data();
+        let userData = docSnap.data();
         if (userData.balance === undefined) {
             await updateDoc(doc(db, 'users', user.uid), { balance: 100000, portfolio: {}, realPortfolio: {} });
+            userData = { ...userData, balance: 100000, portfolio: {}, realPortfolio: {} };
         }
-        State.currentUser = { uid: user.uid, ...userData };
+        userData = await ensureAdminProfile(user.uid, user.email, userData);
+        State.currentUser = { uid: user.uid, email: user.email, ...userData };
         State.watchlist = userData.watchlist || [];
         setAnalyzeMode(State.aiMode || 'smart');
         refreshAnalyzeQuotaUI(State.aiMode || 'smart');
 
         if (State.currentTab === 'pending' && userData.status === 'approved') State.currentTab = 'shark';
-        else if (State.currentTab === 'pending' && isAdminUser(userData)) State.currentTab = 'admin';
+        else if (State.currentTab === 'pending' && isAdminUser(State.currentUser)) State.currentTab = 'admin';
         renderApp();
+      } else {
+        const email = String(user.email || '').toLowerCase().trim();
+        const isAdmin = ADMIN_EMAILS.includes(email);
+        await setDoc(doc(db, 'users', user.uid), {
+            email,
+            role: isAdmin ? 'admin' : 'user',
+            status: isAdmin ? 'approved' : 'pending',
+            watchlist: ['AAPL', 'MSFT'],
+            analysisCount: 0,
+            restrictedUntil: null,
+            balance: 100000,
+            portfolio: {},
+            realPortfolio: {},
+            isAdmin: isAdmin || false
+        });
       }
     });
   } else {
@@ -2008,41 +2045,65 @@ function setupAdminDashboard() {
   }
   listEl.innerHTML = '<div class="text-center text-gray-500 py-10 text-sm font-bold">טוען משתמשים...</div>';
   adminUsersUnsub = onSnapshot(collection(db, 'users'), (snapshot) => {
-    const listEl = document.getElementById('admin-users-list'); const users = [];
+    const listEl = document.getElementById('admin-users-list');
     if (!listEl) return;
-    snapshot.forEach(doc => { if (doc.data().role !== 'admin') users.push({ id: doc.id, ...doc.data() }); });
-    if(users.length === 0) { listEl.innerHTML = '<p style="color:#9ca3af">אין משתמשים במערכת כרגע.</p>'; return; }
-    
-    listEl.innerHTML = users.map(u => { 
-        const isApproved = u.status === 'approved'; 
+    const users = [];
+    snapshot.forEach((userDoc) => {
+        const data = userDoc.data();
+        if (String(data.role || '').toLowerCase() !== 'admin') {
+            users.push({ id: userDoc.id, ...data });
+        }
+    });
+    if (users.length === 0) {
+        listEl.innerHTML = '<p class="text-gray-500 text-sm text-center py-6">אין משתמשים רגילים להצגה. אם אתה מנהל ורואה רק את עצמך — ייתכן שחוקי Firestore חוסמים קריאה לכל האוסף.</p>';
+        return;
+    }
+    const btn = 'px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-colors';
+    listEl.innerHTML = users.map((u) => {
+        const isApproved = u.status === 'approved';
         const isBlocked = u.status === 'blocked';
         const isRestricted = u.restrictedUntil && Date.now() < u.restrictedUntil;
         const count = u.analysisCount || 0;
         const statusBadge = isBlocked
-            ? `<span class="user-status" style="background:rgba(255,69,58,0.1); color:#ff5252; border:1px solid rgba(255,69,58,0.3)">חסום 🚫</span>`
+            ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded border bg-danger/10 text-danger border-danger/30">חסום</span>'
             : isApproved
-                ? `<span class="user-status status-approved">מאושר ✓</span>`
-                : `<span class="user-status status-pending">ממתין לאישור ⏳</span>`;
-        const restrictBadge = isRestricted ? `<span style="color:#ff5252; font-size:0.8rem; background:rgba(255,69,58,0.1); padding:4px 8px; border-radius:6px; border:1px solid rgba(255,69,58,0.3)">🚫 מוגבל זמנית</span>` : `<span style="color:#9ca3af; font-size:0.8rem; border:1px solid rgba(255,255,255,0.06); padding:4px 8px; border-radius:6px;">📊 הרצות: ${count}/6</span>`;
-        const approveBtn = !isApproved && !isBlocked ? `<button class="btn btn-primary" onclick="approveUser('${u.id}')">אשר משתמש</button>` : '';
-        const revokeBtn = isApproved ? `<button class="btn btn-ghost" onclick="revokeUser('${u.id}')">הסר הרשאה</button>` : '';
+                ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded border bg-success/10 text-success border-success/30">מאושר</span>'
+                : '<span class="text-[10px] font-bold px-2 py-0.5 rounded border bg-warning/10 text-warning border-warning/30">ממתין</span>';
+        const restrictBadge = isRestricted
+            ? '<span class="text-[10px] text-danger">מוגבל זמנית</span>'
+            : `<span class="text-[10px] text-gray-500">הרצות: ${count}/6</span>`;
+        const approveBtn = !isApproved && !isBlocked ? `<button type="button" class="${btn} bg-primary/20 border-primary/40 text-primary" onclick="approveUser('${u.id}')">אשר</button>` : '';
+        const revokeBtn = isApproved ? `<button type="button" class="${btn} bg-glass border-glassBorder text-gray-300 hover:text-white" onclick="revokeUser('${u.id}')">הסר</button>` : '';
         const tempRestrictBtn = isRestricted
-            ? `<button class="btn btn-primary" onclick="removeRestriction('${u.id}')">שחרר חסימה זמנית</button>`
-            : `<button class="btn btn-ghost" onclick="restrictUser('${u.id}')">חסום זמנית 24ש</button>`;
+            ? `<button type="button" class="${btn} bg-primary/20 border-primary/40 text-primary" onclick="removeRestriction('${u.id}')">שחרר</button>`
+            : `<button type="button" class="${btn} bg-glass border-glassBorder text-gray-300 hover:text-white" onclick="restrictUser('${u.id}')">חסום 24ש</button>`;
         const blockBtn = isBlocked
-            ? `<button class="btn btn-primary" onclick="unblockUser('${u.id}')">בטל חסימה</button>`
-            : `<button class="btn btn-ghost" onclick="blockUser('${u.id}')">חסום משתמש</button>`;
-        const resetBtn = `<button class="btn btn-ghost" onclick="resetUserHistory('${u.id}')">אפס היסטוריה</button>`;
-        const actionButtons = `${approveBtn} ${revokeBtn} ${tempRestrictBtn} ${blockBtn} ${resetBtn}`;
-        return `<div class="user-row"><div class="user-info"><span class="user-name">👤 ${u.email}</span><div style="display:flex; gap:10px; align-items:center; margin-top:6px;">${statusBadge}${restrictBadge}</div></div><div>${actionButtons}</div></div>`; 
+            ? `<button type="button" class="${btn} bg-primary/20 border-primary/40 text-primary" onclick="unblockUser('${u.id}')">בטל חסימה</button>`
+            : `<button type="button" class="${btn} bg-glass border-glassBorder text-gray-300 hover:text-danger" onclick="blockUser('${u.id}')">חסום</button>`;
+        const resetBtn = `<button type="button" class="${btn} bg-glass border-glassBorder text-gray-300 hover:text-white" onclick="resetUserHistory('${u.id}')">אפס</button>`;
+        return `
+        <div class="p-3 rounded-xl bg-glass border border-glassBorder space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                    <div class="text-sm font-bold text-white">${u.email || 'ללא אימייל'}</div>
+                    <div class="flex flex-wrap gap-2 mt-1">${statusBadge}${restrictBadge}</div>
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-1.5">${approveBtn}${revokeBtn}${tempRestrictBtn}${blockBtn}${resetBtn}</div>
+        </div>`;
     }).join('');
   }, (error) => {
     const listEl = document.getElementById('admin-users-list');
     if (listEl) {
-        listEl.innerHTML = `<div class="text-sm text-danger bg-danger/10 border border-danger/30 rounded-lg p-3">שגיאה בטעינת משתמשים: ${error?.message || 'גישה נחסמה או תקלה ב-Firestore'}</div>`;
+        listEl.innerHTML = `<div class="text-sm text-danger bg-danger/10 border border-danger/30 rounded-lg p-3 space-y-2">
+            <p class="font-bold">לא ניתן לטעון משתמשים</p>
+            <p class="text-xs opacity-90">${error?.message || 'גישה נחסמה ב-Firestore'}</p>
+            <p class="text-xs text-gray-400">פרוס את firestore.rules מהריפו ב-Firebase Console, וודא role: admin במסמך users שלך.</p>
+        </div>`;
     }
   });
 }
+
 window.approveUser = async function(uid) { await updateDoc(doc(db, 'users', uid), { status: 'approved' }); }; 
 window.revokeUser = async function(uid) { await updateDoc(doc(db, 'users', uid), { status: 'pending' }); };
 window.removeRestriction = async function(uid) { await updateDoc(doc(db, 'users', uid), { restrictedUntil: null, analysisCount: 0 }); };
@@ -2196,6 +2257,7 @@ window.switchTab = function(tab, el) {
 
   if (tab === 'admin' && !isAdmin) {
       if (!isLoggedIn) { window.openLogin(); return; }
+      alert('אין הרשאת ניהול לחשבון זה. התחבר עם חשבון מנהל (admin@finshark.com) או בקש להוסיף את האימייל שלך כמנהל.');
       State.currentTab = isApproved ? 'shark' : 'pending';
       renderApp();
       return;
@@ -2232,8 +2294,11 @@ function renderApp() {
   if ((State.currentTab === 'shark' || State.currentTab === 'watchlist' || State.currentTab === 'community' || State.currentTab === 'portfolio') && !isAdmin && !isApproved) {
       State.currentTab = isLoggedIn ? 'pending' : 'market';
   }
-  if (State.currentTab === 'pending' && (isApproved || isAdmin)) {
-      State.currentTab = isAdmin ? 'admin' : 'shark';
+  if (State.currentTab === 'pending' && isApproved && !isAdmin) {
+      State.currentTab = 'shark';
+  }
+  if (State.currentTab === 'pending' && isAdmin) {
+      State.currentTab = 'admin';
   }
 
   const btnLogin = document.getElementById('btn-login'); if(btnLogin) btnLogin.style.display = isLoggedIn ? 'none' : '';
@@ -2286,7 +2351,12 @@ function renderApp() {
     mobileAdminBtn.classList.toggle('flex', isAdmin);
   }
   
-  if (isAdmin && State.currentTab === 'admin') { const sec = document.getElementById('section-admin'); if(sec) sec.classList.remove('hidden'); setupAdminDashboard(); }
+  if (isAdmin && State.currentTab === 'admin') {
+      const sec = document.getElementById('section-admin');
+      if (sec) { sec.classList.remove('hidden'); sec.classList.add('block'); }
+      setupAdminDashboard();
+      document.querySelector('.content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
+  }
   else if (State.currentTab === 'pending') { const sec = document.getElementById('section-pending'); if(sec) sec.classList.remove('hidden'); }
   else if (State.currentTab === 'shark') { const sec = document.getElementById('section-shark'); if(sec) sec.classList.remove('hidden'); }
   else if (State.currentTab === 'community') { const sec = document.getElementById('section-community'); if(sec) sec.classList.remove('hidden'); loadTopSetupsData(); }
