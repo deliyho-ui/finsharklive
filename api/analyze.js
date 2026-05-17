@@ -99,7 +99,40 @@ const SCREENER_UNIVERSES = {
     aggressive_small_caps: ['IONQ','RGTI','QUBT','SOUN','BBAI','SERV','RKLB','ACHR','OPEN','CLOV','HIMS','HOOD','UPST','U','DNA']
 };
 
+async function fetchYahooPredefinedScreener(scrId) {
+    const yahooScrId = scrId === 'day_losers' ? 'day_losers' : scrId === 'most_actives' ? 'most_actives' : 'day_gainers';
+    try {
+        const url = `https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?scrIds=${yahooScrId}&count=25`;
+        const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+        const data = await res.json();
+        const rows = data?.finance?.result?.[0]?.quotes || [];
+        const quotes = rows.map((row) => {
+            const price = Number(row.regularMarketPrice);
+            const chgPct = Number(row.regularMarketChangePercent ?? row.regularMarketChangePercentRaw);
+            if (!Number.isFinite(price) || !Number.isFinite(chgPct)) return null;
+            return {
+                symbol: row.symbol,
+                name: row.longName || row.shortName || row.symbol,
+                price,
+                changesPercentage: chgPct
+            };
+        }).filter(Boolean);
+        if (scrId === 'day_losers') {
+            return quotes.filter(q => q.changesPercentage < 0).sort((a, b) => a.changesPercentage - b.changesPercentage).slice(0, 12);
+        }
+        if (scrId === 'day_gainers') {
+            return quotes.filter(q => q.changesPercentage > 0).sort((a, b) => b.changesPercentage - a.changesPercentage).slice(0, 12);
+        }
+        return quotes.sort((a, b) => Math.abs(b.changesPercentage) - Math.abs(a.changesPercentage)).slice(0, 12);
+    } catch (e) {
+        return null;
+    }
+}
+
 async function fetchYahooScreener(scrId) {
+    const fromYahoo = await fetchYahooPredefinedScreener(scrId);
+    if (fromYahoo && fromYahoo.length > 0) return fromYahoo;
+
     const tickers = SCREENER_UNIVERSES[scrId] || SCREENER_UNIVERSES.day_gainers;
     try {
         const results = await Promise.allSettled(tickers.map(async (sym) => {
@@ -115,10 +148,12 @@ async function fetchYahooScreener(scrId) {
                 changesPercentage: ((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose) * 100
             };
         }));
-        const quotes = results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
+        let quotes = results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
         if (scrId === 'day_losers') {
+            quotes = quotes.filter(q => Number(q.changesPercentage) < 0);
             quotes.sort((a,b) => a.changesPercentage - b.changesPercentage);
         } else if (scrId === 'day_gainers') {
+            quotes = quotes.filter(q => Number(q.changesPercentage) > 0);
             quotes.sort((a,b) => b.changesPercentage - a.changesPercentage);
         } else {
             quotes.sort((a,b) => Math.abs(b.changesPercentage) - Math.abs(a.changesPercentage));
@@ -289,6 +324,16 @@ function trailingReturn(points, sessions) {
     return ((last / prior) - 1) * 100;
 }
 
+function trendStrength(points, lookback = 90) {
+    if (!Array.isArray(points) || points.length < Math.max(lookback, 30)) return null;
+    const slice = points.slice(-lookback);
+    const first = slice[0]?.close;
+    const last = slice[slice.length - 1]?.close;
+    if (!Number.isFinite(first) || !Number.isFinite(last) || first <= 0) return null;
+    const slope = ((last / first) - 1) * 100;
+    return slope;
+}
+
 function calculateATR(points, period = 14) {
     if (!Array.isArray(points) || points.length <= period) return null;
     const slice = points.slice(-(period + 1));
@@ -323,42 +368,6 @@ function parsePrice(value) {
     return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-function isPlausibleLongTermTarget(value, currPrice) {
-    const target = Number(value);
-    const price = Number(currPrice);
-    if (!Number.isFinite(target) || !Number.isFinite(price) || target <= 0 || price <= 0) return false;
-    return target >= price * 0.5 && target <= price * 2.5;
-}
-
-function pickAnalystPriceTarget(priceTargetData, currPrice) {
-    const candidates = [
-        priceTargetData?.targetMedian,
-        priceTargetData?.targetMean,
-        priceTargetData?.targetHigh,
-        priceTargetData?.targetLow
-    ];
-    const valid = candidates
-        .map(Number)
-        .filter(target => isPlausibleLongTermTarget(target, currPrice));
-    if (valid.length === 0) return null;
-    return valid[0];
-}
-
-function buildFallbackLongTermTarget(currPrice, quantScorecard) {
-    const price = Number(currPrice);
-    if (!Number.isFinite(price) || price <= 0) return null;
-    const score = Number(quantScorecard?.scores?.overall);
-    const overall = Number.isFinite(score) ? score : 50;
-    let multiplier = 1.04;
-    if (overall >= 82) multiplier = 1.22;
-    else if (overall >= 65) multiplier = 1.14;
-    else if (overall >= 50) multiplier = 1.06;
-    else if (overall >= 40) multiplier = 1.0;
-    else multiplier = 0.92;
-    const target = price * multiplier;
-    return isPlausibleLongTermTarget(target, price) ? Number(target.toFixed(2)) : null;
-}
-
 function buildRiskLevels(currPrice, chartPoints, keyLevels) {
     const atr = calculateATR(chartPoints) || currPrice * 0.035;
     const resistance = (keyLevels || []).filter(l => l.type.includes('התנגדות') && l.price > currPrice).sort((a,b) => a.price - b.price)[0]?.price;
@@ -382,20 +391,58 @@ function normalizeTradePlan(plan, currPrice, riskLevels) {
     return next;
 }
 
-function normalizeLongTermPlan(plan, priceTargetData, currPrice, quantScorecard) {
+function extractAnalystTargetMedian(priceTargetData) {
+    if (!priceTargetData || typeof priceTargetData !== 'object') return null;
+    const raw = priceTargetData.targetMedian ?? priceTargetData.median ?? priceTargetData.target?.median;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function clamp12MonthTarget(price, currPrice) {
+    if (!Number.isFinite(price) || !Number.isFinite(currPrice) || currPrice <= 0) return null;
+    const minT = currPrice * 0.72;
+    const maxT = currPrice * 1.42;
+    return Number(clampNumber(price, minT, maxT).toFixed(2));
+}
+
+function mergeModelPriceTargets(gLong = {}, cLong = {}, currPrice, priceTargetData) {
+    const analyst = extractAnalystTargetMedian(priceTargetData);
+    if (analyst) return formatDollar(clamp12MonthTarget(analyst, currPrice));
+
+    const candidates = [gLong.price_target, cLong.price_target, gLong.intrinsic_value, cLong.intrinsic_value]
+        .map(parsePrice)
+        .filter((p) => p && p >= currPrice * 0.5 && p <= currPrice * 2.2);
+    if (candidates.length === 0) return null;
+
+    const avg = candidates.reduce((sum, p) => sum + p, 0) / candidates.length;
+    return formatDollar(clamp12MonthTarget(avg, currPrice));
+}
+
+function normalizeLongTermPlan(plan, priceTargetData, currPrice, quantScorecard = null) {
     const next = { ...(plan || {}) };
-    const analystTarget = pickAnalystPriceTarget(priceTargetData, currPrice);
-    if (analystTarget) {
-        next.price_target = formatDollar(analystTarget);
-        return next;
+    const analyst = extractAnalystTargetMedian(priceTargetData);
+    let target = analyst ? clamp12MonthTarget(analyst, currPrice) : parsePrice(next.price_target);
+
+    if (!target) {
+        const score = Number(quantScorecard?.scores?.overall || 50);
+        const tilt = score >= 65 ? 1.12 : score <= 40 ? 0.9 : 1.04;
+        target = clamp12MonthTarget(currPrice * tilt, currPrice);
+    } else {
+        target = clamp12MonthTarget(target, currPrice);
     }
-    const modelTarget = parsePrice(next.price_target);
-    if (isPlausibleLongTermTarget(modelTarget, currPrice)) {
-        next.price_target = formatDollar(modelTarget);
-        return next;
+    next.price_target = formatDollar(target);
+
+    let intrinsic = parsePrice(next.intrinsic_value);
+    if (!intrinsic || intrinsic < currPrice * 0.55 || intrinsic > currPrice * 2.1) {
+        intrinsic = target ? target * 0.97 : currPrice;
     }
-    const fallbackTarget = buildFallbackLongTermTarget(currPrice, quantScorecard);
-    next.price_target = fallbackTarget ? formatDollar(fallbackTarget) : "N/A";
+    next.intrinsic_value = formatDollar(clamp12MonthTarget(intrinsic, currPrice));
+
+    if (!next.accumulation_zone || next.accumulation_zone === 'N/A') {
+        const low = formatDollar(currPrice * 0.92);
+        const high = formatDollar(currPrice * 0.98);
+        next.accumulation_zone = `${low} - ${high}`;
+    }
     return next;
 }
 
@@ -405,11 +452,11 @@ function buildQuantScorecard({ fundamentals, currPrice, chartPointsDaily, spyPoi
     const above200 = Number.isFinite(lastPoint.ma200) && currPrice >= lastPoint.ma200;
     const oneMonth = trailingReturn(chartPointsDaily, 21);
     const sixMonth = trailingReturn(chartPointsDaily, 126);
+    const trend90 = trendStrength(chartPointsDaily, 90);
     const rs = Number(relativeStrength);
     const peGood = fundamentals.revenueGrowth > 18 ? 28 : 18;
     const peBad = fundamentals.revenueGrowth > 18 ? 70 : 45;
-    const analystTarget = pickAnalystPriceTarget(priceTargetData, currPrice);
-    const analystUpside = analystTarget ? ((analystTarget / currPrice) - 1) * 100 : null;
+    const analystUpside = Number.isFinite(Number(priceTargetData?.targetMedian)) ? ((Number(priceTargetData.targetMedian) / currPrice) - 1) * 100 : null;
     const recentEarnings = Array.isArray(earningsData) ? earningsData.slice(0, 4).filter(e => Number.isFinite(Number(e.surprisePercent))) : [];
     const earningsBeatRate = recentEarnings.length ? (recentEarnings.filter(e => e.surprisePercent > 0).length / recentEarnings.length) * 100 : null;
 
@@ -447,7 +494,8 @@ function buildQuantScorecard({ fundamentals, currPrice, chartPointsDaily, spyPoi
         { score: scoreHigherBetter(rs, -12, 18), weight: 1.3 },
         { score: scoreRange(rsiVal, 20, 85, 42, 66), weight: 0.9 },
         { score: scoreHigherBetter(oneMonth, -12, 16), weight: 0.8 },
-        { score: scoreHigherBetter(sixMonth, -25, 35), weight: 0.8 }
+        { score: scoreHigherBetter(sixMonth, -25, 35), weight: 0.8 },
+        { score: scoreHigherBetter(trend90, -18, 22), weight: 0.9 }
     ]);
 
     const quality = weightedAverage([
@@ -471,7 +519,7 @@ function buildQuantScorecard({ fundamentals, currPrice, chartPointsDaily, spyPoi
         fundamentals.peRatio, fundamentals.psRatio, fundamentals.pbRatio, fundamentals.revenueGrowth,
         fundamentals.operatingMargin, fundamentals.netMargin, fundamentals.roe, fundamentals.roic,
         fundamentals.currentRatio, fundamentals.quickRatio, fundamentals.debtToEquity, lastPoint.ma50,
-        lastPoint.ma200, rsiVal, relativeStrength, priceTargetData?.targetMedian
+        lastPoint.ma200, rsiVal, relativeStrength, priceTargetData?.targetMedian, trend90
     ];
     const availableMetrics = metricValues.filter(v => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v))).length;
     const confidence = clampNumber(35 + availableMetrics * 3.5 + (chartPointsDaily.length >= 200 ? 10 : 0) + (recentEarnings.length >= 2 ? 6 : 0), 35, 92);
@@ -496,6 +544,7 @@ function buildQuantScorecard({ fundamentals, currPrice, chartPointsDaily, spyPoi
         drivers: [
             { label: "מומנטום", value: above50 && above200 ? "המחיר מעל MA50 ו-MA200" : !above50 && !above200 ? "המחיר מתחת לשני הממוצעים" : "המגמה מעורבת", score: momentum },
             { label: "עוצמה יחסית", value: `${rs > 0 ? "+" : ""}${Number.isFinite(rs) ? rs.toFixed(2) : "0.00"}% מול SPY בחודש`, score: scoreHigherBetter(rs, -12, 18) || 50 },
+            { label: "עוצמת מגמה", value: `${Number.isFinite(trend90) ? `${trend90 > 0 ? "+" : ""}${trend90.toFixed(2)}%` : "N/A"} ב-90 ימי מסחר`, score: scoreHigherBetter(trend90, -18, 22) || 50 },
             { label: "תמחור", value: `P/E ${fundamentals.peRatio || "N/A"} · P/S ${fundamentals.psRatio || "N/A"}`, score: valuation },
             { label: "רווחיות", value: `Operating ${fundamentals.operatingMargin || "N/A"}% · ROIC ${fundamentals.roic || "N/A"}%`, score: profitability }
         ]
@@ -524,14 +573,66 @@ function cleanJSON(text) {
     }
 }
 
+function normalizeGeminiModel(model) {
+    const m = String(model || '').trim().toLowerCase();
+    if (!m) return '';
+    if (m.includes('plus') || m === 'gemini-2.5-plus') return 'gemini-2.5-flash';
+    if (m.includes('fast')) return 'gemini-2.5-flash';
+    return m;
+}
+
+function getGeminiModelCandidates() {
+    const envModel = normalizeGeminiModel(process.env.GEMINI_MODEL);
+    return [...new Set([envModel, 'gemini-2.5-flash', 'gemini-2.5-flash-lite'].filter(Boolean))];
+}
+
+async function fetchGeminiText(geminiKey, promptText, temperature, modelCandidates) {
+    let lastError = null;
+    for (const model of modelCandidates) {
+        try {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: promptText }] }],
+                    generationConfig: { temperature, responseMimeType: "application/json" }
+                })
+            });
+            const payload = await response.json().catch(() => ({}));
+            const text = payload?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            if (response.ok && text) return { text, model };
+            lastError = payload?.error || { message: `Gemini model ${model} returned empty response` };
+        } catch (error) {
+            lastError = { message: error.message || `Gemini model ${model} request failed` };
+        }
+    }
+    return { text: null, model: null, error: lastError };
+}
+
+const DEPRECATED_CLAUDE_MODELS = new Set([
+    'claude-3-5-haiku-20241022',
+    'claude-3-haiku-20240307'
+]);
+
+function isClaudeModelUnavailable(error, status) {
+    const msg = String(error?.message || error?.type || '').toLowerCase();
+    return status === 404 || status === 403
+        || msg.includes('not_found')
+        || msg.includes('does not exist')
+        || msg.includes('permission')
+        || msg.includes('model');
+}
+
 async function fetchClaudeJson(anthropicKey, promptText) {
-    const modelCandidates = [
-        process.env.ANTHROPIC_MODEL && !process.env.ANTHROPIC_MODEL.includes('claude-3-haiku-20240307') ? process.env.ANTHROPIC_MODEL : null,
-        'claude-3-5-haiku-latest',
-        'claude-3-5-haiku-20241022'
-    ].filter(Boolean);
+    const modelCandidates = [...new Set([
+        process.env.ANTHROPIC_MODEL,
+        'claude-haiku-4-5-20251001',
+        'claude-3-5-haiku-latest'
+    ].filter(Boolean))].filter((m) => !DEPRECATED_CLAUDE_MODELS.has(m));
 
     const invoke = async (userPrompt, model) => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 18000);
         const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
@@ -539,6 +640,7 @@ async function fetchClaudeJson(anthropicKey, promptText) {
                 'anthropic-version': '2023-06-01',
                 'content-type': 'application/json'
             },
+            signal: controller.signal,
             body: JSON.stringify({
                 model,
                 max_tokens: 1000,
@@ -546,27 +648,35 @@ async function fetchClaudeJson(anthropicKey, promptText) {
                 system: "Return strictly valid minified JSON only. No markdown, no prose, no code fences.",
                 messages: [{ role: 'user', content: userPrompt }]
             })
-        });
+        }).finally(() => clearTimeout(timeout));
         const payload = await response.json().catch(() => ({}));
         return { ok: response.ok, status: response.status, payload, model };
     };
 
     let lastError = null;
+    const skippedModels = [];
     for (const model of modelCandidates) {
         const first = await invoke(promptText, model);
         const parsedFirst = cleanJSON(first?.payload?.content?.[0]?.text || '');
         if (parsedFirst) return { parsed: parsedFirst, model };
 
-        const retryPrompt = `${promptText}\n\nIMPORTANT: Output one valid JSON object only.`;
+        const retryPrompt = `${promptText}\n\nIMPORTANT: Output one valid minified JSON object only.`;
         const second = await invoke(retryPrompt, model);
         const parsedSecond = cleanJSON(second?.payload?.content?.[0]?.text || '');
         if (parsedSecond) return { parsed: parsedSecond, model };
 
-        lastError = second?.payload?.error || first?.payload?.error || {
-            message: `Claude model ${model} failed (HTTP ${second?.status || first?.status || 'unknown'})`
-        };
+        const err = second?.payload?.error || first?.payload?.error;
+        const status = second?.status || first?.status;
+        if (isClaudeModelUnavailable(err, status)) {
+            skippedModels.push(model);
+            continue;
+        }
+        lastError = err || { message: `Claude model ${model} failed (HTTP ${status || 'unknown'})` };
     }
-    return { parsed: null, error: lastError };
+    if (!lastError && skippedModels.length) {
+        lastError = { message: `מודלי Claude לא זמינים (${skippedModels.join(', ')}). הניתוח ימשיך עם Gemini בלבד.` };
+    }
+    return { parsed: null, error: lastError, skippedModels };
 }
 
 module.exports = async function(req, res) {
@@ -580,15 +690,17 @@ module.exports = async function(req, res) {
         const action = req.query.action;
         const shouldRunAI = req.query.ai !== '0';
         const aiMode = String(req.query.ai_mode || 'smart').toLowerCase();
+        const geminiModelCandidates = getGeminiModelCandidates();
         
         const geminiKey = process.env.GEMINI_API_KEY;
         const anthropicKey = process.env.ANTHROPIC_API_KEY ? process.env.ANTHROPIC_API_KEY.trim() : null; 
         const finnhubKey = process.env.FINNHUB_API_KEY;
 
-        if (!geminiKey || !finnhubKey) return res.status(200).json({ success: false, message: "Missing API Keys" });
+        if (!finnhubKey) return res.status(200).json({ success: false, message: "Missing FINNHUB API key" });
 
         // --- תיק מניות כריש ---
         if (action === 'shark_portfolio') {
+            if (!geminiKey) return res.status(200).json({ success: false, message: "Missing GEMINI API key" });
             const prompt = `You are "FinShark", an elite Wall Street AI hedge fund manager. 
             Construct a 5-stock model portfolio for today's market environment. 
             Choose real, highly traded US stocks. Balance it between Growth, Value, and Momentum.
@@ -600,13 +712,9 @@ module.exports = async function(req, res) {
             ]`;
 
             try {
-                const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.7, responseMimeType: "application/json" }})
-                });
-                const aiData = await aiRes.json();
-                if (!aiData?.candidates?.length || !aiData.candidates[0]?.content?.parts?.[0]?.text) throw new Error("Gemini empty response");
-                let text = aiData.candidates[0].content.parts[0].text;
+                const geminiAnswer = await fetchGeminiText(geminiKey, prompt, 0.7, geminiModelCandidates);
+                if (!geminiAnswer?.text) throw new Error(geminiAnswer?.error?.message || "Gemini empty response");
+                let text = geminiAnswer.text;
                 let s = text.indexOf('['); let e = text.lastIndexOf(']');
                 if (s !== -1 && e !== -1) text = text.substring(s, e + 1);
                 return res.status(200).json({ success: true, portfolio: JSON.parse(text) });
@@ -618,20 +726,40 @@ module.exports = async function(req, res) {
         // --- נתוני שוק ---
         if (action === 'market' || (!ticker && action !== 'analyze')) {
             const marketData = await getOrSetCache(buildCacheKey('market', 'homepage'), 45 * 1000, async () => {
-                const [spy, qqq, dia, iwm, xlk, xlv, xlf, xle, xly, xli, newsData, topGainers, topLosers] = await Promise.all([
+                const [spy, qqq, dia, iwm, vix, tnx, xlk, xlv, xlf, xle, xly, xli, newsData, topGainers, topLosers] = await Promise.all([
                     fetchFinnhub('quote', 'symbol=SPY'), fetchFinnhub('quote', 'symbol=QQQ'), fetchFinnhub('quote', 'symbol=DIA'), fetchFinnhub('quote', 'symbol=IWM'),
+                    fetchYahooQuote('^VIX'), fetchYahooQuote('^TNX'),
                     fetchFinnhub('quote', 'symbol=XLK'), fetchFinnhub('quote', 'symbol=XLV'), fetchFinnhub('quote', 'symbol=XLF'), fetchFinnhub('quote', 'symbol=XLE'),
                     fetchFinnhub('quote', 'symbol=XLY'), fetchFinnhub('quote', 'symbol=XLI'), fetchFinnhub('news', 'category=business'),
                     fetchYahooScreener('day_gainers'), fetchYahooScreener('day_losers')
                 ]);
                 return {
-                    indexes: [{ symbol: 'S&P 500', price: spy?.c, changesPercentage: spy?.dp }, { symbol: 'NASDAQ', price: qqq?.c, changesPercentage: qqq?.dp }, { symbol: 'DOW 30', price: dia?.c, changesPercentage: dia?.dp }, { symbol: 'RUSSELL 2000', price: iwm?.c, changesPercentage: iwm?.dp }],
+                    indexes: [
+                        { symbol: 'S&P 500', price: spy?.c, changesPercentage: spy?.dp },
+                        { symbol: 'NASDAQ', price: qqq?.c, changesPercentage: qqq?.dp },
+                        { symbol: 'DOW 30', price: dia?.c, changesPercentage: dia?.dp },
+                        { symbol: 'RUSSELL 2000', price: iwm?.c, changesPercentage: iwm?.dp }
+                    ],
+                    heroExtras: {
+                        vix: { price: vix?.c, changesPercentage: vix?.dp },
+                        yield10y: { price: tnx?.c, changesPercentage: tnx?.dp }
+                    },
                     sectors: [{ sector: "Technology", changesPercentage: String(xlk?.dp) }, { sector: "Healthcare", changesPercentage: String(xlv?.dp) }, { sector: "Financials", changesPercentage: String(xlf?.dp) }, { sector: "Industrials", changesPercentage: String(xli?.dp) }, { sector: "Consumer Cyclical", changesPercentage: String(xly?.dp) }, { sector: "Energy", changesPercentage: String(xle?.dp) }],
                     gainers: topGainers, losers: topLosers,
                     news: (Array.isArray(newsData) ? newsData : []).slice(0, 5).map(item => ({ title: item.headline, url: item.url, source: item.source, date: new Date(item.datetime * 1000).toISOString() }))
                 };
             });
             return res.status(200).json({ success: true, marketData });
+        }
+
+        if (action === 'market_chart') {
+            const range = String(req.query.range || '1mo');
+            const interval = String(req.query.interval || '1d');
+            const points = await getOrSetCache(buildCacheKey('market_chart', `${range}:${interval}`), 60 * 1000, async () => {
+                const rows = await fetchYahooData('SPY', range, interval, 50, 50);
+                return rows.map((p) => ({ date: p.date, close: p.close }));
+            });
+            return res.status(200).json({ success: true, points });
         }
 
         if (action === 'screener') {
@@ -694,6 +822,7 @@ module.exports = async function(req, res) {
         }
 
         if (action === 'compare') {
+            if (!geminiKey) return res.status(200).json({ success: false, message: "Missing GEMINI API key" });
             const t1 = (req.query.t1 || "").toUpperCase().trim();
             const t2 = (req.query.t2 || "").toUpperCase().trim();
             if (!t1 || !t2) return res.status(200).json({ success: false, message: "Missing tickers" });
@@ -734,12 +863,8 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
 {"winner":"TICKER","reasoning":"2-3 משפטים מבוססי נתונים למה היא עדיפה"}`;
 
             try {
-                const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }], generationConfig: { temperature: 0.1, responseMimeType: "application/json" }})
-                });
-                const aiData = await aiRes.json();
-                const text = aiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+                const geminiAnswer = await fetchGeminiText(geminiKey, promptText, 0.1, geminiModelCandidates);
+                const text = geminiAnswer?.text;
                 if (!text) throw new Error("Empty response");
                 const parsed = cleanJSON(text);
                 return res.status(200).json({ success: true, comparison: parsed });
@@ -811,8 +936,8 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
             const rec = recommendationData[0];
             analystConsensus = `${rec.buy + rec.strongBuy} המלצות קנייה, ${rec.hold} החזקה, ${rec.sell + rec.strongSell} מכירה.`;
         }
-        const analystPromptTarget = pickAnalystPriceTarget(priceTargetData, currPrice);
-        if (analystPromptTarget) analystConsensus += ` יעד חציוני: ${formatDollar(analystPromptTarget)}.`;
+        const analystTargetMedian = extractAnalystTargetMedian(priceTargetData);
+        if (analystTargetMedian) analystConsensus += ` יעד חציוני אנליסטים ל-12 חודשים: $${analystTargetMedian.toFixed(2)} (חובה לעגן price_target בטווח ±35% מ-$${currPrice}).`;
 
         const marketContext = `אג"ח 10 שנים: ${tnxQuote?.c||'N/A'}%. VIX: ${vixQuote?.c||'N/A'}. עוצמה יחסית מול השוק בחודש האחרון: ${relativeStrength > 0 ? '+' : ''}${relativeStrength}%.`;
         const recentNews = (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 3).map(n => n.headline).join(" | ");
@@ -823,7 +948,7 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
 המניה: ${ticker} ($${currPrice}). מאקרו: ${marketContext}. קונצנזוס: ${analystConsensus}. חדשות: ${recentNews || 'אין'}. 
 טכני(סווינג): יומי $${currPrice}, MA50=$${lastPointDaily.ma50}, MA200=$${lastPointDaily.ma200}. מומנטום: RSI=${rsiVal.toFixed(1)}, תבנית: ${patternObj.text}. פונדמנטלס: P/E=${fundamentals.peRatio || 'N/A'}, צמיחה=${fundamentals.revenueGrowth || 'N/A'}%. ${earningsStreak}.
 ציון כמותי מחושב מנתוני שוק, לא לשנות: ${fixedScores}. רמות סווינג מחושבות: יעד ${formatDollar(quantScorecard.risk_levels.target)}, סטופ ${formatDollar(quantScorecard.risk_levels.stop)}.
-הנחיות: 1. להסביר את הציון לפי הנתונים בלבד, 2. technical לגרף בלבד, 3. בלי המלצה אישית או הבטחת תשואה, 4. ללא מרכאות כפולות בתוך טקסטים, 5. לסימולטור Paper Trading וללמידה בלבד. החזר JSON תקין ומכווץ במבנה הבא:
+הנחיות: 1. להסביר את הציון לפי הנתונים בלבד, 2. technical לגרף בלבד, 3. בלי המלצה אישית או הבטחת תשואה, 4. ללא מרכאות כפולות בתוך טקסטים, 5. לסימולטור Paper Trading וללמידה בלבד, 6. long_term.price_target חייב להיות יעד 12 חודשים ריאלי בדולרים (לא אחוזים), בטווח בערך $${(currPrice * 0.8).toFixed(0)} עד $${(currPrice * 1.35).toFixed(0)} — לא להשתמש בשווי הוגן כיעד אם הוא נמוך בהרבה מהמחיר. החזר JSON תקין ומכווץ במבנה הבא:
 {"ai_scratchpad":"מחשבות לוגיות קצרות...","confidence_score":85,"internal_logic":"משפט קצר על הדירוג","identity":"תיאור חברה קצר","technical":"ניתוח טכני טהור","long_term":{"summary":"מסקנה","intrinsic_value":"שווי הוגן","accumulation_zone":"טווח","price_target":"יעד 12M"},"short_term":{"summary":"תוכנית סווינג","entry_price":"${formatDollar(currPrice)}","target_price":"${formatDollar(quantScorecard.risk_levels.target)}","stop_loss":"${formatDollar(quantScorecard.risk_levels.stop)}"},"pros":["זכות1"],"cons":["סיכון1"],"news_sentiment_score":8,"scores":${fixedScores},"rating":"${ratingFromScore(quantScorecard.scores.overall)}"}`;
 
         const shouldRunClaude = shouldRunAI && aiMode === 'full' && Boolean(anthropicKey);
@@ -831,17 +956,11 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         const geminiCacheKey = buildCacheKey('ai_gemini', `${ticker}:${aiMode}`);
         const claudeCacheKey = buildCacheKey('ai_claude', `${ticker}:${aiMode}`);
 
-        const geminiPromise = shouldRunAI ? getOrSetCacheIf(
+        const geminiPromise = (shouldRunAI && geminiKey) ? getOrSetCacheIf(
             geminiCacheKey,
             aiResponseCacheTtlMs,
-            () => fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: promptText }] }],
-                    generationConfig: { temperature: aiMode === 'full' ? 0.1 : 0.05, responseMimeType: "application/json" }
-                })
-            }).then(r => r.json()),
-            (value) => Boolean(value?.candidates?.[0]?.content?.parts?.[0]?.text)
+            () => fetchGeminiText(geminiKey, promptText, aiMode === 'full' ? 0.1 : 0.05, geminiModelCandidates),
+            (value) => Boolean(value?.text)
         ) : Promise.resolve(null);
 
         const claudePromise = shouldRunClaude ? getOrSetCacheIf(
@@ -854,25 +973,47 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         const [geminiRes, claudeRes] = await Promise.all([geminiPromise, claudePromise].map(p => p.catch(e => ({ error: { message: e.message } }))));
 
         let geminiData = null;
+        let geminiModelUsed = null;
+        let geminiDebugMsg = null;
         let claudeData = null;
         let claudeModelUsed = null;
         let claudeDebugMsg = null; 
 
-        if (geminiRes?.candidates?.length > 0 && geminiRes.candidates[0]?.content?.parts?.[0]?.text) {
-            geminiData = cleanJSON(geminiRes.candidates[0].content.parts[0].text);
+        if (geminiRes?.text) {
+            geminiData = cleanJSON(geminiRes.text);
+            geminiModelUsed = geminiRes.model || null;
+            if (!geminiData && shouldRunAI && geminiKey) {
+                const retryPrompt = `${promptText}\n\nIMPORTANT: Output one valid JSON object only.`;
+                const geminiRetry = await fetchGeminiText(geminiKey, retryPrompt, 0.05, geminiModelCandidates);
+                if (geminiRetry?.text) {
+                    geminiData = cleanJSON(geminiRetry.text);
+                    geminiModelUsed = geminiRetry.model || geminiModelUsed;
+                    if (!geminiData) {
+                        geminiDebugMsg = "Gemini החזיר טקסט שלא ניתן לפרסר ל-JSON תקין.";
+                    }
+                } else {
+                    geminiDebugMsg = geminiRetry?.error?.message || "Gemini נכשל גם בניסיון תיקון JSON.";
+                }
+            }
+        } else if (shouldRunAI && geminiKey) {
+            geminiDebugMsg = geminiRes?.error?.message || "Gemini לא החזיר תשובה תקינה";
         }
         
         if (!shouldRunAI) {
             claudeDebugMsg = "מצב חסכון API: בוצע ניתוח כמותי ללא קריאת מודלי AI.";
-        } else if (aiMode === 'full' && !anthropicKey) {
-            claudeDebugMsg = "מפתח ANTHROPIC_API_KEY חסר ב-Vercel!";
+        } else if (!geminiKey) {
+            claudeDebugMsg = "מפתח GEMINI_API_KEY חסר. בוצע ניתוח כמותי עם Claude אם זמין.";
         } else if (!shouldRunClaude) {
             claudeDebugMsg = aiMode === 'full' ? "Claude אינו זמין כרגע, הניתוח נשען על Gemini ונתונים כמותיים." : "מצב Smart: הופעל מודל יחיד.";
+        } else if (!anthropicKey) {
+            claudeDebugMsg = "מפתח ANTHROPIC_API_KEY חסר ב-Vercel!";
         } else if (claudeRes && claudeRes.parsed) {
             claudeData = claudeRes.parsed;
             claudeModelUsed = claudeRes.model || null;
         } else if (claudeRes && claudeRes.error) {
-            claudeDebugMsg = `שגיאת הרשאות: ${claudeRes.error.message || JSON.stringify(claudeRes.error)}`;
+            claudeDebugMsg = claudeRes.skippedModels?.length
+                ? (claudeRes.error.message || 'מודל Claude לא זמין — הניתוח מבוסס על Gemini ונתוני שוק.')
+                : `Claude: ${claudeRes.error.message || JSON.stringify(claudeRes.error)}`;
         } else if (!claudeRes) {
             claudeDebugMsg = "אין תשובה מהשרת של קלוד.";
         } else {
@@ -910,7 +1051,7 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
                     summary: gLong.summary || cLong.summary || "אין מספיק נתונים.",
                     intrinsic_value: gLong.intrinsic_value || cLong.intrinsic_value || "N/A",
                     accumulation_zone: gLong.accumulation_zone || cLong.accumulation_zone || "N/A",
-                    price_target: Math.min(Number(String(gLong.price_target).replace(/[^0-9.]/g, '')||0), Number(String(cLong.price_target).replace(/[^0-9.]/g, '')||0)) || gLong.price_target || cLong.price_target
+                    price_target: mergeModelPriceTargets(gLong, cLong, currPrice, priceTargetData) || gLong.price_target || cLong.price_target
                 },
                 short_term: {
                     summary: cShort.summary || gShort.summary || "אין מספיק נתונים.",
@@ -952,7 +1093,7 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
                 internal_logic: "Fallback quantitative scorecard",
                 identity: `${profile?.name || ticker}: ניתוח מבוסס נתוני מחיר, מומנטום ופונדמנטלס זמינים.`,
                 technical: `${patternObj.text}. RSI ${rsiVal.toFixed(1)}, מחיר ${currPrice >= (lastPointDaily.ma50 || Infinity) ? "מעל" : "מתחת"} MA50 ו-${currPrice >= (lastPointDaily.ma200 || Infinity) ? "מעל" : "מתחת"} MA200.`,
-                long_term: { summary: "הערכת הטווח הארוך מבוססת על תמחור, צמיחה, רווחיות ובריאות מאזנית.", intrinsic_value: "לא חושב DCF מלא", accumulation_zone: "קרוב לתמיכה טכנית", price_target: priceTargetData?.targetMedian ? formatDollar(priceTargetData.targetMedian) : "N/A" },
+                long_term: { summary: "הערכת הטווח הארוך מבוססת על תמחור, צמיחה, רווחיות ובריאות מאזנית.", intrinsic_value: "לא חושב DCF מלא", accumulation_zone: "קרוב לתמיכה טכנית", price_target: extractAnalystTargetMedian(priceTargetData) ? formatDollar(clamp12MonthTarget(extractAnalystTargetMedian(priceTargetData), currPrice)) : "N/A" },
                 short_term: { summary: "תוכנית הסווינג מבוססת על ATR, ממוצעים נעים ורמות תמיכה/התנגדות.", entry_price: formatDollar(currPrice), target_price: formatDollar(quantScorecard.risk_levels.target), stop_loss: formatDollar(quantScorecard.risk_levels.stop) },
                 pros: quantScorecard.drivers.filter(d => d.score >= 60).map(d => `${d.label}: ${d.value}`).slice(0, 3),
                 cons: quantScorecard.drivers.filter(d => d.score < 55).map(d => `${d.label}: ${d.value}`).slice(0, 3),
@@ -978,8 +1119,9 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
             }
         };
         finalVerdict.model_runtime = {
-            mode: aiMode,
             gemini: geminiData ? "active" : "missing",
+            gemini_model: geminiModelUsed || null,
+            gemini_note: geminiDebugMsg || null,
             claude: claudeData ? "active" : "missing",
             claude_model: claudeModelUsed || null,
             claude_note: claudeDebugMsg || null
@@ -987,7 +1129,7 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
 
         return res.status(200).json({
             success: true, isDataComplete: true, ticker, name: profile?.name || ticker, industry: profile?.finnhubIndustry || "N/A", sector: profile?.finnhubIndustry || "N/A",
-            price: currPrice, changePercentage: Number(quote.dp),
+            price: currPrice, changePercentage: Number(quote.dp), analystTarget12M: extractAnalystTargetMedian(priceTargetData),
             ma50: lastPointDaily.ma50, ma200: lastPointDaily.ma200, volume: Number(quote.v || lastPointDaily.volume || 0),
             pattern: patternObj.text, patternLines: patternObj.lines, rsi: rsiVal, keyLevels, ...fundamentals,
             latestEarnings: (Array.isArray(earningsData) && earningsData.length > 0) ? earningsData[0] : null,
