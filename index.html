@@ -182,6 +182,18 @@
             font-weight: 700;
             line-height: 1.5;
         }
+        .heatmap-cell {
+            border-radius: 10px;
+            padding: 10px 8px;
+            text-align: center;
+            border: 1px solid var(--glassBorder);
+            background: rgba(255,255,255,0.03);
+        }
+        .heatmap-cell.up { background: rgba(48,209,88,0.12); border-color: rgba(48,209,88,0.25); }
+        .heatmap-cell.down { background: rgba(255,69,58,0.12); border-color: rgba(255,69,58,0.25); }
+        .heatmap-cell.neutral { background: rgba(255,255,255,0.04); }
+        .heatmap-cell .cell-name { font-size: 0.62rem; font-weight: 800; color: #9ca3af; margin-bottom: 4px; }
+        .heatmap-cell .cell-change { font-size: 0.72rem; font-weight: 800; font-family: ui-monospace, monospace; }
         .modal-tab.active, .port-tab.active {
             background: rgba(13,13,32,0.9);
             border: 1px solid var(--glassBorder);
@@ -199,6 +211,9 @@
        </button>
        <button onclick="window.switchTab('shark')" class="flex flex-col items-center p-2 text-gray-500 hover:text-white transition-colors">
           <i class="ph ph-robot text-xl mb-1"></i><span class="text-[10px] font-bold">כריש</span>
+       </button>
+       <button onclick="window.switchTab('compare')" class="flex flex-col items-center p-2 text-gray-500 hover:text-white transition-colors">
+          <i class="ph ph-scales text-xl mb-1"></i><span class="text-[10px] font-bold">השוואה</span>
        </button>
        <button onclick="window.switchTab('watchlist')" class="flex flex-col items-center p-2 text-gray-500 hover:text-white transition-colors">
           <i class="ph ph-push-pin text-xl mb-1"></i><span class="text-[10px] font-bold">מעקב</span>
@@ -445,7 +460,7 @@
                     <div id="market-spx-chart" class="chart-container bg-darker rounded-[8px] overflow-hidden border border-glassBorder relative isolate">
                         <div class="absolute top-2.5 right-2.5 flex flex-col gap-1.5 z-10 pointer-events-none">
                             <div class="flex items-center gap-1.5 text-[9px] font-bold text-gray-400">
-                                <div class="w-2.5 h-[3px] rounded-sm bg-primary"></div> SPX Live
+                                <div class="w-2.5 h-[3px] rounded-sm bg-primary"></div> SPY Live
                             </div>
                         </div>
                     </div>
@@ -510,72 +525,32 @@
                 </div>
             </div>
 
+            <!-- Sector heatmap -->
+            <div class="glass-panel rounded-[14px] p-4 mb-6 border border-glassBorder hover-lift">
+                <div class="text-[8px] font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                    <i class="ph ph-grid-four text-sm text-primary"></i> מפת חום סקטוריאלית
+                </div>
+                <div id="heatmap-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 min-h-[72px]">
+                    <div class="text-[11px] text-gray-500 col-span-full py-4 text-center">טוען סקטורים...</div>
+                </div>
+            </div>
+
             <!-- Heatmap / News -->
             <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
                 
-                <!-- Portfolio/Data Table -->
-                <div class="lg:col-span-3 glass-panel rounded-[14px] overflow-hidden border border-glassBorder flex flex-col">
-                    <div class="p-4 border-b border-glassBorder flex justify-between items-center bg-darker/30">
-                        <div class="flex items-center gap-2">
-                            <i class="ph ph-briefcase text-xl text-primary"></i>
-                            <h3 class="font-bold text-white text-[15px]">תיק השקעות - צפייה מקדימה</h3>
+                <!-- Portfolio CTA -->
+                <div class="lg:col-span-3 glass-panel rounded-[14px] overflow-hidden border border-glassBorder flex flex-col p-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div class="flex items-center gap-3">
+                            <i class="ph ph-briefcase text-2xl text-primary"></i>
+                            <div>
+                                <h3 class="font-bold text-white text-[15px]">תיק השקעות</h3>
+                                <p class="text-xs text-gray-400 mt-1">נהל תיק אמיתי או וירטואלי, עקוב אחר ביצועים ורווח/הפסד בזמן אמת.</p>
+                            </div>
                         </div>
-                        <div class="flex gap-[3px] bg-dark rounded-[8px] p-[3px]">
-                            <button class="px-4 py-1.5 rounded-[5px] bg-card text-white text-[12px] font-bold shadow-sm">אמיתי</button>
-                            <button class="px-4 py-1.5 rounded-[5px] bg-transparent text-gray-400 text-[12px] font-bold hover:text-white transition-colors">וירטואלי</button>
-                        </div>
-                    </div>
-                    
-                    <div class="overflow-x-auto" dir="ltr">
-                        <table class="w-full text-left text-[11.5px] text-gray-300">
-                            <thead class="bg-darker/50 text-gray-500 border-b border-glassBorder uppercase tracking-wider text-[9px] font-black">
-                                <tr>
-                                    <th scope="col" class="px-5 py-3">Asset</th>
-                                    <th scope="col" class="px-5 py-3 text-right">Price</th>
-                                    <th scope="col" class="px-5 py-3 text-right">Shares</th>
-                                    <th scope="col" class="px-5 py-3 text-right">Total Val</th>
-                                    <th scope="col" class="px-5 py-3 text-right">P/L</th>
-                                </tr>
-                            </thead>
-                            <tbody class="font-mono">
-                                <tr class="border-b border-glassBorder/30 hover:bg-white/[0.02] transition-colors cursor-pointer group">
-                                    <td class="px-5 py-3.5 flex items-center gap-3">
-                                        <div class="w-7 h-7 rounded-[6px] bg-gradient-to-tr from-gray-800 to-gray-700 flex items-center justify-center text-white font-bold text-[10px]">AA</div>
-                                        <div>
-                                            <div class="font-bold text-white text-[13px] text-glow-primary">AAPL</div>
-                                        </div>
-                                    </td>
-                                    <td class="px-5 py-3.5 font-medium text-white text-right">$175.04</td>
-                                    <td class="px-5 py-3.5 text-right">
-                                        <div class="font-medium text-white">150</div>
-                                        <div class="text-[9px] text-gray-500">Avg: $160.50</div>
-                                    </td>
-                                    <td class="px-5 py-3.5 font-medium text-white text-right">$26,256.00</td>
-                                    <td class="px-5 py-3.5 text-right">
-                                        <div class="text-success font-bold text-[12px]">+$2,181.00</div>
-                                        <div class="text-success text-[9px]">+9.06%</div>
-                                    </td>
-                                </tr>
-                                <tr class="border-b border-glassBorder/30 hover:bg-white/[0.02] transition-colors cursor-pointer group">
-                                    <td class="px-5 py-3.5 flex items-center gap-3">
-                                        <div class="w-7 h-7 rounded-[6px] bg-gradient-to-tr from-gray-800 to-gray-700 flex items-center justify-center text-white font-bold text-[10px]">MS</div>
-                                        <div>
-                                            <div class="font-bold text-white text-[13px]">MSFT</div>
-                                        </div>
-                                    </td>
-                                    <td class="px-5 py-3.5 font-medium text-white text-right">$410.50</td>
-                                    <td class="px-5 py-3.5 text-right">
-                                        <div class="font-medium text-white">50</div>
-                                        <div class="text-[9px] text-gray-500">Avg: $415.00</div>
-                                    </td>
-                                    <td class="px-5 py-3.5 font-medium text-white text-right">$20,525.00</td>
-                                    <td class="px-5 py-3.5 text-right">
-                                        <div class="text-danger font-bold text-[12px]">-$225.00</div>
-                                        <div class="text-danger text-[9px]">-1.08%</div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <button type="button" onclick="window.switchTab('portfolio')" class="bg-primary hover:bg-cyan-400 text-darker font-black text-xs px-5 py-2.5 rounded-lg transition-all shrink-0">
+                            פתח את התיק שלי
+                        </button>
                     </div>
                 </div>
 
@@ -2024,7 +1999,7 @@ function renderSharkHTML(portfolioArray, container) {
 
 let adminUsersUnsub = null;
 function setupAdminDashboard() {
-  if (State.currentUser?.role !== 'admin') return;
+  if (!isAdminUser(State.currentUser)) return;
   const listEl = document.getElementById('admin-users-list');
   if (!listEl) return;
   if (adminUsersUnsub) {
@@ -2362,48 +2337,54 @@ function renderApp() {
 
 window.loadMarketWeather = async function() {
   const debugEl = document.getElementById('debug-market'); if(debugEl) debugEl.style.display = 'none';
-  const trackerEl = document.getElementById('ticker-track');
+  const trackerEl = document.getElementById('ticker-tape');
   try {
       const data = await fetchApi('market', {}, { ttlMs: 45000 });
       if (data.success && data.marketData) renderMarketWeather(data.marketData);
       else { if(debugEl) { debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 שגיאת שרת לוגית:</strong>\n\n${data.message || JSON.stringify(data)}`; } }
   } catch (e) {
       if(debugEl) { debugEl.style.display = 'block'; debugEl.innerHTML = `<strong>🚨 כישלון רשת. האם השרת פועל?</strong><br><br>${e.message}`; }
-      if(trackerEl) trackerEl.innerHTML = "שגיאת רשת.";
+      if(trackerEl) trackerEl.innerHTML = '<div class="inline-flex px-6 text-[10px] text-danger font-bold">שגיאת רשת.</div>';
   }
 };
 
+function updateHeroStat(priceId, changeId, price, chgPct, opts = {}) {
+  const priceEl = document.getElementById(priceId);
+  const changeEl = document.getElementById(changeId);
+  if (!priceEl || !changeEl) return;
+  const chg = Number(chgPct);
+  const isUp = Number.isFinite(chg) ? chg >= 0 : true;
+  if (Number.isFinite(Number(price))) {
+      const p = Number(price);
+      priceEl.textContent = opts.priceAsPercent ? `${p.toFixed(2)}%` : (p >= 1000 ? p.toLocaleString(undefined, { maximumFractionDigits: 0 }) : p.toFixed(2));
+  }
+  if (Number.isFinite(chg)) {
+      const suffix = opts.changeAsPercent ? '%' : '';
+      changeEl.textContent = `${isUp ? '+' : ''}${chg.toFixed(2)}${suffix}`;
+      changeEl.className = `text-[10px] font-bold font-mono mt-1 text-left ${isUp ? 'text-success' : 'text-danger'}`;
+  }
+}
+
 const mapSectorToHebrew = (engName) => { const map = { "Technology": "טכנולוגיה", "Healthcare": "בריאות", "Financials": "פיננסים", "Consumer Cyclical": "מוצרי צריכה", "Communication Services": "תקשורת", "Industrials": "תעשייה", "Consumer Defensive": "מוצרי יסוד", "Energy": "אנרגיה", "Real Estate": "נדל\"ן", "Utilities": "תשתיות", "Basic Materials": "חומרי גלם", "כללי": "כללי" }; return map[engName] || engName; };
 let activeMarketTf = '1M';
-function buildMarketPreviewSeries(basePrice = 510, dayChangePct = 0, tf = '1M') {
-  const pointsByTf = { '1D': 30, '1M': 45, '3M': 65, '1Y': 90 };
-  const points = pointsByTf[tf] || 45;
-  const series = [];
-  const drift = dayChangePct / 100;
-  let value = basePrice * (1 - drift * 0.7);
-  for (let i = 0; i < points; i++) {
-      const noise = (Math.random() - 0.5) * 0.9;
-      const trend = drift * ((i + 1) / points) * 1.8;
-      value = Math.max(1, value + noise + trend);
-      series.push(Number(value.toFixed(2)));
-  }
-  return series;
-}
-function renderMarketPreviewChart(indexes = [], tf = activeMarketTf) {
+const MARKET_CHART_CFG = {
+  '1D': { range: '1d', interval: '15m' },
+  '1M': { range: '1mo', interval: '1d' },
+  '3M': { range: '3mo', interval: '1d' },
+  '1Y': { range: '1y', interval: '1wk' }
+};
+
+function renderMarketChartFromCloses(closes = []) {
   const container = document.getElementById('market-spx-chart');
-  if (!container) return;
-  const spx = indexes.find((x) => String(x.symbol).includes('S&P')) || indexes[0] || {};
-  const base = Number(spx.price || 510);
-  const chg = Number(spx.changesPercentage || 0);
-  const vals = buildMarketPreviewSeries(base, chg, tf);
+  if (!container || !closes.length) return;
+  const vals = closes.map((p) => Number(p.close)).filter(Number.isFinite);
+  if (!vals.length) return;
   const max = Math.max(...vals);
   const min = Math.min(...vals);
   const norm = (v) => ((v - min) / Math.max(1, max - min));
   const step = 100 / Math.max(1, vals.length - 1);
   const points = vals.map((v, i) => `${(i * step).toFixed(2)},${(82 - norm(v) * 52).toFixed(2)}`).join(' ');
-  const first = vals[0] || base;
-  const last = vals[vals.length - 1] || base;
-  const up = last >= first;
+  const up = vals[vals.length - 1] >= vals[0];
   container.innerHTML = `
     <svg class="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
       <defs>
@@ -2417,15 +2398,40 @@ function renderMarketPreviewChart(indexes = [], tf = activeMarketTf) {
     </svg>
   `;
 }
+
+async function loadMarketChartSeries(tf = activeMarketTf) {
+  const cfg = MARKET_CHART_CFG[tf] || MARKET_CHART_CFG['1M'];
+  try {
+      const res = await fetchApi('market_chart', { range: cfg.range, interval: cfg.interval }, { ttlMs: 60000 });
+      if (res.success && Array.isArray(res.points) && res.points.length) {
+          window._marketChartPoints = res.points;
+          renderMarketChartFromCloses(res.points);
+          return;
+      }
+  } catch (e) { /* fallback */ }
+  const indexes = window._lastMarketIndexes || [];
+  const spx = indexes.find((x) => String(x.symbol).includes('S&P')) || indexes[0] || {};
+  const base = Number(spx.price || 510);
+  const chg = Number(spx.changesPercentage || 0);
+  const drift = chg / 100;
+  let value = base * (1 - drift * 0.7);
+  const points = [];
+  for (let i = 0; i < 45; i++) {
+      value = Math.max(1, value + (Math.random() - 0.5) * 0.4 + drift * 0.02);
+      points.push({ close: Number(value.toFixed(2)) });
+  }
+  renderMarketChartFromCloses(points);
+}
+
 window.setMarketTimeframe = function(tf, btn) {
   activeMarketTf = tf;
-  document.querySelectorAll('#market-chart-timeframes .market-tf-btn').forEach((el) => {
-      el.className = "market-tf-btn px-[10px] py-1 border border-glassBorder bg-transparent rounded text-[10px] font-bold text-gray-400 font-mono hover:text-white hover:border-gray-600 transition-colors";
+  document.querySelectorAll('#market-chart-timeframes button').forEach((el) => {
+      el.className = "px-[10px] py-1 border border-glassBorder bg-transparent rounded text-[10px] font-bold text-gray-400 font-mono hover:text-white hover:border-gray-600 transition-colors";
   });
   if (btn) {
-      btn.className = "market-tf-btn px-[10px] py-1 border border-primary/30 bg-primaryDim rounded text-[10px] font-bold text-primary font-mono transition-colors";
+      btn.className = "px-[10px] py-1 border border-primary/30 bg-primaryDim rounded text-[10px] font-bold text-primary font-mono transition-colors";
   }
-  renderMarketPreviewChart(window._lastMarketIndexes || [], activeMarketTf);
+  loadMarketChartSeries(tf);
 };
 window.setMarketChartPeriod = function(days) {
   const map = { 1: '1D', 30: '1M', 90: '3M', 365: '1Y' };
@@ -2435,54 +2441,74 @@ window.setMarketChartPeriod = function(days) {
 };
 
 function renderMarketWeather(data) {
-  let { indexes, sectors, news, gainers, losers } = data;
+  let { indexes, sectors, news, gainers, losers, heroExtras } = data;
   if (!Array.isArray(indexes)) indexes = []; if (!Array.isArray(sectors)) sectors = []; if (!Array.isArray(news)) news = [];
-  
-  let tickerHtml = "", statsHtml = "";
+  gainers = (gainers || []).filter((x) => Number(x.changesPercentage) > 0);
+  losers = (losers || []).filter((x) => Number(x.changesPercentage) < 0);
 
-  if (indexes.length === 0) tickerHtml = "<div class='ticker-item' style='color:#ff5252'>המתן... לא הצלחנו למשוך נתונים.</div>";
-  else {
-      indexes.forEach(idx => {
-          const name = idx.symbol, isUp = typeof idx.changesPercentage === 'number' && idx.changesPercentage >= 0, price = (typeof idx.price === 'number') ? (idx.price >= 1000 ? idx.price.toLocaleString(undefined, {maximumFractionDigits: 0}) : idx.price.toFixed(2)) : 0; 
-          const chg = (typeof idx.changesPercentage === 'number') ? `${isUp ? '+' : ''}${idx.changesPercentage.toFixed(2)}%` : '0%'; 
-          const colorUp = isUp;
-          tickerHtml += `<div class="ticker-item"><span class="ticker-name">${name}</span> <span class="ticker-price">${price}</span> <span class="ticker-change ${colorUp?'up':'down'}">${chg}</span></div>`;
-          statsHtml += `<div class="stat-card"><div class="stat-label">${name}</div><div class="stat-value">${price}</div><div class="stat-change ${colorUp?'up':'down'}">${chg} היום</div></div>`;
+  let tickerHtml = "";
+  if (indexes.length === 0) {
+      tickerHtml = '<div class="inline-flex px-6 text-[10px] text-danger font-bold">המתן... לא הצלחנו למשוך נתונים.</div>';
+  } else {
+      indexes.forEach((idx) => {
+          const name = idx.symbol;
+          const isUp = typeof idx.changesPercentage === 'number' && idx.changesPercentage >= 0;
+          const price = (typeof idx.price === 'number') ? (idx.price >= 1000 ? idx.price.toLocaleString(undefined, {maximumFractionDigits: 0}) : idx.price.toFixed(2)) : '—';
+          const chg = (typeof idx.changesPercentage === 'number') ? `${isUp ? '+' : ''}${idx.changesPercentage.toFixed(2)}%` : '0%';
+          const colorCls = isUp ? 'text-success' : 'text-danger';
+          tickerHtml += `<div class="inline-flex items-center gap-2 px-6 border-l border-glassBorder text-[10px] font-bold font-mono" dir="ltr"><span class="text-gray-400">${name}</span> <span class="text-white">${price}</span> <span class="${colorCls} font-black">${chg}</span></div>`;
       });
   }
-  safeHTML('ticker-track', tickerHtml + tickerHtml);
-  safeHTML('market-stats', statsHtml);
+  safeHTML('ticker-tape', tickerHtml + tickerHtml);
+
+  const sp500 = indexes.find((x) => String(x.symbol).includes('S&P')) || indexes[0];
+  const nasdaq = indexes.find((x) => String(x.symbol).includes('NASDAQ')) || indexes[1];
+  if (sp500) updateHeroStat('hero-sp500-price', 'hero-sp500-change', sp500.price, sp500.changesPercentage, { changeAsPercent: true });
+  if (nasdaq) updateHeroStat('hero-nasdaq-price', 'hero-nasdaq-change', nasdaq.price, nasdaq.changesPercentage, { changeAsPercent: true });
+  if (heroExtras?.yield10y) updateHeroStat('hero-yield-price', 'hero-yield-change', heroExtras.yield10y.price, heroExtras.yield10y.changesPercentage, { priceAsPercent: true });
+  if (heroExtras?.vix) updateHeroStat('hero-vix-price', 'hero-vix-change', heroExtras.vix.price, heroExtras.vix.changesPercentage, { changeAsPercent: true });
+
+  const dateEl = document.getElementById('market-hero-date');
+  if (dateEl) dateEl.textContent = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+
   window._lastMarketIndexes = indexes;
-  renderMarketPreviewChart(indexes, activeMarketTf);
+  loadMarketChartSeries(activeMarketTf);
 
   if (sectors.length > 0) {
-      const html = sectors.slice(0, 12).map(s => { const chg = parseFloat(s.changesPercentage); const isUp = chg > 0; const isNeutral = chg === 0; const cls = isNeutral ? 'neutral' : (isUp ? 'up' : 'down'); return `<div class="heatmap-cell ${cls}" title="${s.sector}"><div class="cell-name">${mapSectorToHebrew(s.sector)}</div><div class="cell-change ${cls}">${!isNaN(chg) ? (isUp?'+':'') + chg.toFixed(2) + '%' : '0%'}</div></div>`; }).join('');
+      const html = sectors.slice(0, 12).map(s => {
+          const chg = parseFloat(s.changesPercentage);
+          const isUp = chg > 0;
+          const isNeutral = chg === 0;
+          const cls = isNeutral ? 'neutral' : (isUp ? 'up' : 'down');
+          return `<div class="heatmap-cell ${cls}" title="${s.sector}"><div class="cell-name">${mapSectorToHebrew(s.sector)}</div><div class="cell-change ${cls}">${!isNaN(chg) ? (isUp?'+':'') + chg.toFixed(2) + '%' : '0%'}</div></div>`;
+      }).join('');
       safeHTML('heatmap-grid', html);
   }
-  
-  const renderMovers = (items, containerId, isGainer) => {
+
+  const renderMovers = (items, containerId, requirePositive) => {
       const container = document.getElementById(containerId);
       if(!container) return;
-      if (!items || items.length === 0) {
-          container.innerHTML = '<p style="color:#9ca3af; font-size:0.85rem;">אין נתונים זמינים כרגע.</p>';
+      const filtered = (items || []).filter((item) => {
+          const chg = parseFloat(item.changesPercentage);
+          return requirePositive ? chg > 0 : chg < 0;
+      });
+      if (filtered.length === 0) {
+          container.innerHTML = '<p class="text-gray-500 text-xs font-bold py-2">אין נתונים זמינים כרגע.</p>';
           return;
       }
-      container.innerHTML = items.map(item => {
+      container.innerHTML = filtered.map((item, i) => {
           const chg = parseFloat(item.changesPercentage);
-          const chgStr = !isNaN(chg) ? `${chg > 0 ? '+' : ''}${chg.toFixed(2)}%` : 'N/A';
+          const isUp = chg > 0;
+          const chgStr = !isNaN(chg) ? `${isUp ? '+' : ''}${chg.toFixed(2)}%` : 'N/A';
           const p = parseFloat(item.price);
           const priceStr = !isNaN(p) ? `$${p.toFixed(2)}` : 'N/A';
-          const colorCls = isGainer ? 'up' : 'down';
+          const colorCls = isUp ? 'text-success' : 'text-danger';
           return `
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:10px; cursor:pointer; transition:var(--transition);" onclick="quickSearch('${item.symbol}')" onmouseover="this.style.borderColor='#00e5ff'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
-              <div style="display:flex; flex-direction:column; gap:2px; text-align:left; direction:ltr; flex:1; min-width:0;">
-                  <span style="font-weight:800; color:#f0f0fa; font-size:0.95rem;">${item.symbol}</span>
-                  <span style="font-size:0.7rem; color:#9ca3af; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:90%;">${item.name}</span>
-              </div>
-              <div style="display:flex; flex-direction:column; gap:2px; text-align:right; direction:ltr; min-width:70px;">
-                  <span style="font-weight:700; font-size:0.95rem;">${priceStr}</span>
-                  <span style="font-size:0.8rem; font-weight:700;" class="${colorCls}">${chgStr}</span>
-              </div>
+          <div class="flex items-center justify-between py-1 border-b border-glassBorder/50 cursor-pointer hover:bg-white/[0.02]" onclick="quickSearch('${item.symbol}')">
+              <div class="text-xs text-gray-400 w-4">${i + 1}</div>
+              <div class="text-sm font-black text-white font-mono flex-1 text-left pr-3 truncate" dir="ltr">${item.symbol}</div>
+              <div class="text-[11.5px] font-bold font-mono text-white" dir="ltr">${priceStr}</div>
+              <div class="text-[11.5px] font-bold font-mono ${colorCls} w-16 text-right" dir="ltr">${chgStr}</div>
           </div>`;
       }).join('');
   };
@@ -2490,9 +2516,9 @@ function renderMarketWeather(data) {
   renderMovers(losers, 'top-losers-list', false);
 
   if (news.length > 0) {
-      const html = news.map(n => { 
-          const date = new Date(n.publishedAt || n.date).toLocaleDateString('he-IL', {day:'numeric', month:'short'}); 
-          return `<div class="news-card" onclick="window.open('${n.url}', '_blank')"><div class="news-source">${n.source || n.site || 'חדשות שוק'} • ${date}</div><div class="news-headline" dir="ltr" style="text-align:left;">${n.headline || n.title}</div></div>`; 
+      const html = news.map(n => {
+          const date = new Date(n.publishedAt || n.date).toLocaleDateString('he-IL', {day:'numeric', month:'short'});
+          return `<div class="p-3 rounded-lg bg-glass border border-glassBorder hover:bg-white/[0.03] transition-colors cursor-pointer group" onclick="window.open('${n.url}', '_blank')"><div class="text-[8px] font-black text-primary tracking-widest uppercase mb-1">${n.source || 'חדשות שוק'}</div><h4 class="text-[11px] font-bold text-white leading-relaxed group-hover:text-primary transition-colors" dir="ltr">${n.headline || n.title}</h4><div class="text-[9px] text-gray-500 mt-2 font-mono">${date}</div></div>`;
       }).join('');
       safeHTML('market-news-grid', html);
   }

@@ -99,7 +99,40 @@ const SCREENER_UNIVERSES = {
     aggressive_small_caps: ['IONQ','RGTI','QUBT','SOUN','BBAI','SERV','RKLB','ACHR','OPEN','CLOV','HIMS','HOOD','UPST','U','DNA']
 };
 
+async function fetchYahooPredefinedScreener(scrId) {
+    const yahooScrId = scrId === 'day_losers' ? 'day_losers' : scrId === 'most_actives' ? 'most_actives' : 'day_gainers';
+    try {
+        const url = `https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?scrIds=${yahooScrId}&count=25`;
+        const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+        const data = await res.json();
+        const rows = data?.finance?.result?.[0]?.quotes || [];
+        const quotes = rows.map((row) => {
+            const price = Number(row.regularMarketPrice);
+            const chgPct = Number(row.regularMarketChangePercent ?? row.regularMarketChangePercentRaw);
+            if (!Number.isFinite(price) || !Number.isFinite(chgPct)) return null;
+            return {
+                symbol: row.symbol,
+                name: row.longName || row.shortName || row.symbol,
+                price,
+                changesPercentage: chgPct
+            };
+        }).filter(Boolean);
+        if (scrId === 'day_losers') {
+            return quotes.filter(q => q.changesPercentage < 0).sort((a, b) => a.changesPercentage - b.changesPercentage).slice(0, 12);
+        }
+        if (scrId === 'day_gainers') {
+            return quotes.filter(q => q.changesPercentage > 0).sort((a, b) => b.changesPercentage - a.changesPercentage).slice(0, 12);
+        }
+        return quotes.sort((a, b) => Math.abs(b.changesPercentage) - Math.abs(a.changesPercentage)).slice(0, 12);
+    } catch (e) {
+        return null;
+    }
+}
+
 async function fetchYahooScreener(scrId) {
+    const fromYahoo = await fetchYahooPredefinedScreener(scrId);
+    if (fromYahoo && fromYahoo.length > 0) return fromYahoo;
+
     const tickers = SCREENER_UNIVERSES[scrId] || SCREENER_UNIVERSES.day_gainers;
     try {
         const results = await Promise.allSettled(tickers.map(async (sym) => {
@@ -115,10 +148,12 @@ async function fetchYahooScreener(scrId) {
                 changesPercentage: ((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose) * 100
             };
         }));
-        const quotes = results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
+        let quotes = results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
         if (scrId === 'day_losers') {
+            quotes = quotes.filter(q => Number(q.changesPercentage) < 0);
             quotes.sort((a,b) => a.changesPercentage - b.changesPercentage);
         } else if (scrId === 'day_gainers') {
+            quotes = quotes.filter(q => Number(q.changesPercentage) > 0);
             quotes.sort((a,b) => b.changesPercentage - a.changesPercentage);
         } else {
             quotes.sort((a,b) => Math.abs(b.changesPercentage) - Math.abs(a.changesPercentage));
@@ -623,20 +658,40 @@ module.exports = async function(req, res) {
         // --- נתוני שוק ---
         if (action === 'market' || (!ticker && action !== 'analyze')) {
             const marketData = await getOrSetCache(buildCacheKey('market', 'homepage'), 45 * 1000, async () => {
-                const [spy, qqq, dia, iwm, xlk, xlv, xlf, xle, xly, xli, newsData, topGainers, topLosers] = await Promise.all([
+                const [spy, qqq, dia, iwm, vix, tnx, xlk, xlv, xlf, xle, xly, xli, newsData, topGainers, topLosers] = await Promise.all([
                     fetchFinnhub('quote', 'symbol=SPY'), fetchFinnhub('quote', 'symbol=QQQ'), fetchFinnhub('quote', 'symbol=DIA'), fetchFinnhub('quote', 'symbol=IWM'),
+                    fetchYahooQuote('^VIX'), fetchYahooQuote('^TNX'),
                     fetchFinnhub('quote', 'symbol=XLK'), fetchFinnhub('quote', 'symbol=XLV'), fetchFinnhub('quote', 'symbol=XLF'), fetchFinnhub('quote', 'symbol=XLE'),
                     fetchFinnhub('quote', 'symbol=XLY'), fetchFinnhub('quote', 'symbol=XLI'), fetchFinnhub('news', 'category=business'),
                     fetchYahooScreener('day_gainers'), fetchYahooScreener('day_losers')
                 ]);
                 return {
-                    indexes: [{ symbol: 'S&P 500', price: spy?.c, changesPercentage: spy?.dp }, { symbol: 'NASDAQ', price: qqq?.c, changesPercentage: qqq?.dp }, { symbol: 'DOW 30', price: dia?.c, changesPercentage: dia?.dp }, { symbol: 'RUSSELL 2000', price: iwm?.c, changesPercentage: iwm?.dp }],
+                    indexes: [
+                        { symbol: 'S&P 500', price: spy?.c, changesPercentage: spy?.dp },
+                        { symbol: 'NASDAQ', price: qqq?.c, changesPercentage: qqq?.dp },
+                        { symbol: 'DOW 30', price: dia?.c, changesPercentage: dia?.dp },
+                        { symbol: 'RUSSELL 2000', price: iwm?.c, changesPercentage: iwm?.dp }
+                    ],
+                    heroExtras: {
+                        vix: { price: vix?.c, changesPercentage: vix?.dp },
+                        yield10y: { price: tnx?.c, changesPercentage: tnx?.dp }
+                    },
                     sectors: [{ sector: "Technology", changesPercentage: String(xlk?.dp) }, { sector: "Healthcare", changesPercentage: String(xlv?.dp) }, { sector: "Financials", changesPercentage: String(xlf?.dp) }, { sector: "Industrials", changesPercentage: String(xli?.dp) }, { sector: "Consumer Cyclical", changesPercentage: String(xly?.dp) }, { sector: "Energy", changesPercentage: String(xle?.dp) }],
                     gainers: topGainers, losers: topLosers,
                     news: (Array.isArray(newsData) ? newsData : []).slice(0, 5).map(item => ({ title: item.headline, url: item.url, source: item.source, date: new Date(item.datetime * 1000).toISOString() }))
                 };
             });
             return res.status(200).json({ success: true, marketData });
+        }
+
+        if (action === 'market_chart') {
+            const range = String(req.query.range || '1mo');
+            const interval = String(req.query.interval || '1d');
+            const points = await getOrSetCache(buildCacheKey('market_chart', `${range}:${interval}`), 60 * 1000, async () => {
+                const rows = await fetchYahooData('SPY', range, interval, 50, 50);
+                return rows.map((p) => ({ date: p.date, close: p.close }));
+            });
+            return res.status(200).json({ success: true, points });
         }
 
         if (action === 'screener') {
