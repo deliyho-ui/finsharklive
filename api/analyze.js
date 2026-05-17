@@ -391,10 +391,57 @@ function normalizeTradePlan(plan, currPrice, riskLevels) {
     return next;
 }
 
-function normalizeLongTermPlan(plan, priceTargetData) {
+function extractAnalystTargetMedian(priceTargetData) {
+    if (!priceTargetData || typeof priceTargetData !== 'object') return null;
+    const raw = priceTargetData.targetMedian ?? priceTargetData.median ?? priceTargetData.target?.median;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function clamp12MonthTarget(price, currPrice) {
+    if (!Number.isFinite(price) || !Number.isFinite(currPrice) || currPrice <= 0) return null;
+    const minT = currPrice * 0.72;
+    const maxT = currPrice * 1.42;
+    return Number(clampNumber(price, minT, maxT).toFixed(2));
+}
+
+function mergeModelPriceTargets(gLong = {}, cLong = {}, currPrice, priceTargetData) {
+    const analyst = extractAnalystTargetMedian(priceTargetData);
+    if (analyst) return formatDollar(clamp12MonthTarget(analyst, currPrice));
+
+    const candidates = [gLong.price_target, cLong.price_target, gLong.intrinsic_value, cLong.intrinsic_value]
+        .map(parsePrice)
+        .filter((p) => p && p >= currPrice * 0.5 && p <= currPrice * 2.2);
+    if (candidates.length === 0) return null;
+
+    const avg = candidates.reduce((sum, p) => sum + p, 0) / candidates.length;
+    return formatDollar(clamp12MonthTarget(avg, currPrice));
+}
+
+function normalizeLongTermPlan(plan, priceTargetData, currPrice, quantScorecard = null) {
     const next = { ...(plan || {}) };
-    if (Number.isFinite(Number(priceTargetData?.targetMedian))) {
-        next.price_target = formatDollar(Number(priceTargetData.targetMedian));
+    const analyst = extractAnalystTargetMedian(priceTargetData);
+    let target = analyst ? clamp12MonthTarget(analyst, currPrice) : parsePrice(next.price_target);
+
+    if (!target) {
+        const score = Number(quantScorecard?.scores?.overall || 50);
+        const tilt = score >= 65 ? 1.12 : score <= 40 ? 0.9 : 1.04;
+        target = clamp12MonthTarget(currPrice * tilt, currPrice);
+    } else {
+        target = clamp12MonthTarget(target, currPrice);
+    }
+    next.price_target = formatDollar(target);
+
+    let intrinsic = parsePrice(next.intrinsic_value);
+    if (!intrinsic || intrinsic < currPrice * 0.55 || intrinsic > currPrice * 2.1) {
+        intrinsic = target ? target * 0.97 : currPrice;
+    }
+    next.intrinsic_value = formatDollar(clamp12MonthTarget(intrinsic, currPrice));
+
+    if (!next.accumulation_zone || next.accumulation_zone === 'N/A') {
+        const low = formatDollar(currPrice * 0.92);
+        const high = formatDollar(currPrice * 0.98);
+        next.accumulation_zone = `${low} - ${high}`;
     }
     return next;
 }
@@ -562,13 +609,26 @@ async function fetchGeminiText(geminiKey, promptText, temperature, modelCandidat
     return { text: null, model: null, error: lastError };
 }
 
+const DEPRECATED_CLAUDE_MODELS = new Set([
+    'claude-3-5-haiku-20241022',
+    'claude-3-haiku-20240307'
+]);
+
+function isClaudeModelUnavailable(error, status) {
+    const msg = String(error?.message || error?.type || '').toLowerCase();
+    return status === 404 || status === 403
+        || msg.includes('not_found')
+        || msg.includes('does not exist')
+        || msg.includes('permission')
+        || msg.includes('model');
+}
+
 async function fetchClaudeJson(anthropicKey, promptText) {
-    const modelCandidates = [
+    const modelCandidates = [...new Set([
         process.env.ANTHROPIC_MODEL,
         'claude-haiku-4-5-20251001',
-        'claude-3-5-haiku-latest',
-        'claude-3-5-haiku-20241022'
-    ].filter(Boolean);
+        'claude-3-5-haiku-latest'
+    ].filter(Boolean))].filter((m) => !DEPRECATED_CLAUDE_MODELS.has(m));
 
     const invoke = async (userPrompt, model) => {
         const controller = new AbortController();
@@ -594,21 +654,29 @@ async function fetchClaudeJson(anthropicKey, promptText) {
     };
 
     let lastError = null;
+    const skippedModels = [];
     for (const model of modelCandidates) {
         const first = await invoke(promptText, model);
         const parsedFirst = cleanJSON(first?.payload?.content?.[0]?.text || '');
         if (parsedFirst) return { parsed: parsedFirst, model };
 
-        const retryPrompt = `${promptText}\n\nIMPORTANT: Output one valid JSON object only.`;
+        const retryPrompt = `${promptText}\n\nIMPORTANT: Output one valid minified JSON object only.`;
         const second = await invoke(retryPrompt, model);
         const parsedSecond = cleanJSON(second?.payload?.content?.[0]?.text || '');
         if (parsedSecond) return { parsed: parsedSecond, model };
 
-        lastError = second?.payload?.error || first?.payload?.error || {
-            message: `Claude model ${model} failed (HTTP ${second?.status || first?.status || 'unknown'})`
-        };
+        const err = second?.payload?.error || first?.payload?.error;
+        const status = second?.status || first?.status;
+        if (isClaudeModelUnavailable(err, status)) {
+            skippedModels.push(model);
+            continue;
+        }
+        lastError = err || { message: `Claude model ${model} failed (HTTP ${status || 'unknown'})` };
     }
-    return { parsed: null, error: lastError };
+    if (!lastError && skippedModels.length) {
+        lastError = { message: `מודלי Claude לא זמינים (${skippedModels.join(', ')}). הניתוח ימשיך עם Gemini בלבד.` };
+    }
+    return { parsed: null, error: lastError, skippedModels };
 }
 
 module.exports = async function(req, res) {
@@ -868,7 +936,8 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
             const rec = recommendationData[0];
             analystConsensus = `${rec.buy + rec.strongBuy} המלצות קנייה, ${rec.hold} החזקה, ${rec.sell + rec.strongSell} מכירה.`;
         }
-        if (priceTargetData?.targetMedian) analystConsensus += ` יעד חציוני: $${priceTargetData.targetMedian.toFixed(2)}.`;
+        const analystTargetMedian = extractAnalystTargetMedian(priceTargetData);
+        if (analystTargetMedian) analystConsensus += ` יעד חציוני אנליסטים ל-12 חודשים: $${analystTargetMedian.toFixed(2)} (חובה לעגן price_target בטווח ±35% מ-$${currPrice}).`;
 
         const marketContext = `אג"ח 10 שנים: ${tnxQuote?.c||'N/A'}%. VIX: ${vixQuote?.c||'N/A'}. עוצמה יחסית מול השוק בחודש האחרון: ${relativeStrength > 0 ? '+' : ''}${relativeStrength}%.`;
         const recentNews = (Array.isArray(tickerNews) ? tickerNews : []).slice(0, 3).map(n => n.headline).join(" | ");
@@ -879,7 +948,7 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
 המניה: ${ticker} ($${currPrice}). מאקרו: ${marketContext}. קונצנזוס: ${analystConsensus}. חדשות: ${recentNews || 'אין'}. 
 טכני(סווינג): יומי $${currPrice}, MA50=$${lastPointDaily.ma50}, MA200=$${lastPointDaily.ma200}. מומנטום: RSI=${rsiVal.toFixed(1)}, תבנית: ${patternObj.text}. פונדמנטלס: P/E=${fundamentals.peRatio || 'N/A'}, צמיחה=${fundamentals.revenueGrowth || 'N/A'}%. ${earningsStreak}.
 ציון כמותי מחושב מנתוני שוק, לא לשנות: ${fixedScores}. רמות סווינג מחושבות: יעד ${formatDollar(quantScorecard.risk_levels.target)}, סטופ ${formatDollar(quantScorecard.risk_levels.stop)}.
-הנחיות: 1. להסביר את הציון לפי הנתונים בלבד, 2. technical לגרף בלבד, 3. בלי המלצה אישית או הבטחת תשואה, 4. ללא מרכאות כפולות בתוך טקסטים, 5. לסימולטור Paper Trading וללמידה בלבד. החזר JSON תקין ומכווץ במבנה הבא:
+הנחיות: 1. להסביר את הציון לפי הנתונים בלבד, 2. technical לגרף בלבד, 3. בלי המלצה אישית או הבטחת תשואה, 4. ללא מרכאות כפולות בתוך טקסטים, 5. לסימולטור Paper Trading וללמידה בלבד, 6. long_term.price_target חייב להיות יעד 12 חודשים ריאלי בדולרים (לא אחוזים), בטווח בערך $${(currPrice * 0.8).toFixed(0)} עד $${(currPrice * 1.35).toFixed(0)} — לא להשתמש בשווי הוגן כיעד אם הוא נמוך בהרבה מהמחיר. החזר JSON תקין ומכווץ במבנה הבא:
 {"ai_scratchpad":"מחשבות לוגיות קצרות...","confidence_score":85,"internal_logic":"משפט קצר על הדירוג","identity":"תיאור חברה קצר","technical":"ניתוח טכני טהור","long_term":{"summary":"מסקנה","intrinsic_value":"שווי הוגן","accumulation_zone":"טווח","price_target":"יעד 12M"},"short_term":{"summary":"תוכנית סווינג","entry_price":"${formatDollar(currPrice)}","target_price":"${formatDollar(quantScorecard.risk_levels.target)}","stop_loss":"${formatDollar(quantScorecard.risk_levels.stop)}"},"pros":["זכות1"],"cons":["סיכון1"],"news_sentiment_score":8,"scores":${fixedScores},"rating":"${ratingFromScore(quantScorecard.scores.overall)}"}`;
 
         const shouldRunClaude = shouldRunAI && aiMode === 'full' && Boolean(anthropicKey);
@@ -942,7 +1011,9 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
             claudeData = claudeRes.parsed;
             claudeModelUsed = claudeRes.model || null;
         } else if (claudeRes && claudeRes.error) {
-            claudeDebugMsg = `שגיאת הרשאות: ${claudeRes.error.message || JSON.stringify(claudeRes.error)}`;
+            claudeDebugMsg = claudeRes.skippedModels?.length
+                ? (claudeRes.error.message || 'מודל Claude לא זמין — הניתוח מבוסס על Gemini ונתוני שוק.')
+                : `Claude: ${claudeRes.error.message || JSON.stringify(claudeRes.error)}`;
         } else if (!claudeRes) {
             claudeDebugMsg = "אין תשובה מהשרת של קלוד.";
         } else {
@@ -980,7 +1051,7 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
                     summary: gLong.summary || cLong.summary || "אין מספיק נתונים.",
                     intrinsic_value: gLong.intrinsic_value || cLong.intrinsic_value || "N/A",
                     accumulation_zone: gLong.accumulation_zone || cLong.accumulation_zone || "N/A",
-                    price_target: Math.min(Number(String(gLong.price_target).replace(/[^0-9.]/g, '')||0), Number(String(cLong.price_target).replace(/[^0-9.]/g, '')||0)) || gLong.price_target || cLong.price_target
+                    price_target: mergeModelPriceTargets(gLong, cLong, currPrice, priceTargetData) || gLong.price_target || cLong.price_target
                 },
                 short_term: {
                     summary: cShort.summary || gShort.summary || "אין מספיק נתונים.",
@@ -1022,7 +1093,7 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
                 internal_logic: "Fallback quantitative scorecard",
                 identity: `${profile?.name || ticker}: ניתוח מבוסס נתוני מחיר, מומנטום ופונדמנטלס זמינים.`,
                 technical: `${patternObj.text}. RSI ${rsiVal.toFixed(1)}, מחיר ${currPrice >= (lastPointDaily.ma50 || Infinity) ? "מעל" : "מתחת"} MA50 ו-${currPrice >= (lastPointDaily.ma200 || Infinity) ? "מעל" : "מתחת"} MA200.`,
-                long_term: { summary: "הערכת הטווח הארוך מבוססת על תמחור, צמיחה, רווחיות ובריאות מאזנית.", intrinsic_value: "לא חושב DCF מלא", accumulation_zone: "קרוב לתמיכה טכנית", price_target: priceTargetData?.targetMedian ? formatDollar(priceTargetData.targetMedian) : "N/A" },
+                long_term: { summary: "הערכת הטווח הארוך מבוססת על תמחור, צמיחה, רווחיות ובריאות מאזנית.", intrinsic_value: "לא חושב DCF מלא", accumulation_zone: "קרוב לתמיכה טכנית", price_target: extractAnalystTargetMedian(priceTargetData) ? formatDollar(clamp12MonthTarget(extractAnalystTargetMedian(priceTargetData), currPrice)) : "N/A" },
                 short_term: { summary: "תוכנית הסווינג מבוססת על ATR, ממוצעים נעים ורמות תמיכה/התנגדות.", entry_price: formatDollar(currPrice), target_price: formatDollar(quantScorecard.risk_levels.target), stop_loss: formatDollar(quantScorecard.risk_levels.stop) },
                 pros: quantScorecard.drivers.filter(d => d.score >= 60).map(d => `${d.label}: ${d.value}`).slice(0, 3),
                 cons: quantScorecard.drivers.filter(d => d.score < 55).map(d => `${d.label}: ${d.value}`).slice(0, 3),
@@ -1034,7 +1105,7 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
         finalVerdict.confidence_score = Math.round(finalConfidence);
         finalVerdict.rating = modelPenalty >= 18 ? "מעורב / סיכון גבוה" : ratingFromScore(finalDataScore);
         finalVerdict.short_term = normalizeTradePlan(finalVerdict.short_term, currPrice, quantScorecard.risk_levels);
-        finalVerdict.long_term = normalizeLongTermPlan(finalVerdict.long_term, priceTargetData);
+        finalVerdict.long_term = normalizeLongTermPlan(finalVerdict.long_term, priceTargetData, currPrice, quantScorecard);
         finalVerdict.internal_logic = `${finalVerdict.internal_logic || ""} | ציון נתונים: ${Math.round(finalDataScore)}/100 | הסכמת מודלים: ${modelAgreement}${claudeModelUsed ? ` | Claude: ${claudeModelUsed}` : ""}`.trim();
         finalVerdict.scorecard = {
             data_quality: quantScorecard.data_quality,
@@ -1058,7 +1129,7 @@ ${t2}: מחיר $${snap2.price} | שינוי יומי ${snap2.change}% | RSI ${s
 
         return res.status(200).json({
             success: true, isDataComplete: true, ticker, name: profile?.name || ticker, industry: profile?.finnhubIndustry || "N/A", sector: profile?.finnhubIndustry || "N/A",
-            price: currPrice, changePercentage: Number(quote.dp),
+            price: currPrice, changePercentage: Number(quote.dp), analystTarget12M: extractAnalystTargetMedian(priceTargetData),
             ma50: lastPointDaily.ma50, ma200: lastPointDaily.ma200, volume: Number(quote.v || lastPointDaily.volume || 0),
             pattern: patternObj.text, patternLines: patternObj.lines, rsi: rsiVal, keyLevels, ...fundamentals,
             latestEarnings: (Array.isArray(earningsData) && earningsData.length > 0) ? earningsData[0] : null,

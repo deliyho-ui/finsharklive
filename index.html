@@ -3135,10 +3135,23 @@ safeHTML('chart-buttons-container', chartBtns);
   }
 
   let upside = null;
-  const target12M = lTerm.price_target;
+  let upsideNote = '';
+  const parseTargetPrice = (val) => {
+      const n = Number(String(val || '').replace(/[^0-9.]/g, ''));
+      return Number.isFinite(n) && n > 0 ? n : null;
+  };
+  const analystTarget = parseTargetPrice(data.analystTarget12M);
+  const aiTarget = parseTargetPrice(lTerm.price_target);
+  const target12M = analystTarget || aiTarget;
   if (target12M && p > 0 && !isError) {
-      const tPriceNum = Number(String(target12M).replace(/[^0-9.]/g, ''));
-      if (!isNaN(tPriceNum) && tPriceNum > 0) upside = (((tPriceNum / p) - 1) * 100);
+      upside = (((target12M / p) - 1) * 100);
+      if (analystTarget) upsideNote = 'מבוסס על יעד חציוני של אנליסטים (Finnhub)';
+      if (upside < -50 || upside > 80) {
+          const clampTarget = (val) => Math.min(p * 1.42, Math.max(p * 0.72, val));
+          const fallback = aiTarget ? clampTarget(aiTarget) : clampTarget(p * 1.04);
+          upside = (((fallback / p) - 1) * 100);
+          upsideNote = 'תחזית AI תוקנה לטווח ריאלי (±42% מהמחיר הנוכחי)';
+      }
   }
 
 safeHTML('ai-short-term', `
@@ -3213,6 +3226,7 @@ const profileHtml = `
          <div class="text-xl font-black ${upside >= 0 ? 'text-success' : 'text-danger'}" dir="ltr">
             ${upside >= 0 ? '▲ אפסייד:' : '▼ דאונסייד:'} ${upside >= 0 ? '+' : ''}${upside.toFixed(1)}%
          </div>
+         ${upsideNote ? `<div class="text-[10px] text-gray-500 mt-2">${upsideNote}</div>` : ''}
     </div>` : ''}
 `;
 
