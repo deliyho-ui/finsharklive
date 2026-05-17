@@ -269,7 +269,7 @@
             <a id="nav-shark" href="#" onclick="window.switchTab('shark', this); return false;" class="nav-tab flex items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px]">
                 <i class="ph ph-robot text-[17px] ml-3 opacity-50 group-hover:opacity-80"></i>
                 ניתוח AI
-                <i class="ph ph-lock-key text-[9px] mr-auto opacity-30"></i>
+                <i id="lock-shark" class="ph ph-lock-key text-[9px] mr-auto opacity-30"></i>
             </a>
 
             <div class="text-[9px] font-black text-gray-500 uppercase tracking-widest px-3 mb-1 mt-5">תיקים</div>
@@ -277,7 +277,7 @@
             <a id="nav-portfolio" href="#" onclick="window.switchTab('portfolio', this); return false;" class="nav-tab flex items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px]">
                 <i class="ph ph-briefcase text-[17px] ml-3 opacity-50 group-hover:opacity-80"></i>
                 תיק השקעות
-                <i class="ph ph-lock-key text-[9px] mr-auto opacity-30"></i>
+                <i id="lock-port" class="ph ph-lock-key text-[9px] mr-auto opacity-30"></i>
             </a>
             
             <div class="text-[9px] font-black text-gray-500 uppercase tracking-widest px-3 mb-1 mt-5">למידה וקהילה</div>
@@ -285,13 +285,13 @@
             <a id="nav-academy" href="#" onclick="window.switchTab('academy', this); return false;" class="nav-tab flex items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px]">
                 <i class="ph ph-graduation-cap text-[17px] ml-3 opacity-50 group-hover:opacity-80"></i>
                 אקדמיה
-                <i class="ph ph-lock-key text-[9px] mr-auto opacity-30"></i>
+                <i id="lock-academy" class="ph ph-lock-key text-[9px] mr-auto opacity-30"></i>
             </a>
 
             <a id="nav-community" href="#" onclick="window.switchTab('community', this); return false;" class="nav-tab flex items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px]">
                 <i class="ph ph-users text-[17px] ml-3 opacity-50 group-hover:opacity-80"></i>
                 קהילה
-                <i class="ph ph-lock-key text-[9px] mr-auto opacity-30"></i>
+                <i id="lock-comm" class="ph ph-lock-key text-[9px] mr-auto opacity-30"></i>
             </a>
             <a id="nav-admin" href="#" onclick="window.switchTab('admin', this); return false;" class="nav-tab hidden items-center px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-glass transition-colors font-medium text-[13px]">
                 <i class="ph ph-shield-check text-[17px] ml-3 opacity-50 group-hover:opacity-80"></i>
@@ -1189,17 +1189,42 @@ function getAnalyzeModeLabel(mode) {
 }
 
 const ADMIN_EMAILS = ['admin@finshark.com'];
+const ADMIN_USERNAMES = ['admin'];
 
 function isAdminUser(user) {
     if (!user) return false;
     const email = String(user.email || auth.currentUser?.email || '').toLowerCase().trim();
+    const username = String(user.username || user.displayName || email.split('@')[0] || '').toLowerCase().trim();
     const role = String(user.role || '').toLowerCase();
-    return role === 'admin' || user.isAdmin === true || ADMIN_EMAILS.includes(email);
+    return role === 'admin' || user.isAdmin === true || ADMIN_EMAILS.includes(email) || ADMIN_USERNAMES.includes(username);
+}
+
+function hasPremiumAccess(user) {
+    if (!user) return false;
+    return isAdminUser(user) || user.status === 'approved';
+}
+
+function updateNavAccessLocks(isAdmin, isApproved, isLoggedIn) {
+    const unlockPremium = isAdmin || isApproved;
+    const unlockAcademy = isLoggedIn && (isAdmin || isApproved);
+    const lockMap = {
+        'lock-shark': unlockPremium,
+        'lock-port': unlockPremium,
+        'lock-comm': unlockPremium,
+        'lock-academy': unlockAcademy
+    };
+    Object.entries(lockMap).forEach(([id, unlocked]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (unlocked) el.classList.add('hidden');
+        else el.classList.remove('hidden');
+    });
 }
 
 async function ensureAdminProfile(uid, authEmail, userData = {}) {
     const email = String(authEmail || userData.email || '').toLowerCase().trim();
-    const shouldBeAdmin = ADMIN_EMAILS.includes(email) || userData.isAdmin === true || String(userData.role || '').toLowerCase() === 'admin';
+    const username = String(userData.username || userData.displayName || email.split('@')[0] || '').toLowerCase().trim();
+    const shouldBeAdmin = ADMIN_EMAILS.includes(email) || ADMIN_USERNAMES.includes(username) || userData.isAdmin === true || String(userData.role || '').toLowerCase() === 'admin';
     if (!shouldBeAdmin) {
         return { ...userData, email: email || userData.email };
     }
@@ -2263,9 +2288,21 @@ window.switchTab = function(tab, el) {
       return;
   }
   
-  if ((tab === 'shark' || tab === 'watchlist' || tab === 'community' || tab === 'portfolio') && !isAdmin) {
+  if ((tab === 'shark' || tab === 'watchlist' || tab === 'community' || tab === 'portfolio') && !hasPremiumAccess(State.currentUser)) {
       if (!isLoggedIn) { window.openLogin(); return; }
-      if (!isApproved) { State.currentTab = 'pending'; renderApp(); return; }
+      State.currentTab = 'pending';
+      renderApp();
+      return;
+  }
+
+  if (tab === 'academy' && !isLoggedIn) {
+      window.openLogin();
+      return;
+  }
+  if (tab === 'academy' && !hasPremiumAccess(State.currentUser)) {
+      State.currentTab = 'pending';
+      renderApp();
+      return;
   }
   
   State.currentTab = tab;
@@ -2291,8 +2328,11 @@ function renderApp() {
   const isApproved = isLoggedIn && State.currentUser.status === 'approved';
   const isAdmin = isAdminUser(State.currentUser);
 
-  if ((State.currentTab === 'shark' || State.currentTab === 'watchlist' || State.currentTab === 'community' || State.currentTab === 'portfolio') && !isAdmin && !isApproved) {
+  if ((State.currentTab === 'shark' || State.currentTab === 'watchlist' || State.currentTab === 'community' || State.currentTab === 'portfolio') && !hasPremiumAccess(State.currentUser)) {
       State.currentTab = isLoggedIn ? 'pending' : 'market';
+  }
+  if (State.currentTab === 'academy' && isLoggedIn && !hasPremiumAccess(State.currentUser)) {
+      State.currentTab = isAdmin ? 'admin' : 'pending';
   }
   if (State.currentTab === 'pending' && isApproved && !isAdmin) {
       State.currentTab = 'shark';
@@ -2304,11 +2344,7 @@ function renderApp() {
   const btnLogin = document.getElementById('btn-login'); if(btnLogin) btnLogin.style.display = isLoggedIn ? 'none' : '';
   const btnLogout = document.getElementById('btn-logout'); if(btnLogout) btnLogout.style.display = isLoggedIn ? '' : 'none';
   
-  // Lock icons
-  ['lock-shark', 'lock-watch', 'lock-comm', 'lock-port'].forEach(id => {
-      const lock = document.getElementById(id);
-      if (lock) lock.style.display = (isApproved || isAdmin) ? 'none' : 'inline';
-  });
+  updateNavAccessLocks(isAdmin, isApproved, isLoggedIn);
 
   const promoBox = document.getElementById('promo-box'); if(promoBox) promoBox.style.display = isLoggedIn ? 'none' : 'block';
   
@@ -2332,7 +2368,7 @@ function renderApp() {
   if (isLoggedIn) {
     if (loginBtn) loginBtn.classList.add('hidden');
     if (userWidget) { userWidget.classList.remove('hidden'); userWidget.classList.add('flex'); }
-    const uname = State.currentUser.email.split('@')[0];
+    const uname = String(State.currentUser.username || State.currentUser.displayName || State.currentUser.email?.split('@')[0] || 'משתמש');
     if (sidebarAvatar) sidebarAvatar.textContent = uname[0].toUpperCase();
     if (sidebarUserName) sidebarUserName.textContent = uname;
     if (sidebarUserRole) sidebarUserRole.textContent = isAdmin ? 'מנהל 👑' : isApproved ? 'משתמש מאושר ✓' : 'ממתין לאישור ⏳';
